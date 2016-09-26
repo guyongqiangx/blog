@@ -66,7 +66,8 @@ include/config/%.conf: $(KCONFIG_CONFIG) include/config/auto.conf.cmd
 scripts/kconfig/conf  --defconfig=arch/../configs/rpi_3_32b_defconfig Kconfig
 ```
 去生成根目录下的`.config`文件。
-
+以下是生成前后的对比：
+![make rpi_3_32b_defconfig 文件变化对比](https://github.com/guyongqiangx/blog/blob/dev/u-boot/make-tool-images-conf/make-rpi_3_32b_defconfig.png?raw=true)
 
 ###2.2 `make`编译过程调用
 `u-boot`完成后，执行`make`命令开始编译时，会检查`.config`是否比`include/config/auto.conf`更新，规则如下：
@@ -123,6 +124,9 @@ scripts/kconfig/conf  --silentoldconfig Kconfig
 
 + 在`include/config`下生成`auto.conf`和`auto.conf.cmd`，以及`tristate.conf`；
 + 在`include/generated`下生成`autoconf.h`文件；
+
+先执行`make rpi_3_32b_defconfig`，在执行`make silentoldconfig`的对比结果如下：
+![make silentoldconfig后的文件变化](https://github.com/guyongqiangx/blog/blob/dev/u-boot/make-tool-images-conf/make-silentoldconfig.png?raw=true)
 
 ###2.3 调用简述
 简而言之：
