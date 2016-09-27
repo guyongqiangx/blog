@@ -29,9 +29,46 @@ u-boot的编译跟kernel编译一样，分两步执行：
 ###1. 命令直接生成的依赖
 ####1.1 `scripts/kconfig/conf`生成的依赖
 + `.config`
+
+`.config`在执行`make rpi_3_32b_defconfig`配置时生成，`scripts/kconfig/Makefile`中有规则：
+```
+%_defconfig: $(obj)/conf
+    $(Q)$< $(silent) --defconfig=arch/$(SRCARCH)/configs/$@ $(Kconfig)
+```
+这里展开后为：
+```
+rpi_3_32b_defconfig: scripts/kconfig/conf
+    scripts/kconfig/conf  --defconfig=arch/../configs/rpi_3_32b_defconfig Kconfig
+```
+`scripts/kconfig/conf`会从根目录开始读取`Kconfig`，输出到根目录下的`.config`中。
+
 + `include/generated/autoconf.h`
 + `include/config/auto.conf.cmd`
 + `include/config/tristate.conf`
 + `include/config/auto.conf`
+
+以上4个文件在执行`make`编译命令的开始会检查`%.conf`的依赖规则：
+```makefile
+include/config/%.conf: $(KCONFIG_CONFIG) include/config/auto.conf.cmd
+    $(Q)$(MAKE) -f $(srctree)/Makefile silentoldconfig
+    $(Q)$(MAKE) -f $(srctree)/scripts/Makefile.autoconf || \
+        { rm -f include/config/auto.conf; false; }
+    $(Q)touch include/config/auto.conf
+```
+调用`make -f ./Makefile silentoldconfig`的最终结果是执行`scripts/kconfig/Makefile`中的规则：
+```makefile
+silentoldconfig: $(obj)/conf
+    $(Q)mkdir -p include/config include/generated
+    $< $(silent) --$@ $(Kconfig)
+```
+这个规则展开为：
+```
+silentoldconfig: scripts/kconfig/conf
+    mkdir -p include/config include/generated
+    scripts/kconfig/conf --silentoldconfig Kconfig
+```
+`scripts/kconfig/conf`会从根目录开始读取`Kconfig`，同时检查并更新配置阶段生成的`.config`文件，再把最终结果输出到以上的4个文件中。
+
+>所生成的4个文件中，`include/config/auto.conf`依赖于`include/config/auto.conf.cmd`，但是这里的依赖文件`include/config/auto.conf.cmd`文件并非由`fixdep`生成，而是直接由`conf`工具生成，算是`*.cmd`文件生成的特例。
 
 ####1.2 
