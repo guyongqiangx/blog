@@ -243,7 +243,7 @@ while ((opt = getopt_long(ac, av, "s", long_opts, NULL)) != -1) {
 + 如果是`defconfig`，调用`conf_read(defconfig_file)`读取指定的配置文件`arch/../configs/rpi_3_32b_defconfig`
 + 如果是`silentoldconfig`，调用`conf_read(NULL)`读取生成的`.config`。（`conf_read`传入的参数为`NULL`，在`conf_read_simple`会将读取的文件指向`.config`）
 
-####4.2.4 检查更行设置
+####4.2.4 检查更新设置
 接下来：
 ```c
     if (sync_kconfig) {
