@@ -57,9 +57,9 @@ include/config/%.conf: $(KCONFIG_CONFIG) include/config/auto.conf.cmd
 ```
 在这个规则中也会根据`silentoldconfig`再次检查并更新`scripts/kconfig/conf`文件。
 
-##2. `conf`的调用
+##3. `conf`的调用
 整个u-boot的配置和编译过程中`conf`被调用了2次。
-###2.1 `make`配置过程调用
+###3.1 `make`配置过程调用
 
 `u-boot`的make配置过程中，完成`conf`的编译后会随即调用命令：
 ```
@@ -69,7 +69,7 @@ scripts/kconfig/conf  --defconfig=arch/../configs/rpi_3_32b_defconfig Kconfig
 以下是生成前后的对比：
 ![make rpi_3_32b_defconfig 文件变化对比](https://github.com/guyongqiangx/blog/blob/dev/u-boot/make-tool-images-conf/make-rpi_3_32b_defconfig.png?raw=true)
 
-###2.2 `make`编译过程调用
+###3.2 `make`编译过程调用
 `u-boot`完成后，执行`make`命令开始编译时，会检查`.config`是否比`include/config/auto.conf`更新，规则如下：
 ```
 # If .config is newer than include/config/auto.conf, someone tinkered
@@ -128,7 +128,7 @@ scripts/kconfig/conf  --silentoldconfig Kconfig
 先执行`make rpi_3_32b_defconfig`，在执行`make silentoldconfig`的对比结果如下：
 ![make silentoldconfig后的文件变化](https://github.com/guyongqiangx/blog/blob/dev/u-boot/make-tool-images-conf/make-silentoldconfig.png?raw=true)
 
-###2.3 调用简述
+###3.3 调用简述
 简而言之：
 
 + 第一次调用生成`.config`
@@ -139,15 +139,210 @@ scripts/kconfig/conf  --silentoldconfig Kconfig
 
     `scripts/kconfig/conf  --silentoldconfig Kconfig`
 
-##3. `conf`的源码分析
-`conf`由`conf.o`和`zconf.tab.o`链接而来:
-`conf.c`生成`conf.o`，是整个应用的主程序
-`zconf.tab.c`生成`zconf.tab.o`，完成具体的词法和语法分析任务。
+##4. `conf`的源码分析
+`conf`由`conf.o`和`zconf.tab.o`链接而来，其中`conf.c`生成`conf.o`，是整个应用的主程序；`zconf.tab.c`生成`zconf.tab.o`，完成具体的词法和语法分析任务。
 
-`zconf.tab.c`较为复杂，也比较枯燥，此处只是简单带过。
+###4.1 `zconf.tab.c`
+`zconf.tab.c`用于读取并分析整个`Kconfig`系统的文件，较为复杂，也比较枯燥，此处略过。
 
-###3.1 第一次调用
-`scripts/kconfig/conf  --defconfig=arch/../configs/rpi_3_32b_defconfig Kconfig`
+###4.2 `conf.c`
+`conf.c`是`conf`主程序的文件，通过分析`main`函数可以大致了解操作流程：
 
-###3.2 第二次调用
-`scripts/kconfig/conf  --silentoldconfig Kconfig`
+####4.2.1 解析参数部分
+```c
+while ((opt = getopt_long(ac, av, "s", long_opts, NULL)) != -1) {
+        if (opt == 's') {
+            conf_set_message_callback(NULL);
+            continue;
+        }
+        input_mode = (enum input_mode)opt;
+        switch (opt) {
+        case silentoldconfig:
+            sync_kconfig = 1;
+            break;
+        case defconfig:
+        case savedefconfig:
+            defconfig_file = optarg;
+            break;
+        ...
+        }
+    }
+    if (ac == optind) {
+        printf(_("%s: Kconfig file missing\n"), av[0]);
+        conf_usage(progname);
+        exit(1);
+    }
+    name = av[optind];
+    ...
+```
+
+**第一次调用** `scripts/kconfig/conf  --defconfig=arch/../configs/rpi_3_32b_defconfig Kconfig`
+
+参数解析后：
+
++ `input_mode`: `defconfig_file`
++ `defconfig_file`: `arch/../configs/rpi_3_32b_defconfig`
++ `name` = `av[optind]`: `Kconfig`
+
+
+**第二次调用** `scripts/kconfig/conf  --silentoldconfig Kconfig`
+
+参数解析后：
+
++ `input_mode`: `silentoldconfig`，并设置`sync_kconfig`为1
++ `name` = `av[optind]`: `Kconfig`
+
+####4.2.2 读取`Kconfig`系统配置文件
+
+设置好`input_mode`和`name`后：
+
+```c
+    conf_parse(name);
+    //zconfdump(stdout);
+    if (sync_kconfig) {
+        name = conf_get_configname();
+        if (stat(name, &tmpstat)) {
+            fprintf(stderr, _("***\n"
+                "*** Configuration file \"%s\" not found!\n"
+                "***\n"
+                "*** Please run some configurator (e.g. \"make oldconfig\" or\n"
+                "*** \"make menuconfig\" or \"make xconfig\").\n"
+                "***\n"), name);
+            exit(1);
+        }
+    }
+```
+
++ 调用`conf_parse(name)`从`$(srctree)`目录下依次查找名为`Kconfig`的文件，然后将取得的信息存放到链表中。
++ 如果是`silentoldconfig`，即`sync_kconfig=1`，还要调用`conf_get_configname()`并检查顶层目录下的`.config`文件是否存在。
+
+####4.2.3 读取指定的配置文件
+```c
+    switch (input_mode) {
+    case defconfig:
+        if (!defconfig_file)
+            defconfig_file = conf_get_default_confname();
+        if (conf_read(defconfig_file)) {
+            printf(_("***\n"
+                "*** Can't find default configuration \"%s\"!\n"
+                "***\n"), defconfig_file);
+            exit(1);
+        }
+        break;
+    case savedefconfig:
+    case silentoldconfig:
+    case ...:
+        conf_read(NULL);
+        break;
+    ...
+    default:
+        break;
+    }
+```
+
++ 如果是`defconfig`，调用`conf_read(defconfig_file)`读取指定的配置文件`arch/../configs/rpi_3_32b_defconfig`
++ 如果是`silentoldconfig`，调用`conf_read(NULL)`读取生成的`.config`。（`conf_read`传入的参数为`NULL`，在`conf_read_simple`会将读取的文件指向`.config`）
+
+####4.2.4 检查更行设置
+接下来：
+```c
+    if (sync_kconfig) {
+        if (conf_get_changed()) {
+            name = getenv("KCONFIG_NOSILENTUPDATE");
+            if (name && *name) {
+                fprintf(stderr,
+                    _("\n*** The configuration requires explicit update.\n\n"));
+                return 1;
+            }
+        }
+        valid_stdin = tty_stdio;
+    } 
+
+    switch (input_mode) {
+    case ...:
+        break;
+    case defconfig:
+        conf_set_all_new_symbols(def_default);
+        break;
+    case savedefconfig:
+        break;
+    case ...:
+    case silentoldconfig:
+        /* Update until a loop caused no more changes */
+        do {
+            conf_cnt = 0;
+            check_conf(&rootmenu);
+        } while (conf_cnt &&
+             (input_mode != listnewconfig &&
+              input_mode != olddefconfig));
+        break;
+    }
+```
+
++ 如果是`silentoldconfig`，检查`.config`是否被改动过，并检查各项设置的有效性
++ 如果是`defconfig`，设置默认值
+
+####4.2.5 更新`.config`，生成相应文件
+最后：
+```c 
+    if (sync_kconfig) {
+        /* silentoldconfig is used during the build so we shall update autoconf.
+         * All other commands are only used to generate a config.
+         */
+        if (conf_get_changed() && conf_write(NULL)) {
+            fprintf(stderr, _("\n*** Error during writing of the configuration.\n\n"));
+            exit(1);
+        }
+        if (conf_write_autoconf()) {
+            fprintf(stderr, _("\n*** Error during update of the configuration.\n\n"));
+            return 1;
+        }
+    } else if (input_mode == savedefconfig) {
+        if (conf_write_defconfig(defconfig_file)) {
+            fprintf(stderr, _("n*** Error while saving defconfig to: %s\n\n"),
+                defconfig_file);
+            return 1;
+        }
+    } else if (input_mode != listnewconfig) {
+        if (conf_write(NULL)) {
+            fprintf(stderr, _("\n*** Error during writing of the configuration.\n\n"));
+            exit(1);
+        }
+    }
+```
+
++ 如果是`silentoldconfig`：
+
+    * 调用`conf_get_changed()`检查是否更新过，然后调用`conf_write(NULL)`将更新的项写入到`.config`文件中
+    * 调用`conf_write_autoconf()`更新以下文件：
+        - `include/generated/autoconf.h`
+        - `include/config/auto.conf.cmd`
+        - `include/config/tristate.conf`
+        - `include/config/auto.conf`
+
++ 如果是`defconfig`，进入最后一个`(input_mode != listnewconfig)`分支，调用`conf_write(NULL)`，将读取到的所有配置写入`.config`文件中
+
+##5. 总结
++ 配置时执行`make rpi_3_32b_defconfig`会根据规则生成`scripts/kconfig/conf`：
+
+```
+    rpi_3_32b_defconfig: scripts_basic outputmakefile FORCE
+        make -f ./scripts/Makefile.build obj=scripts/kconfig rpi_3_32b_defconfig
+```
++ 生成`conf`工具后立即调用并根据默认配置在根目录下生成`.config`文件:
+```
+    scripts/kconfig/conf  --defconfig=arch/../configs/rpi_3_32b_defconfig Kconfig
+```
++ 编译时执行`silentoldconfig`
+```
+    scripts/kconfig/conf --silentoldconfig Kconfig
+```
+
+    * 检查并分析系统中各个`Kconfig`文件
+    * 同配置时生成的`.config`比较，更新`.config`文件
+    * 生成相应的其它文件供下一步编译使用：
+        - `include/generated/autoconf.h`
+        - `include/config/auto.conf.cmd`
+        - `include/config/tristate.conf`
+        - `include/config/auto.conf`
+
