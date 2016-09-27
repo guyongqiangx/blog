@@ -319,6 +319,10 @@ while ((opt = getopt_long(ac, av, "s", long_opts, NULL)) != -1) {
         - `include/config/auto.conf.cmd`
         - `include/config/tristate.conf`
         - `include/config/auto.conf`
+    > 以上自动生成的文件中：
+    > `include/config/auto.conf`和`include/generated/autoconf.h`的内容是一样的，只不过`auto.conf`会在编译中被`Makefile`进行`include`；而`autoconf.h`是`C`语言的头文件格式，使得生成的设置能够被代码引用；
+    > 以下是`auto.conf`与`autoconf.h`的内容比较视图：
+    > ![auto.conf与autoconf.h文件内容比较](https://github.com/guyongqiangx/blog/blob/dev/u-boot/make-tool-images-conf/auto.conf-vs-autoconf.h.png?raw=true)
 
 + 如果是`defconfig`，进入最后一个`(input_mode != listnewconfig)`分支，调用`conf_write(NULL)`，将读取到的所有配置写入`.config`文件中
 
