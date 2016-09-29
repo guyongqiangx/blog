@@ -207,7 +207,7 @@ head-y := arch/arm/cpu/$(CPU)/start.o
 
 #####ii. 依赖`$(libs-y)`
 在顶层Makefile中搜索一下`$(libs-y)`，其被定义为各层驱动目录下`build-in.o`的集合：
-```shell
+```
 ygu@ubuntu:/opt/work/u-boot/u-boot-2016.09$ grep -nw libs-y Makefile
 629:libs-y += lib/
 632:libs-y += fs/
