@@ -406,3 +406,255 @@ prepare0: archprepare FORCE
 + 调用宏`create_symlink`将芯片指定的arch/$(ARCH)math-$(SOC)连接到跟芯片名字无关的arch/$(ARCH)/include/asm下
 
 ###2. `u-boot`文件系列目标依赖
+
+![`u-boot`文件系列目标依赖关系](https://github.com/guyongqiangx/blog/blob/dev/u-boot/make-targets-and-dependencies/main-targets-in-uboot-file-stage.png?raw=true)
+
+从图上可见，除了`prepare`依赖外，`u-boot`还依赖于文件`$(head-y)`，`$(libs-y)`和`$(LDSCRIPT)`，即依赖于：
+
++ 启动文件`arch/arm/cpu/$(CPU)/start.o`
++ 各个目录下的`build-in.o`
++ 链接脚本文件`arch/arm/cpu/u-boot.lds`
+
+####2.1 启动文件`start.o`
+`$(head-y)`在`arch/arm/Makefile`中被直接指定：
+```
+head-y := arch/arm/cpu/$(CPU)/start.o
+```
+
+在顶层`makefile`中被指定给变量`u-boot-init`：
+```
+u-boot-init := $(head-y)
+```
+
+####2.2 各目录下的`build-in.o`
+`$(libs-y)`在顶层的`makefile`中被指定为各个子目录下的`build-in.o`的集合：
+```
+libs-y += lib/
+...
+libs-y += fs/
+libs-y += net/
+libs-y += disk/
+libs-y += drivers/
+...
+
+libs-y += $(if $(BOARDDIR),board/$(BOARDDIR)/)
+
+libs-y := $(sort $(libs-y))
+
+...
+
+libs-y      := $(patsubst %/, %/built-in.o, $(libs-y))
+
+...
+u-boot-main := $(libs-y)
+```
+以上脚本中，先将`$(libs-y)`设置为各子目录的集合，最后调用`patsubst`函数将`$(libs-y)`设置为这些目录下的`built-in.o`文件的集合，最后赋值给变量`u-boot-main`作为链接的主体文件。
+
++ **各目录下的`built-in.o`是如何生成的呢？**
+
+以`drivers/mmc/built-in.o`为例，先查看生成的依赖文件`drivers/mmc/.built-in.o.cmd`：
+```
+cmd_drivers/mmc/built-in.o :=  arm-linux-gnueabi-ld.bfd     -r -o drivers/mmc/built-in.o drivers/mmc/mmc_legacy.o drivers/mmc/bcm2835_sdhci.o drivers/mmc/mmc.o drivers/mmc/sdhci.o drivers/mmc/mmc_write.o 
+
+```
+
+从生成命令`cmd_drivers/mmc/built-in.o`可以看到，`built-in.o`是由目录下各个编译生成的`*.o`文件通过链接操作`ld -r`而来。
+
++ **`ld`的`-r`选项是什么作用呢？**
+在[`ld`的手册](http://sourceware.org/binutils/docs/ld/Options.html#Options)中是这样介绍`-r`选项的：
+```
+-r
+--relocatable
+    Generate relocatable output—i.e., generate an output file that can in turn serve as input to ld. This is often called partial linking. As a side effect, in environments that support standard Unix magic numbers, this option also sets the output file's magic number to OMAGIC. If this option is not specified, an absolute file is produced. When linking C++ programs, this option will not resolve references to constructors; to do that, use `-Ur'.
+
+    When an input file does not have the same format as the output file, partial linking is only supported if that input file does not contain any relocations. Different output formats can have further restrictions; for example some a.out-based formats do not support partial linking with input files in other formats at all.
+
+    This option does the same thing as `-i'.
+```
+
+简单说来，`ld`通过`-r`选项来产生可重定位的输出，相当于部分链接。
+
+在这里就是通过`ld -r`选项将目录`drivers/mmc/`下的`*.o`文件先链接为单一文件`build-in.o`，但其并不是最终的生成文件，而是一个可进行重定位的文件.在下一阶段的链接中，`ld`会将各个目录下的`built-in.o`链接生成最终的`u-boot`。
+
++ **`built-in.o`的规则**
+
+生成`built-in.o`的规则在`scripts/Makefile.build`中定义：
+```makefile
+#
+# Rule to compile a set of .o files into one .o file
+#
+ifdef builtin-target
+quiet_cmd_link_o_target = LD      $@
+# If the list of objects to link is empty, just create an empty built-in.o
+cmd_link_o_target = $(if $(strip $(obj-y)),\
+              $(LD) $(ld_flags) -r -o $@ $(filter $(obj-y), $^) \
+              $(cmd_secanalysis),\
+              rm -f $@; $(AR) rcs$(KBUILD_ARFLAGS) $@)
+
+$(builtin-target): $(obj-y) FORCE
+    $(call if_changed,link_o_target)
+
+targets += $(builtin-target)
+endif # builtin-target
+```
+
+####2.3 链接脚本`u-boot.lds`
+链接脚本的规则如下：
+```makefile
+quiet_cmd_cpp_lds = LDS     $@
+cmd_cpp_lds = $(CPP) -Wp,-MD,$(depfile) $(cpp_flags) $(LDPPFLAGS) \
+        -D__ASSEMBLY__ -x assembler-with-cpp -P -o $@ $<
+
+u-boot.lds: $(LDSCRIPT) prepare FORCE
+    $(call if_changed_dep,cpp_lds)
+```
+
+####2.4 生成`u-boot`规则
+顶层`Makefile`中定义了生成`u-boot`文件的规则：
+```
+# Rule to link u-boot
+# May be overridden by arch/$(ARCH)/config.mk
+quiet_cmd_u-boot__ ?= LD      $@
+      cmd_u-boot__ ?= $(LD) $(LDFLAGS) $(LDFLAGS_u-boot) -o $@ \
+      -T u-boot.lds $(u-boot-init)                             \
+      --start-group $(u-boot-main) --end-group                 \
+      $(PLATFORM_LIBS) -Map u-boot.map
+
+...
+
+u-boot: $(u-boot-init) $(u-boot-main) u-boot.lds FORCE
+    $(call if_changed,u-boot__)
+...
+```
+
+`u-boot`文件的生成很简单，调用`ld`命令，将`$(u-boot-init)`和`$(u-boot-main)`指定的一系列文件通过脚本`u-boot.lds`连接起来。
+
+`u-boot`针对`raspberry pi 3`生成的命令是这样的（由于原命令太长，这里用`\`分割为多行）：
+```shell
+  arm-linux-gnueabi-ld.bfd   -pie  --gc-sections -Bstatic \
+  -Ttext 0x00008000 \
+  -o u-boot \
+  -T u-boot.lds \
+  arch/arm/cpu/armv7/start.o \
+  --start-group  \
+                 arch/arm/cpu/built-in.o  \
+                 arch/arm/cpu/armv7/built-in.o  \
+                 arch/arm/lib/built-in.o  \
+                 arch/arm/mach-bcm283x/built-in.o  \
+                 board/raspberrypi/rpi/built-in.o  \
+                 cmd/built-in.o  \
+                 common/built-in.o  \
+                 disk/built-in.o  \
+                 drivers/built-in.o  \
+                 drivers/dma/built-in.o  \
+                 drivers/gpio/built-in.o  \
+                ...
+                 lib/built-in.o  \
+                 net/built-in.o  \
+                 test/built-in.o  \
+                 test/dm/built-in.o \
+--end-group \
+ arch/arm/lib/eabi_compat.o  \
+ arch/arm/lib/lib.a \
+ -Map u-boot.map
+```
+
+生成了`u-boot`文件后，后续就是针对`u-boot`文件的各种处理了。
+
+###3. 顶层目标依赖
+![顶层目标依赖](https://github.com/guyongqiangx/blog/blob/dev/u-boot/make-targets-and-dependencies/u-boot-top-targets-and-dependencies.png?raw=true)
+
+显然，在生成了`u-boot`的基础上，进一步生成所需要的各种目标文件：
+
++ `u-boot.srec`
+```makefile
+# Normally we fill empty space with 0xff
+quiet_cmd_objcopy = OBJCOPY $@
+cmd_objcopy = $(OBJCOPY) --gap-fill=0xff $(OBJCOPYFLAGS) \
+    $(OBJCOPYFLAGS_$(@F)) $< $@
+...
+OBJCOPYFLAGS_u-boot.hex := -O ihex
+
+OBJCOPYFLAGS_u-boot.srec := -O srec
+
+u-boot.hex u-boot.srec: u-boot FORCE
+    $(call if_changed,objcopy)
+```
+
+调用`objcopy`命令，通过`-O ihex`或`-O srec`指定生成`u-boot.hex`或`u-boot.srec`格式文件。
+
++ `u-boot.sym`
+```makefile
+quiet_cmd_sym ?= SYM     $@
+      cmd_sym ?= $(OBJDUMP) -t $< > $@
+u-boot.sym: u-boot FORCE
+    $(call if_changed,sym)
+```
+调用`$(OBJDUMP)`命令生成符号表文件`u-boot.sym`。
+
++ `System.map`
+```
+SYSTEM_MAP = \
+        $(NM) $1 | \
+        grep -v '\(compiled\)\|\(\.o$$\)\|\( [aUw] \)\|\(\.\.ng$$\)\|\(LASH[RL]DI\)' | \
+        LC_ALL=C sort
+System.map: u-boot
+        @$(call SYSTEM_MAP,$<) > $@
+```
+调用`$(NM)`命令打印`u-boot`文件的符号表，并用`grep -v`处理后得到`System.map`文件，里面包含了最终使用到的各个符号的位置信息。
+
++ `u-boot.bin`和`u-boot-nodtb.bin`
+
+```makefile
+PHONY += dtbs
+dtbs: dts/dt.dtb
+    @:
+dts/dt.dtb: checkdtc u-boot
+    $(Q)$(MAKE) $(build)=dts dtbs
+
+quiet_cmd_copy = COPY    $@
+      cmd_copy = cp $< $@
+
+ifeq ($(CONFIG_OF_SEPARATE),y)
+u-boot-dtb.bin: u-boot-nodtb.bin dts/dt.dtb FORCE
+    $(call if_changed,cat)
+
+u-boot.bin: u-boot-dtb.bin FORCE
+    $(call if_changed,copy)
+else
+u-boot.bin: u-boot-nodtb.bin FORCE
+    $(call if_changed,copy)
+endif
+```
+由于这里没有使用`device tree`设置，即编译没有定义`CONFIG_OF_SEPARATE`，因此`u-boot.bin`和`u-boot-nodtb.bin`是一样的。
+
+至于生成`u-boot-nodtb.bin`的规则：
+```makefile
+u-boot-nodtb.bin: u-boot FORCE
+    $(call if_changed,objcopy)
+    $(call DO_STATIC_RELA,$<,$@,$(CONFIG_SYS_TEXT_BASE))
+    $(BOARD_SIZE_CHECK)
+```
+
+显然，`u-boot-nodtb.bin`是`u-boot`文件通过`objcopy`得到。
+
+
++ `u-boot.cfg`
+`u-boot.cfg`中包含了所有用到的宏定义，其生成规则如下：
+```
+# Create a file containing the configuration options the image was built with
+quiet_cmd_cpp_cfg = CFG     $@
+cmd_cpp_cfg = $(CPP) -Wp,-MD,$(depfile) $(cpp_flags) $(LDPPFLAGS) -ansi \
+    -DDO_DEPS_ONLY -D__ASSEMBLY__ -x assembler-with-cpp -P -dM -E -o $@ $<
+...
+u-boot.cfg: include/config.h FORCE
+    $(call if_changed,cpp_cfg)
+```
+
+因此，阅读源码时如果不确定某个宏的值，可以检查`u-boot.cfg`文件。
+
+自此，生成了所有的目标文件，完成了整个编译过程的分析。
+
+
+
+
