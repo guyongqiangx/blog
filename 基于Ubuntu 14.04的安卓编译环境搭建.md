@@ -1,7 +1,7 @@
 ##1. 安装`Ubuntu 14.04`系统
 `Android`系统编译推荐使用基于`Ubuntu`的64位系统。`Ubuntu 12.04`比较老了，`Ubuntu 16.04`又太新，这里选择`Ubuntu 14.04`的64位桌面版本。
 
-下载地址：http://releases.ubuntu.com/14.04/
+下载地址：[`http://releases.ubuntu.com/14.04/`](http://releases.ubuntu.com/14.04/)
 
 ##2. 安装`ssh`
 安装完系统的第一件事情就是安装`ssh`，这样就可以远程登录操作了。
@@ -26,16 +26,16 @@
 
 `sudo service ssh restart`
 
-
-
 ##3. 安装`Java`
-编译`Android`需要安装`Java`，不同版本的`Android`需要不同版本的`Java`，在编译不同版本的`Android`时需要在这些版本之间切换：
+编译`Android`需要安装`Java`，不同版本的`Android`需要不同版本的`Java`，在编译不同版本的`Android`时需要在这些版本之间切换。具体各版本对`Java`环境的要求如下：
 
 + `KitKat`及以下需要`Java6`
 + `Lollipop`和`Marshmallow`需要`Java7`
 + `AOSP`的`master`分支，以及`Nougat`需要`Java8`
 
-###3.1 安装`java6`
+安装所需的各个`Java`版本：
+
++ 安装`java6`
 ```shell
 chmod a+x jdk-6u45-linux-x64.bin
 ./jdk-6u45-linux-x64.bin
@@ -47,7 +47,9 @@ sudo update-alternatives --install "/usr/bin/jar" "jar" /opt/java/64/jdk1.6.0_45
 sudo update-alternatives --install "/usr/bin/javadoc" "javadoc" /opt/java/64/jdk1.6.0_45/bin/javadoc 1
 sudo update-alternatives --install "/usr/bin/javap" "javap" /opt/java/64/jdk1.6.0_45/bin/javap 1
 ```
-###3.2 安装`java7`
+
++ 安装`java7`
+
 `Ubuntu 14.04`默认包含了`java7`的安装源，直接执行安装命令即可：
 ```shell
 sudo apt-get install openjdk-7-jdk
@@ -55,7 +57,9 @@ sudo update-alternatives --config java
 sudo update-alternatives --config javac
 sudo update-alternatives --config javadoc
 ```
-###3.3 安装`java8`
+
++ 安装`java8`
+
 `Ubuntu 14.04`需要手动下载`java8`的安装包，并分步执行安装命令：
 ```shell
 wget http://mirrors.kernel.org/ubuntu/pool/universe/o/openjdk-8/openjdk-8-jre_8u45-b14-1_amd64.deb
@@ -77,7 +81,7 @@ sudo update-alternatives --config javadoc
 sudo apt-get install bison g++-multilib git gperf libxml2-utils make zlib1g-dev:i386 zip
 ```
 
-###4.1 `g++-multilib`安装错误
++ `g++-multilib`安装错误
 安装中会出现错误：
 ```
 ygu@stb-lab-04:~$ sudo apt-get install bison g++-multilib git gperf libxml2-utils make zlib1g-dev:i386 zip
@@ -109,13 +113,13 @@ sudo apt-get install gcc-multilib g++
 
 再次执行安装命令即可。
 
-###4.2 其它安装包
++ 其它安装包
 除了以上的安装包外，部分机器因为编译其它软件可能还需要额外的安装包，例如：
 ```
 sudo apt-get install flex zlib1g-dev:amd64
 ```
 
-###4.3 更新后的安装列表
++ 更新后的安装列表
 根据以上操作，修改为安装以下软件列表：
 ```shell
 sudo apt-get install bison g++ g++-multilib git gperf libxml2-utils make zlib1g-dev:i386 zip
@@ -123,6 +127,51 @@ sudo apt-get install bison g++ g++-multilib git gperf libxml2-utils make zlib1g-
 
 
 ##5. 安装`samba`
+
++ 安装`samba`服务端
+```shell
+sudo apt-get install samba samba-common
+```
++ 编辑`samba.conf`
+```
+sudo vim /etc/samba/smb.conf 
+```
+新增`/opt`目录作为共享目录，并需要登录才能访问：
+```
+[opt]
+   comment = opt
+   path = /opt
+   writeable = yes
+   browseable = yes
+#  valid users = %S
+   guest ok = no
+```
+
++ 添加`samba`用户
+
+将现有用户`ygu`添加作为`samba`用户，如果想新增一个用户，需要现在`Ubuntu`系统中添加该用户后再用`smbpasswd -a`添加。
+```shell
+ygu@stb-lab-04:~$ sudo smbpasswd -a ygu
+New SMB password:
+Retype new SMB password:
+Added user ygu.
+```
+
++ 重启`samba`服务
+```shell 
+ygu@stb-lab-04:~$ sudo service nmbd restart
+nmbd stop/waiting
+nmbd start/running, process 20361
+ygu@stb-lab-04:~$ sudo service smbd restart
+smbd stop/waiting
+smbd start/running, process 20340
+```
+
+>**为什么需要同时重启`nmbd`和`smbd`两项服务？**
+>
+>`Samba`服务器包括两个后台应用程序: `smbd`和`nmbd`。<br>
+> + `smbd`是`Samba`的核心, 主要负责建立`Samba`服务器与`Samba`客户机之间的对话, 验证用户身份并提供对文件和打印系统的访问; <br>
+> + `nmbd`主要负责对外发布`Samba`服务器可以提供的`NetBIOS`名称和浏览服务,使`Windows`用户可以在“网上邻居”中浏览`Samba`服务器中共享的资源。
 
 ##6. 安装`tftp`
 + 安装`tftp`服务端
