@@ -36,6 +36,7 @@ make: *** [menuconfig-linux] Error 2
 ![linux menuconfig GUI](https://github.com/guyongqiangx/blog/blob/dev/errors/images/Linux-menuconfig.png?raw=true)
 
 `Ubuntu 14.04`上安装`libncurses5-dev`包得以解决：
+
 ```
 sudo apt-get install libncurses5-dev
 ```
