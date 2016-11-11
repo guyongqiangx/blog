@@ -1,0 +1,1 @@
+##Broadcom平台framebuffer输出（一）Linux命令行输出到LCD
