@@ -353,7 +353,7 @@ static int lcddrv_write(cfe_devctx_t *ctx,iocb_buffer_t *buffer)
 
 应用操作调用`cfe_write`时会被转发到这里的`lcddrv_write`来，`write`操作只是调用`fbcon_putc`来逐个输出缓冲区的字符。
 
-__`CFE`串口输出的是xterm格式，但这里原样逐个输出字符，实际上还需要在调用`fbcon_putc`前过滤处理转意字符。__
+__`CFE`串口输出的是xterm格式，但这里原样逐个输出字符，实际上还需要在调用`fbcon_putc`前过滤处理转意字符，此处略去实现。__
 
 + `lcddrv_close`
 
@@ -711,7 +711,7 @@ int console_write(unsigned char *buffer,int length)
 + `splash_bvn_init`
 + `splash_get_surf_format`
 
-由于`CFE`博通`ARM`平台的机顶盒引导程序`BOLT`设备管理操作和结构是一致的，所以也很容易将这部分代码实现移植到上`BOLT`上。**`BOLT`采用`device tree`向`linux`传递参数，这点跟`CFE`采用环境变量传递参数不一样，所以`BOLT上还需要将一些`lcd`参数更新到`device tree`中**
+由于博通`MIPS`平台机顶盒引导程序`CFE`和`ARM`平台的引导程序`BOLT`的设备管理操作和结构是一致的，所以也很容易将这部分代码实现移植到上`BOLT`上。**`BOLT`采用`device tree`向`linux`传递参数，这点跟`CFE`采用环境变量传递参数不一样，所以`BOLT上还需要将一些`lcd`参数更新到`device tree`中**
 
 
 
