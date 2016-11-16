@@ -702,7 +702,16 @@ int console_write(unsigned char *buffer,int length)
 
 自此，当串口进行输出时，同时会将这些内容送往`lcd`显示。
 
+###4. 其它
+此版本的`cfe`中，`HDMI`默认的输出格式为`PAL`制的576p（即分辨率为720x576），如果需要更改为其它格式，如720P，1080i或VESA格式，则需要根据Broadcom的SDK中splashgen工具生成对应格式的显示寄存器再应用到`cfe`中。
 
+最新的`cfe`中，`splash`显示部分有些变化，会针对高标清分别输出，所以在获取`surface`参数时有些不同，如果将这里的代码移植到最新的`cfe`上，需要对调用`splash_get_surf_xxx`函数进行调整。具体有如下几个函数：
+
++ `splash_get_surf_dimensions`
++ `splash_bvn_init`
++ `splash_get_surf_format`
+
+由于`CFE`博通`ARM`平台的机顶盒引导程序`BOLT`设备管理操作和结构是一致的，所以也很容易将这部分代码实现移植到上`BOLT`上。**`BOLT`采用`device tree`向`linux`传递参数，这点跟`CFE`采用环境变量传递参数不一样，所以`BOLT上还需要将一些`lcd`参数更新到`device tree`中**
 
 
 
