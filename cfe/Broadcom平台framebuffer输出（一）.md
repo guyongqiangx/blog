@@ -28,7 +28,7 @@ Broadcom平台framebuffer输出分为两部分：
 ##2. 效果预览
 `CFE`命令行(`720x576`)通过`HDMI`转`DVI`输出到显示器：
 
-![CFE命令行输出到LCD](https://github.com/guyongqiangx/blog/blob/dev/cfe/images/cfe.jpg?raw=true)
+![CFE命令行输出到LCD](https://github.com/guyongqiangx/blog/blob/dev/cfe/simplefb/images/cfe.jpg?raw=true)
 
 ##3. 代码实现
 ###3.1 显示综述
@@ -726,8 +726,7 @@ int console_write(unsigned char *buffer,int length)
 
 ##5. `patch`
 
-
-
+针对`bcm97583 cfe v3.7`版本的`patch`代码下载：[`bcm97584_cfe_v3.7-framebuffer.patch`](https://raw.githubusercontent.com/guyongqiangx/blog/dev/cfe/simplefb/bcm97584_cfe_v3.7-framebuffer.patch)
 
 
 

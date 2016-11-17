@@ -40,7 +40,7 @@ hardware.`
 ##2. 效果预览
 `Linux`命令行(`720x576`)通过`HDMI`转`DVI`输出到显示器：
 
-![Linux命令行输出到LCD](https://github.com/guyongqiangx/blog/blob/dev/cfe/images/kernel.jpg?raw=true)
+![Linux命令行输出到LCD](https://github.com/guyongqiangx/blog/blob/dev/cfe/simplefb/images/kernel.jpg?raw=true)
 
 `linux`启动后可以直接插上USB键盘，进行跟PC一样的终端输入，可以不再依赖串口进行输入输出控制了。
 
@@ -593,3 +593,5 @@ ttyS0::respawn:/sbin/getty -L 115200 ttyS0 vt102
 这样在`linux`启动后串口又可以工作了，只是此时串口`ttyS0`和`HDMI`输出`tty0`是两个不同的终端了。
 
 ##6. `patch`
+
+针对`stblinux-3.3-4.0`版本的`patch`代码下载：[`stblinux-3.3-4.0-simplefb.patch`](https://raw.githubusercontent.com/guyongqiangx/blog/dev/cfe/simplefb/stblinux-3.3-4.0-simplefb.patch)
