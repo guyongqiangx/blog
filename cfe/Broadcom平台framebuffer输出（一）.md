@@ -1,4 +1,20 @@
-##Broadcom平台framebuffer输出（一）CFE 命令行输出到LCD
+##Broadcom平台framebuffer输出（一）之CFE 命令行输出到LCD
+
+Broadcom平台framebuffer输出分为两部分：
+
++ 第一部分是bootloader，即CFE支持framebuffer的命令行显示；
++ 第二部分是linux，将linux的命令行通过framebuffer输出显示；
+
+一旦bootloader和linux两部分都支持framebuffer，机顶盒一开机就能通过HDMI输出显示的命令行到外部设备。
+
+>环境：
+>
++ 硬件平台：`BCM97583`
++ `CFE` 版本：`bcm97583 cfe v3.7`
++ `Linux`版本：`stblinux-3.3-4.0` （`linux 3.3.8`的定制版本）
++ 输出方式：`HDMI`或`HDMI`转`DVI`
+
+本文详细讲述第一部分，CFE将命令行输出到LCD的实现。
 
 ##1. 简述
 
@@ -6,11 +22,6 @@
 
 借鉴`u-boot`的`lcd`驱动，在`cfe`上实现将命令行输出到显示器上。
 
->环境：
->
-+ 硬件平台：`BCM97583`
-+ `CFE` 版本：`bcm97583 cfe v3.7`
-+ 输出方式：`HDMI`或`HDMI`转`DVI`
 
 >很容易基于这个版本的代码将实现移植到最新的`cfe`(`mips`平台)或`bolt`(`arm`平台)代码上。
 
@@ -702,7 +713,7 @@ int console_write(unsigned char *buffer,int length)
 
 自此，当串口进行输出时，同时会将这些内容送往`lcd`显示。
 
-###4. 其它
+##4. 其它
 此版本的`cfe`中，`HDMI`默认的输出格式为`PAL`制的576p（即分辨率为720x576），如果需要更改为其它格式，如720P，1080i或VESA格式，则需要根据Broadcom的SDK中splashgen工具生成对应格式的显示寄存器再应用到`cfe`中。
 
 最新的`cfe`中，`splash`显示部分有些变化，会针对高标清分别输出，所以在获取`surface`参数时有些不同，如果将这里的代码移植到最新的`cfe`上，需要对调用`splash_get_surf_xxx`函数进行调整。具体有如下几个函数：
@@ -712,6 +723,8 @@ int console_write(unsigned char *buffer,int length)
 + `splash_get_surf_format`
 
 由于博通`MIPS`平台机顶盒引导程序`CFE`和`ARM`平台的引导程序`BOLT`的设备管理操作和结构是一致的，所以也很容易将这部分代码实现移植到上`BOLT`上。**`BOLT`采用`device tree`向`linux`传递参数，这点跟`CFE`采用环境变量传递参数不一样，所以`BOLT上还需要将一些`lcd`参数更新到`device tree`中**
+
+##5. `patch`
 
 
 
