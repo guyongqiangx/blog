@@ -1,6 +1,6 @@
-##Broadcom平台framebuffer输出（一）之CFE 命令行输出到LCD
+##博通机顶盒平台framebuffer输出（一）之CFE 命令行输出到LCD
 
-Broadcom平台framebuffer输出分为两部分：
+博通机顶盒平台framebuffer输出分为两部分：
 
 + 第一部分是bootloader，即CFE支持framebuffer的命令行显示；
 + 第二部分是linux，将linux的命令行通过framebuffer输出显示；
