@@ -1,0 +1,670 @@
+diff -uNr bcm97584_cfe_v3.7/CFE/bcm97584/build/Makefile bcm97584_cfe_v3.7-fastboot/CFE/bcm97584/build/Makefile
+--- bcm97584_cfe_v3.7/CFE/bcm97584/build/Makefile	2013-08-14 01:47:38.000000000 +0800
++++ bcm97584_cfe_v3.7-fastboot/CFE/bcm97584/build/Makefile	2016-11-23 14:18:32.263142082 +0800
+@@ -136,6 +136,27 @@
+ CFG_BOOT_2_0 			?= 1
+ CFG_DEF_NEW_TRGT		?= 0
+ 
++# fastboot
++CFG_FASTBOOT 			?= 1
++CFG_FASTBOOT_MSG		?= 0
++
++ifeq ($(strip ${CFG_FASTBOOT}),1)
++CFG_SDRAM_SCRAMBLING		?= 0
++
++# production
++CFG_PRODUCTION_FSBL		?= 1
++CFG_PRODUCTION_SSBL		?= 1
++
++CFG_AVS_ENABLE			?= 0
++
++# usb, network
++CFG_USB				?= 0
++CFG_ENET			?= 0
++
++# splash
++CFG_SPLASH			?= 0
++endif
++
+ # Version
+ CFE_BSP_REV				= 7
+ CFG_TEST_VERSION		?= 0
+diff -uNr bcm97584_cfe_v3.7/CFE/cfe/dev/dev_nandflash.c bcm97584_cfe_v3.7-fastboot/CFE/cfe/dev/dev_nandflash.c
+--- bcm97584_cfe_v3.7/CFE/cfe/dev/dev_nandflash.c	2013-08-14 01:47:45.000000000 +0800
++++ bcm97584_cfe_v3.7-fastboot/CFE/cfe/dev/dev_nandflash.c	2016-11-23 14:15:56.210059762 +0800
+@@ -351,6 +351,162 @@
+ 	return nand_on_cs1_flag;
+ }
+ 
++#if 0
++/* Generic flash bbt descriptors */
++static uint8_t bbt_pattern[] = {'B', 'b', 't', '0' };
++static uint8_t mirror_pattern[] = {'1', 't', 'b', 'B' };
++
++#define BBT_PATTERN_SIZE (sizeof(bbt_pattern)/sizeof(uint8_t))
++#endif
++static int32_t nand_read_page ( uint32_t page_address, uint8_t* data, uint32_t offset, uint32_t size );
++static int32_t nand_search_bbt(nandflashpart_t* part);
++
++/* 
++ * search bbt block with pattern 'Bbt0' or '1tbB'
++ *
++ *  if bbt exist, return bbt block index;
++ *  if bbt doesn't exist, return -1;
++ *
++ */
++static int32_t nand_search_bbt(nandflashpart_t* part)
++{
++    nandflashdev_t* softc = part->fp_dev;
++    uint32_t num_blocks = softc->fd_probe.flash_size/softc->fd_probe.flash_block_size;
++
++    /* not implemented yet, return the last block by default */
++    int32_t start_block = num_blocks - 1;
++
++    return start_block;
++}
++
++#define min(a,b) ((a) < (b) ? (a) : (b))
++#define max(a,b) ((a) > (b) ? (a) : (b))
++
++/* The number of bits used per block in the bbt bit map on the device */
++#define NAND_BBT_NRBITS_MSK	0x0000000F
++#define NAND_BBT_1BIT		0x00000001
++#define NAND_BBT_2BIT		0x00000002
++#define NAND_BBT_4BIT		0x00000004
++#define NAND_BBT_8BIT		0x00000008
++
++#define NAND_BBT_NRBITS     NAND_BBT_2BIT
++
++#define NAND_BLOCK_GOOD         0x00    /* good */
++#define NAND_BLOCK_WEAROUT      0x01    /* wear out/bad  */
++#define NAND_BLOCK_RESERVED     0x02    /* reserved */
++#define NAND_BLOCK_FACTORY_BAD  0x03    /* factory marked bad / initial bad */
++
++static uint8_t *bbt = NULL; /* pointer for bbt bit map in ram */
++
++/* 
++ * update memory bbt bit map from flash
++ *
++ *
++ */
++static uint32_t nand_read_bbt(nandflashpart_t* part, uint32_t bbt_block)
++{
++    nandflashdev_t* softc = part->fp_dev;
++    uint32_t block_size = softc->fd_probe.flash_block_size;
++    uint32_t num_blocks = softc->fd_probe.flash_size/softc->fd_probe.flash_block_size;
++    uint32_t flash_base_address = PHYS_TO_K1b(softc->fd_probe.flash_phys);
++
++    uint32_t len, totlen, from, marker_len, offset = 0;
++    uint32_t i, j, res;
++    uint32_t act = 0;
++
++    uint8_t *buf;                       /* internal page buffer */
++    uint8_t reserved_block_code = 0;    /* reserved code */
++    uint8_t msk = (uint8_t)((1 << NAND_BBT_NRBITS) - 1); /* mask for block status */
++
++    buf = (uint8_t *)KMALLOC(NAND_INTERNAL_PAGE_BUFFER_SIZE, 4);
++    if (buf == NULL)
++    {
++        xprintf("Out of memory!\n");
++        return -1;
++    }
++
++    totlen = (NAND_BBT_NRBITS * num_blocks) >> 3; /* number of bytes required for BBT */
++
++    bbt = (uint8_t *)KMALLOC(totlen, 4);
++    if (buf == NULL)
++    {
++        xprintf("Out of memory!\n");
++        return -1;
++    }
++    memset(bbt, 0, totlen);
++
++    from = flash_base_address + bbt_block * block_size;
++    marker_len = 5; /* 'Bbt0' + BBT version at the beginning of BBT block */
++
++    while (totlen)
++    {
++        len = min(totlen, NAND_INTERNAL_PAGE_BUFFER_SIZE);
++        if (marker_len)
++        {
++ 			/*
++			 * In case the BBT marker is not in the OOB area it
++			 * will be just in the first page.
++			 */
++            len -= marker_len;
++            offset = marker_len;
++
++            marker_len = 0;
++        }
++
++        res = nand_read_page(from, buf, offset, len);
++
++        /* analyze data */
++        for (i=0; i<len; i++)
++        {
++            uint8_t dat = buf[i];
++            for (j=0; j<8; j+=NAND_BBT_NRBITS, act+=2) /* update bit map by byte */
++            {
++                uint8_t tmp = (dat >> j) & msk;
++                if (tmp == msk)
++                {
++                    /* bbt[act>>3] |= NAND_BLOCK_GOOD << (act & 0x06); */
++                    softc->fp_blk_status[act>>1].block_status = NAND_BLOCK_STATUS_GOOD;
++                    continue;
++                }
++
++                /* mark all other blocks bad in CFE */
++                softc->fp_blk_status[act>>1].block_status = NAND_BLOCK_STATUS_BAD;
++
++                /* check reserved block */
++                if (reserved_block_code && (tmp == reserved_block_code))
++                {
++                    xprintf("Find reserved block at %d\n", act>>1);
++                    bbt[act>>3] |= NAND_BLOCK_RESERVED << (act & 0x06);
++
++                    /* update block status here! */
++                    continue;
++                }
++
++                xprintf("Find bad block at %d\n", act>>1);
++
++                /* Factory marked bad or worn out? */
++                if (tmp == 0)
++                {
++                    bbt[act>>3] |= /* 0x03 */ NAND_BLOCK_FACTORY_BAD << (act & 0x06);
++                }
++                else
++                {
++                    bbt[act>>3] |= /* 0x01 */ NAND_BLOCK_WEAROUT << (act & 0x06);
++                }
++            }
++        }
++
++        offset = 0;
++        totlen -= len;
++        from += NAND_INTERNAL_PAGE_BUFFER_SIZE; /* fixed reading shift is internal page size */
++    }
++
++    KFREE(buf);
++    buf = NULL;
++
++    return 0;
++}
++
+ /******************************************************************************
+  *
+  * Function Name:
+@@ -373,6 +529,8 @@
+ 	uint32_t corr_address=0;
+ 	uint32_t temp;
+ 
++	int32_t bbt_block;
++
+ #ifdef DEBUG_NAND
+ 	xprintf ("nand_create_block_status_array(): num_blocks = %d\n", num_blocks);
+ #endif
+@@ -408,16 +566,28 @@
+ 		}
+ 	}
+ 
+-	/* find the bad blocks */
+-	for ( i = 0; i < num_blocks; i++ )
++	xprintf("Search BBT...\n");
++	bbt_block = nand_search_bbt(part);
++	if (bbt_block != -1)
+ 	{
+-		if ( nand_get_block_status( (flash_base_address + i * block_size), block_size, page_size, bbi_map ) == 1 )
+-		{
+-			softc->fp_blk_status[i].block_status = NAND_BLOCK_STATUS_BAD;
+-		}
+-		else
++		xprintf("Find BBT at block %d\n", bbt_block);
++		nand_read_bbt(part, bbt_block);
++	}
++	else
++	{
++		xprintf("Can't find BBT\n");
++		xprintf("Update nand block status...\n");
++		/* find the bad blocks */
++		for ( i = 0; i < num_blocks; i++ )
+ 		{
+-			softc->fp_blk_status[i].block_status = NAND_BLOCK_STATUS_GOOD;
++			if ( nand_get_block_status( (flash_base_address + i * block_size), block_size, page_size, bbi_map ) == 1 )
++			{
++				softc->fp_blk_status[i].block_status = NAND_BLOCK_STATUS_BAD;
++			}
++			else
++			{
++				softc->fp_blk_status[i].block_status = NAND_BLOCK_STATUS_GOOD;
++			}
+ 		}
+ 	}
+ 
+diff -uNr bcm97584_cfe_v3.7/CFE/cfe/include/lib_printf.h bcm97584_cfe_v3.7-fastboot/CFE/cfe/include/lib_printf.h
+--- bcm97584_cfe_v3.7/CFE/cfe/include/lib_printf.h	2013-08-14 01:48:13.000000000 +0800
++++ bcm97584_cfe_v3.7-fastboot/CFE/cfe/include/lib_printf.h	2016-11-23 14:16:06.624597217 +0800
+@@ -55,6 +55,9 @@
+ extern int (*xprinthook)(const char *);
+ int xvprintf(const char *template,va_list marker);
+ 
++int cfe_quiet(void);
++int cfe_noise(void);
++
+ /*
+  * compatibility macros
+  */
+@@ -64,3 +67,9 @@
+ #define sprintf xsprintf
+ #define vsprintf xvsprintf
+ #define vprintf xvprintf
++
++#ifdef FASTBOOT_MSG
++void __puts(const char *s);
++#else
++#define __puts(x)
++#endif
+diff -uNr bcm97584_cfe_v3.7/CFE/cfe/lib/lib_printf.c bcm97584_cfe_v3.7-fastboot/CFE/cfe/lib/lib_printf.c
+--- bcm97584_cfe_v3.7/CFE/cfe/lib/lib_printf.c	2013-08-14 01:48:13.000000000 +0800
++++ bcm97584_cfe_v3.7-fastboot/CFE/cfe/lib/lib_printf.c	2016-11-23 14:16:21.874403375 +0800
+@@ -406,6 +406,22 @@
+     return count;
+ }
+ 
++static int is_quiet = 1;
++
++int cfe_quiet(void)
++{
++    is_quiet = 1;
++
++    return 0;
++}
++
++int cfe_noise(void)
++{
++    is_quiet = 0;
++
++    return 0;
++}
++
+ /*  *********************************************************************
+     *  xprintf(template,...)
+     *  	
+@@ -428,6 +444,9 @@
+     int count;
+     char buffer[PRINTF_BUF_SIZE];
+ 
++    if (is_quiet)
++        return 0;
++
+     va_start(marker,templat);
+     count = xvsprintf(buffer,templat,marker);
+     va_end(marker);
+@@ -450,10 +469,13 @@
+     return count;
+ }
+ 
+-
+-
+-
+-
+-
+-
+-
++#ifdef FASTBOOT_MSG
++extern void _writeasm(char c);
++void __puts(const char *s)
++{
++    while (*s)
++    {
++        _writeasm(*s++);
++    }
++}
++#endif
+diff -uNr bcm97584_cfe_v3.7/CFE/cfe/main/cfe.mk bcm97584_cfe_v3.7-fastboot/CFE/cfe/main/cfe.mk
+--- bcm97584_cfe_v3.7/CFE/cfe/main/cfe.mk	2013-08-14 01:48:14.000000000 +0800
++++ bcm97584_cfe_v3.7-fastboot/CFE/cfe/main/cfe.mk	2016-11-23 14:16:29.876304090 +0800
+@@ -56,6 +56,14 @@
+ 	CFLAGS += -DCFG_SYSINIT
+ endif
+ 
++ifeq ($(strip ${CFG_FASTBOOT}),1)
++	CFLAGS += -DFASTBOOT
++endif
++
++ifeq ($(strip ${CFG_FASTBOOT_MSG}),1)
++	CFLAGS += -DFASTBOOT_MSG
++endif
++
+ CFLAGS += -DCFG_CMD_LEVEL=$(strip ${CFG_CMD_LEVEL})
+ 
+ #
+diff -uNr bcm97584_cfe_v3.7/CFE/cfe/main/cfe_boot.c bcm97584_cfe_v3.7-fastboot/CFE/cfe/main/cfe_boot.c
+--- bcm97584_cfe_v3.7/CFE/cfe/main/cfe_boot.c	2013-08-14 01:48:14.000000000 +0800
++++ bcm97584_cfe_v3.7-fastboot/CFE/cfe/main/cfe_boot.c	2016-11-23 14:16:36.387772154 +0800
+@@ -162,6 +162,8 @@
+ 
+     board_final_exit((unsigned long *) la->la_entrypt);
+ 
++	cfe_noise();
++	xprintf("\n");
+     xprintf("Starting program at 0x%p\n\n",la->la_entrypt);
+ 
+     cfe_start(la->la_entrypt);
+diff -uNr bcm97584_cfe_v3.7/CFE/cfe/main/cfe_main.c bcm97584_cfe_v3.7-fastboot/CFE/cfe/main/cfe_main.c
+--- bcm97584_cfe_v3.7/CFE/cfe/main/cfe_main.c	2013-08-14 01:48:20.000000000 +0800
++++ bcm97584_cfe_v3.7-fastboot/CFE/cfe/main/cfe_main.c	2016-11-23 14:16:47.367980872 +0800
+@@ -797,6 +797,7 @@
+ 	{
+ 	  	xprintf("Starting splash screen.\n");
+ 		cfe_splash() ;
++		__puts("\r\nsplash end");
+ 	}
+ #endif
+ #endif
+@@ -944,7 +945,9 @@
+     int status;
+     char *prompt,*env;
+ 
+-    for (;;) {
++	cfe_noise();
++	xprintf("\n");
++for (;;) {
+ 		prompt = env_getenv("PROMPT");
+ 		if (!prompt) prompt = "CFE> ";
+ 		console_readline(prompt,buffer,sizeof(buffer));
+diff -uNr bcm97584_cfe_v3.7/CFE/cfe/main/cfe_timer.c bcm97584_cfe_v3.7-fastboot/CFE/cfe/main/cfe_timer.c
+--- bcm97584_cfe_v3.7/CFE/cfe/main/cfe_timer.c	2013-08-14 01:48:21.000000000 +0800
++++ bcm97584_cfe_v3.7-fastboot/CFE/cfe/main/cfe_timer.c	2016-11-23 14:16:56.001404663 +0800
+@@ -119,8 +119,14 @@
+ long GetMIPSFreq( void );
+ void set_cpu_speed(void)
+ {
++	__puts("\r\nset cpu speed");
+ 	/* 0x337F98 = 1 / 8 sec at 27Mhz */
++#if 0
+ 	cfe_cpu_speed = (unsigned int)( GetMIPSFreq() * 27 * 1000 / 0x337F98 * CPUCFG_CYCLESPERCPUTICK) * 1000;
++#else
++	cfe_cpu_speed = 742504000;
++#endif
++	__puts("\r\n");
+ }
+ 
+ /*  *********************************************************************
+diff -uNr bcm97584_cfe_v3.7/rockford/bsp/common_bsp/mips/bcm97xxx_devs.c bcm97584_cfe_v3.7-fastboot/rockford/bsp/common_bsp/mips/bcm97xxx_devs.c
+--- bcm97584_cfe_v3.7/rockford/bsp/common_bsp/mips/bcm97xxx_devs.c	2013-08-14 01:47:26.000000000 +0800
++++ bcm97584_cfe_v3.7-fastboot/rockford/bsp/common_bsp/mips/bcm97xxx_devs.c	2016-11-23 14:17:20.356613656 +0800
+@@ -565,8 +565,10 @@
+ 	int 				res;
+ 	int 				boot_mode;
+ 	unsigned int 		flash_base;
++#ifdef CFG_ENET
+ 	char 				*envmac;
+ 	char 				macstr[18];
++#endif
+ 	char 				buffer[40];
+ 	nandflash_probe_t 	fnand_probe;
+ 	newflash_probe_t 	fnor_probe;
+@@ -682,11 +684,13 @@
+ 		{
+ 			xprintf("cannot open nandflash0.cfe\n");
+ 		}
++		__puts("\r\nnand read disturb");
+ 		if (cfe_ioctl(sfd, IOCTL_FLASH_HANDLE_PARTITION_READ_DISTURB, (unsigned char *) &flash_info, 
+ 			sizeof(flash_info_t), &res, 0) != 0) 
+ 		{
+ 			xprintf("cannot get flash info\n");
+ 		}
++		__puts("\r\n");
+ 		cfe_close(sfd);
+ #if( BCHP_CHIP==7425 || BCHP_CHIP==7435 || BCHP_CHIP==7584 || BCHP_CHIP==7429 )
+ 	    /* disable SDIO_1 to let linux that we have NAND. This is needed since emmc and nand share the pin. */
+@@ -1182,7 +1186,7 @@
+         env_save();
+ 	}
+ 
+-	board_test_wraparound(ddr0_size);
++	//board_test_wraparound(ddr0_size);
+ }
+ 
+ 
+diff -uNr bcm97584_cfe_v3.7/rockford/bsp/common_bsp/mips/reset.s bcm97584_cfe_v3.7-fastboot/rockford/bsp/common_bsp/mips/reset.s
+--- bcm97584_cfe_v3.7/rockford/bsp/common_bsp/mips/reset.s	2013-08-14 01:47:27.000000000 +0800
++++ bcm97584_cfe_v3.7-fastboot/rockford/bsp/common_bsp/mips/reset.s	2016-11-23 14:17:48.442693858 +0800
+@@ -79,7 +79,7 @@
+         b f; nop
+ #define XVECENT(f,bev) \
+         b f; li k0,bev
+-#if 0
++#ifndef FASTBOOT_MSG
+ #define SET_TRACE(trace_val)
+ #else
+ #define SET_TRACE(trace_val) \
+@@ -99,6 +99,25 @@
+ romInit:
+ 
+ .set    noreorder
++#ifdef FASTBOOT /* in fastboot mode, init serial just after reset */
++	/* initialize serial port */
++	bal	init_serial
++	nop
++
++	/* print Chip number etc */
++	bal	print_chip_details
++	nop
++
++	/* set nand controller clock to 216MHz */
++	li	a0, PHYS_TO_K1(BCHP_PHYSICAL_OFFSET + BCHP_NAND_TIMING_2)
++	lw	a1, 0(a0)
++
++	li	a2, (BCHP_NAND_TIMING_2_CLK_SELECT_CLK_216<<BCHP_NAND_TIMING_2_CLK_SELECT_SHIFT)
++	or	a1, a1, a2
++
++	sw	a1, 0(a0)
++	nop
++#endif
+ 
+ #ifdef BLANK_CHIP
+ #if NAND_MEM_TYPE == 1 || NAND_MEM_TYPE == 2 /* required for some MLC and SLC NAND parts where the NAND CONFIG needs to be set right away */
+@@ -367,6 +386,7 @@
+ 	sw	t1, 0(t2)
+ #endif
+ 
++#ifndef FASTBOOT
+ 	/* initialize serial port */
+          bal   init_serial
+          nop
+@@ -374,7 +394,7 @@
+          /* print Chip number etc */
+          bal   print_chip_details
+          nop
+-
++#endif
+ #ifdef TEST_VERSION
+          bal   print_test_version
+          nop
+@@ -480,6 +500,19 @@
+ #endif /* BSECK_RELOAD */
+ #endif
+ 
++#ifdef FASTBOOT_MSG
++        li      a0, '\r'
++        bal     _writeasm
++        nop
++
++        li      a0, '\n'
++        bal     _writeasm
++        nop
++
++        li      a0, 'A'
++        bal     _writeasm
++        nop
++#endif
+ #ifdef AVS_ENABLE
+ #ifdef S3_WARM_BOOT
+          /* check if it is cold boot or warm boot:
+@@ -517,6 +550,7 @@
+ gap_1:
+ #endif
+ 
++#ifdef FASTBOOT_MSG
+          li    a0, '\n'
+          bal   _writeasm
+          nop
+@@ -529,7 +563,7 @@
+          li    a0, '0'
+          bal   _writeasm
+          nop
+-
++#endif
+ #if 0 //
+          li    a0, 0x0
+          bal   memc_ddr_init
+@@ -668,6 +702,20 @@
+ 
+ MEM_READY:
+ 
++#ifdef FASTBOOT_MSG
++        li      a0, '\r'
++        bal     _writeasm
++        nop
++
++        li      a0, '\n'
++        bal     _writeasm
++        nop
++
++        li      a0, 'X'
++        bal     _writeasm
++        nop
++#endif
++
+ #if defined(SDRAM_SCRAMBLING)
+ 
+ #if defined(S_UNITTEST)
+@@ -1055,6 +1103,20 @@
+          bne   a0, t0, 1b
+          nop
+ 
++#ifdef FASTBOOT_MSG
++         li      a0, '\r'
++         bal     _writeasm
++         nop
++ 
++         li      a0, '\n'
++         bal     _writeasm
++         nop
++ 
++         li      a0, 'N'
++         bal     _writeasm
++         nop
++#endif
++
+ call_new_boot:
+ #endif // BLANK_CHIP
+          bal   get_boot_mode
+@@ -1080,6 +1142,20 @@
+          jalr  t0
+          nop
+ 
++#ifdef FASTBOOT_MSG
++         li      a0, '\r'
++         bal     _writeasm
++         nop
++ 
++         li      a0, '\n'
++         bal     _writeasm
++         nop
++ 
++         li      a0, 'R'
++         bal     _writeasm
++         nop
++#endif
++
+          b     code_in_ram
+          nop
+ 
+diff -uNr bcm97584_cfe_v3.7/rockford/bsp/common_bsp/mips/run_shmoo.s bcm97584_cfe_v3.7-fastboot/rockford/bsp/common_bsp/mips/run_shmoo.s
+--- bcm97584_cfe_v3.7/rockford/bsp/common_bsp/mips/run_shmoo.s	2013-08-14 01:47:27.000000000 +0800
++++ bcm97584_cfe_v3.7-fastboot/rockford/bsp/common_bsp/mips/run_shmoo.s	2016-11-23 14:18:03.468763808 +0800
+@@ -89,11 +89,11 @@
+ 	addi	sp, -16
+ 	sw	t6, 0(sp)
+ .set at
+-
++#ifdef FASTBOOT_MSG
+ 	li	a0, '0'
+ 	bal	_writeasm
+ 	nop
+-
++#endif
+     /* phy_reg_base */
+     li    a0, (BCHP_DDR40_PHY_CONTROL_REGS_0_REVISION)
+     /* memc_reg_base */
+diff -uNr bcm97584_cfe_v3.7/rockford/bsp/common_bsp/mips/ssbl_init.s bcm97584_cfe_v3.7-fastboot/rockford/bsp/common_bsp/mips/ssbl_init.s
+--- bcm97584_cfe_v3.7/rockford/bsp/common_bsp/mips/ssbl_init.s	2013-08-14 01:47:27.000000000 +0800
++++ bcm97584_cfe_v3.7-fastboot/rockford/bsp/common_bsp/mips/ssbl_init.s	2016-11-23 14:18:24.649236016 +0800
+@@ -52,14 +52,20 @@
+ 	bal		clear_call_stack
+ 	nop
+ #endif
++
++#ifndef FASTBOOT
++    /* has been called in reset.s */
+     bal		init_serial
+     nop
++#endif
+ 
+-#if !defined BSL_BUILD || defined BSL_DEBUG	
++#if !defined BSL_BUILD || defined BSL_DEBUG
++#ifdef FASTBOOT_MSG
+ 	li		a0, 'S'
+ 	bal		_writeasm
+ 	nop
+ #endif
++#endif
+ 
+ 	/* reinitialize mips */
+ 	bal		init_mips
+@@ -71,22 +77,26 @@
+ 
+ #if (BCHP_CHIP != 7360 && BCHP_CHIP != 7552 && BCHP_CHIP != 7358)
+ #if !defined BSL_BUILD || defined BSL_DEBUG	
++#ifdef FASTBOOT_MSG
+ 	/* If it is mips 4380 or 5k, then print configuration info */
+     bal     print_mips_config
+     nop
+ #endif
+ #endif
++#endif
+ 
+ #ifdef AUTO_DETECT_UART
+     bal     undo_alt_uart_check
+     nop
+ #endif
+ 
+-#if !defined BSL_BUILD || defined BSL_DEBUG	
++#if !defined BSL_BUILD || defined BSL_DEBUG
++#ifdef FASTBOOT_MSG
+ 	li		a0, '#'
+ 	bal		_writeasm
+ 	nop
+ #endif
++#endif
+ 		
+ 	bal		clear_bss
+ 	nop				
+@@ -95,11 +105,13 @@
+ 	bal		clear_all_d_cache
+ 	nop	
+ 		
+-#if !defined BSL_BUILD || defined BSL_DEBUG		
++#if !defined BSL_BUILD || defined BSL_DEBUG
++#ifdef FASTBOOT_MSG
+ 	li		a0, '@'
+ 	bal		_writeasm
+ 	nop
+ #endif
++#endif
+ 	
+ #if defined FGDL_BUILD || defined BSL_DEBUG	
+ 	/**----- Load the interrupt vectors  ----------------------------**/
