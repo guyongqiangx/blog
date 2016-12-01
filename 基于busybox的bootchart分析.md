@@ -1,5 +1,5 @@
 
-##`Bootchart`简介
+##一、`Bootchart`简介
 `Bootchart`官网[`http://www.bootchart.org`](http://www.bootchart.org)，已经很久没有更新了。
 
 `Bootchart`的目的是将启动阶段的性能可视化（`Boot Process Performance Visualization`）。具体做法是在启动阶段通过采样`/proc`文件系统来搜集启动阶段的信息（如`CPU`负载，进程信息，磁盘访问等），然后通过另外的工具将搜集到的数据以可视化的方式进行输出。
@@ -20,7 +20,7 @@
 
 
 
-##`Bootchart`配置
+##二、`Bootchart`配置
 
 `Busybox`从[`v1.17`](https://git.busybox.net/busybox/tag/?h=1_17_0)版本开始引入`bootchartd`。
 相比`PC`，嵌入式系统没有完备的`Bootchart`工具，启动过程中采样的数据需要导出在`PC`上进行处理。
@@ -92,7 +92,7 @@ AUTO_RENDER="no"
 ```
 从`busybox`中`bootchartd`实现的代码来看，仅支持`SAMPLE_PERIOD`和`SAMPLE_PERIOD`两个选项。当然，也可以不用设置`/etc/bootchartd.conf`而使用代码中默认的设置。
 
-##`Bootchart`运行
+##三、`Bootchart`运行
 
 `bootchart`的帮助信息：
 ```
@@ -288,7 +288,7 @@ ygu@ubuntu:~/work/bootchart$
 
 不过，系统启动后可以监测的手段较多，`bootchartd`工具并不是最优选择，非本文的介绍重点，暂略。
 
-##`Bootchartd`源码分析
+##四、`Bootchartd`源码分析
 
 `busybox\init\bootchartd.c`：
 
@@ -686,5 +686,5 @@ static int dump_procs(FILE *fp, int look_for_login_process)
 }
 ```
 
-##结论
+##五、结论
 `Bootchart`的原理和使用都比较简单，输出也比较直观，通过图片对整个启动系统有个总览，包括`CPU`在启动各时间段的负载和磁盘的吞吐情况，也呈现了启动过程中各进程的先后顺序和持续时间。但是在嵌入式系统中，`CPU`能力普遍不强，`Bootchartd`本身采样的开销也比较客观，甚至连日志输出的打包也会占用不少时间。另外，由于`bootchartd`启动上替代了`init`进程，因此在`init`进程启动之前的部分，`bootchartd`也无法反应。
