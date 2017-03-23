@@ -33,46 +33,58 @@
 + `Lollipop`和`Marshmallow`需要`Java7`
 + `AOSP`的`master`分支，以及`Nougat`需要`Java8`
 
-安装所需的各个`Java`版本：
+通过`PPA(Personal Package Archives)`源进行安装，比较方便：
 
 + 安装`java6`
+
 ```shell
-chmod a+x jdk-6u45-linux-x64.bin
-./jdk-6u45-linux-x64.bin
-sudo mkdir -p /opt/java/64
-sudo mv jdk1.6.0_45/ /opt/java/64
-sudo update-alternatives --install "/usr/bin/java" "java" /opt/java/64/jdk1.6.0_45/bin/java 1
-sudo update-alternatives --install "/usr/bin/javac" "javac" /opt/java/64/jdk1.6.0_45/bin/javac 1
-sudo update-alternatives --install "/usr/bin/jar" "jar" /opt/java/64/jdk1.6.0_45/bin/jar 1
-sudo update-alternatives --install "/usr/bin/javadoc" "javadoc" /opt/java/64/jdk1.6.0_45/bin/javadoc 1
-sudo update-alternatives --install "/usr/bin/javap" "javap" /opt/java/64/jdk1.6.0_45/bin/javap 1
-```
-
-+ 安装`java7`
-
-`Ubuntu 14.04`默认包含了`java7`的安装源，直接执行安装命令即可：
-```shell
-sudo apt-get install openjdk-7-jdk
-sudo update-alternatives --config java
-sudo update-alternatives --config javac
-sudo update-alternatives --config javadoc
-```
-
-+ 安装`java8`
-
-`Ubuntu 14.04`需要手动下载`java8`的安装包，并分步执行安装命令：
-```shell
-wget http://mirrors.kernel.org/ubuntu/pool/universe/o/openjdk-8/openjdk-8-jre_8u45-b14-1_amd64.deb
-wget http://mirrors.kernel.org/ubuntu/pool/universe/o/openjdk-8/openjdk-8-jre-headless_8u45-b14-1_amd64.deb
-wget http://mirrors.kernel.org/ubuntu/pool/universe/o/openjdk-8/openjdk-8-jdk_8u45-b14-1_amd64.deb
+sudo add-apt-repository ppa:webupd8team/java
 sudo apt-get update
-sudo dpkg -i openjdk-8-jre-headless_8u45-b14-1_amd64.deb
-sudo dpkg -i openjdk-8-jre_8u45-b14-1_amd64.deb
-sudo dpkg -i openjdk-8-jdk_8u45-b14-1_amd64.deb
-sudo apt-get -f install
+sudo apt-get install oracle-java6-installer
+```
+
+同样的方法可以通过命令安装基于oracle的java7, java8和java9：
+
+```
+sudo apt-get install oracle-java{6,7,8,9}-installer
+```
+
++ 安装`java7`和`java8`
+
+> `Ubuntu 14.04`默认包含了`java7`的安装源，直接执行安装命令即可：`sudo apt-get install openjdk-7-jdk`
+
+
+```shell
+sudo add-apt-repository ppa:openjdk-r/ppa
+sudo apt-get update
+sudo apt-get install openjdk-7-jdk
+sudo apt-get install openjdk-8-jdk
+```
+
++ `Java`各个版本之间的切换：
+
+```shell
 sudo update-alternatives --config java
 sudo update-alternatives --config javac
 sudo update-alternatives --config javadoc
+```
+
+以下是`java`从`java-7-openjdk`切换到`java-6-oracle`的例子：
+
+```shell
+$ sudo update-alternatives --config java
+There are 3 choices for the alternative java (providing /usr/bin/java).
+
+  Selection    Path                                            Priority   Status
+------------------------------------------------------------
+* 0            /usr/lib/jvm/java-7-openjdk-amd64/jre/bin/java   1071      auto mode
+  1            /usr/lib/jvm/java-6-oracle/jre/bin/java          1         manual mode
+  2            /usr/lib/jvm/java-7-openjdk-amd64/jre/bin/java   1071      manual mode
+  3            /usr/lib/jvm/java-8-openjdk-amd64/jre/bin/java   1069      manual mode
+
+Press enter to keep the current choice[*], or type selection number: 1
+update-alternatives: using /usr/lib/jvm/java-6-oracle/jre/bin/java to provide /usr/bin/java (java) in manual mode
+$ 
 ```
 
 ##4. 安装`android`编译工具链
