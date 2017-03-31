@@ -73,6 +73,8 @@ $<u>id</u>$<u>salt</u>$<u>encrypted</u>
 
 ![](https://github.com/guyongqiangx/blog/blob/dev/nis/images/password%20and%20data%20encryption.jpg?raw=true)
 
+下面分别介绍各个字段：
+
 1. id
 
     id表示密文加密的方式，有多种：1表示采用MD5，5表示采用SHA-256，6表示采用SHA-512，这里为6。
