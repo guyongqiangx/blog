@@ -14,6 +14,7 @@
 > 读代码时的查找通常比较简单，就是想知道某些符号在哪个文件定义或在哪些地方被引用，都是一些明确的符号，很少需要模糊查找，所以用到复杂正则表达式的机会很少。
 
 免不了啰嗦一下，“grep”的常用的几个选项：
+
 - `-r`，递归查找
 
 - `-n`，搜索结果显示行号
@@ -33,9 +34,10 @@
 这个是最基本的查找了。
 
 ```
-ygu@ubuntu:/opt/work/u-boot-2016.09$ grep -rn memcpy
+$ grep -rn memcpy
 ```
 在当前目录查找可以使用：
+
 - 不指定目录："`grep -rn memcpy`"
 - 用"`.`"指定当前目录："`grep -rn memcpy .`"
  
@@ -44,7 +46,7 @@ ygu@ubuntu:/opt/work/u-boot-2016.09$ grep -rn memcpy
 ## 2. 查找不区分大小写
 
 ```
-ygu@ubuntu:/opt/work/u-boot-2016.09$ grep -rni memcpy
+$ grep -rni memcpy
 ```
 
 选项"`-i`"或略大小写，这样除了匹配“`memcpy`”外，还可以匹配一些宏定义如"`MEMCPY`"和"`Memcpy`"等，如：
@@ -75,34 +77,35 @@ out/rpi_3_32b/drivers/input/.input.o.cmd:295:    $(wildcard include/config/use/a
 
 可以在搜索结果中用反向匹配"`-v`"排除`*.o.cmd`文件的匹配：
 ```
-ygu@ubuntu:/opt/work/u-boot-2016.09$ grep -rn memcpy | grep -v .o.cmd
+$ grep -rn memcpy | grep -v .o.cmd
 ```
 
 如果想排除多个生成文件中的匹配，包括"`*.o.cmd`，`*.s.cmd`，`*.o`，`*.map`"等，有两种方式：
+
 - 使用多个`-v`依次对上一次的结果进行反向匹配：
 ```
-ygu@ubuntu:/opt/work/u-boot-2016.09$ grep -rn memcpy | grep -v .o.cmd | grep -v .s.cmd | grep -v .o | grep -v .map
+$ grep -rn memcpy | grep -v .o.cmd | grep -v .s.cmd | grep -v .o | grep -v .map
 ```
 - 使用`-Ev`一次进行多个反向匹配搜索：
 ```
-ygu@ubuntu:/opt/work/u-boot-2016.09$ grep -rn memcpy | grep -Ev '\.o\.cmd|\.s\.cmd|\.o|\.map'
+$ grep -rn memcpy | grep -Ev '\.o\.cmd|\.s\.cmd|\.o|\.map'
 ```
 
 > 由于这里使用了正则表达式"`-E`"，所以需要用"`\`"将"`.`"字符进行转义
 
 另外，也可以使用"`--exclude=GLOB`"来指定排除某些格式的文件，如不在“`*.cmd`”，“`*.o`”和“`*.map`”中搜索：
 ```
-ygu@ubuntu:/opt/work/u-boot-2016.09$ grep -rn --exclude=*.cmd --exclude=*.o --exclude=*.map memcpy
+$ grep -rn --exclude=*.cmd --exclude=*.o --exclude=*.map memcpy
 ```
 
 > 跟“`--exclude=GLOB`”类似的用法有“`--include=GLOB`”，从指定的文件中搜索，如只在“`*.cmd`”，“`*.o`”和“`*.map`”中搜索：
 > ```
-> ygu@ubuntu:/opt/work/u-boot-2016.09$ grep -rn --include=*.cmd --include=*.o --include=*.map memcpy
+> $ grep -rn --include=*.cmd --include=*.o --include=*.map memcpy
 > ```
 > “`--include=GLOB`”在不确定某些函数是否被编译时特别有用。
 > 例如，不确定函数`rpi_is_serial_active`是否有被编译，那就查找“*.o”文件是否存在这个函数符号：
 > ```
-> ygu@ubuntu:/opt/work/u-boot-2016.09$ grep -rn --include=*.o rpi_is_serial_active
+> $ grep -rn --include=*.o rpi_is_serial_active
 > Binary file out/rpi_3_32b/board/raspberrypi/rpi/built-in.o matches
 > Binary file out/rpi_3_32b/board/raspberrypi/rpi/rpi.o matches
 > ```
@@ -110,7 +113,7 @@ ygu@ubuntu:/opt/work/u-boot-2016.09$ grep -rn --exclude=*.cmd --exclude=*.o --ex
 > 
 > 如果想知道函数`rpi_is_serial_active`最后有没有被链接使用，查询生成的`u-boot*`文件就知道了：
 > ```
-> ygu@ubuntu:/opt/work/u-boot-2016.09$ grep -rn --include=u-boot* rpi_is_serial_active
+> $ grep -rn --include=u-boot* rpi_is_serial_active
 > Binary file out/rpi_3_32b/u-boot matches
 > ```
 > 可见`u-boot`文件中找到了这个函数符号。
@@ -119,19 +122,19 @@ ygu@ubuntu:/opt/work/u-boot-2016.09$ grep -rn --exclude=*.cmd --exclude=*.o --ex
 
 如果指定了`u-boot`编译的输出目录，例如输出到`out`，则可以直接忽略对`out`目录的搜索，如：
 ```
-ygu@ubuntu:/opt/work/u-boot-2016.09$ grep -rn --exclude-dir=out memcpy
+$ grep -rn --exclude-dir=out memcpy
 ```
 
 > 忽略多个目录（“out”和“doc”）：
 > ```
-> ygu@ubuntu:/opt/work/u-boot-2016.09$ grep -rn --exclude-dir=out --exclude-dir=doc memcpy
+> $ grep -rn --exclude-dir=out --exclude-dir=doc memcpy
 > ```
 
 ## 5. 查找精确匹配结果
 
 通常的“`memcpy`”查找结果中会有一些这样的匹配：“`MCD_memcpy`”，“`zmemcpy`”，“`memcpyl`”，“`memcpy_16`”等，如果只想精确匹配整个单词，则使用`-w`选项：
 ```
-ygu@ubuntu:/opt/work/u-boot-2016.09$ grep -rnw memcpy .
+$ grep -rnw memcpy .
 ```
 
 ## 6. 查找作为单词分界的结果
@@ -141,11 +144,12 @@ ygu@ubuntu:/opt/work/u-boot-2016.09$ grep -rnw memcpy .
 一般这种查询就需要结合正则表达式了，用正则表达式去匹配单词边界，例如：
 
 ```
-ygu@ubuntu:/opt/work/u-boot-2016.09$ grep -rn -E "(\b|_)memcpy(\b|_)"
+$ grep -rn -E "(\b|_)memcpy(\b|_)"
 ```
 
->
-> - "`-b`"匹配单词边界
+> 关于正则表达式“`(\b|_)memcpy(\b|_)`”
+> 
+> - "`\b`"匹配单词边界
 > - "`_`"匹配单个下滑下
 > 
 > 所以上面的表达式可以匹配：`memcpy`，`memcpy_xxx`，`xxx_memcpy`和`xxx_memcpy_xxx`等模式。（可能匹配的还有函数`memcpy_`，`_memcpy`和`_memcpy_`）
@@ -154,9 +158,9 @@ ygu@ubuntu:/opt/work/u-boot-2016.09$ grep -rn -E "(\b|_)memcpy(\b|_)"
 
 想在结果中查看匹配内容的前后几行信息，例如想看宏定义“`MEMCPY`”匹配的前三行和后两行：
 ```
-ygu@ubuntu:/opt/work/u-boot-2016.09$ grep -rn -B 3 -A 2 MEMCPY
+$ grep -rn -B 3 -A 2 MEMCPY
 ```
-
+> 选项`B/A`：
 > `-B` 指定显示匹配前（Before）的行数
 > `-A` 指定显示匹配后（After）的行数
 
@@ -171,12 +175,12 @@ find针是对文件级别的粗粒度查找，而grep则对文件内容的细粒
 可以通过find命令先找出`makefile`类文件，然后再从结果中搜索`CFLAGS`：
 
 ```
-ygu@ubuntu:/opt/work/u-boot-2016.09$ find . -iname Makefile -o -iname *.inc -o -iname *.mk | xargs grep -rn CFLAGS
+$ find . -iname Makefile -o -iname *.inc -o -iname *.mk | xargs grep -rn CFLAGS
 ```
 > 这里由于涉及到find命令，所以整个查找看起来有点复杂了，也可以只用`grep`的`--include=GLOB`选项来实现：
 > 
 > ```
-> ygu@ubuntu:/opt/work/u-boot-2016.09$ $ grep -rn --include=Makefile --include=*.inc --include=*.mk CFLAGS .
+> $ grep -rn --include=Makefile --include=*.inc --include=*.mk CFLAGS .
 > ```
 > 
 > 比较上面的两个搜索结果，是一样的，但是有一点要注意：
@@ -185,4 +189,4 @@ ygu@ubuntu:/opt/work/u-boot-2016.09$ find . -iname Makefile -o -iname *.inc -o -
 > 
 > 刚好这里搜索的`Makefile`只有首字母大写的形式，而不存在小写的`makefile`，所以这里碰巧是结果一致而已，否则需要指定更多的`--include=GLOB`参数。
 
-以上是我的一些`grep`用法，欢迎交流，提高读代码的效率。
+以上是我的一些`grep`用法，欢迎交流，共同提高读代码的效率。
