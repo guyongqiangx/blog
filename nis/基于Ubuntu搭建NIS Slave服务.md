@@ -38,6 +38,7 @@
 
 1. 进入`/var/yp`目录
 
+	```
 	# cd /var/yp
 	# ls -lh
 	total 12124
@@ -51,9 +52,11 @@
 	drwxr-xr-x   2 root     root        2.0K Apr 19 15:35 she
 	drwxr-xr-x   2 root     root        1.0K Apr 19 15:35 timestamps
 	-r-x------   1 root     bin          870 Jan 22  2005 updaters
+	```
 
 2. 执行`makedbm`对`ypservers`数据文件进行反编译
 
+	```
 	# which makedbm
 	/usr/sbin/makedbm
 	# makedbm -u she/ypservers > temp-file
@@ -62,19 +65,24 @@
 	nis1.she.guyongqiangx.com 
 	YP_LAST_MODIFIED 1241053445
 	YP_MASTER_NAME nis1.she.guyongqiangx.com
+	```
 
 3. 编辑`temp-file`，添加`nis3`
 
+	```
 	# cat temp-file
 	nis3.she.guyongqiangx.com
 	nis2.she.guyongqiangx.com 
 	nis1.she.guyongqiangx.com 
 	YP_LAST_MODIFIED 1492590247
 	YP_MASTER_NAME nis1.she.guyongqiangx.com
+	```
 
 4. 编译`temp-file`重新生成数据库文件
 
+	```
 	# makedbm temp-file ypservers
+	```
 
 5. 在`nis2`上验证`ypservers`的内容
 
