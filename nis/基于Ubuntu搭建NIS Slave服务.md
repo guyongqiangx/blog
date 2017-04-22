@@ -86,7 +86,14 @@
 
 5. 在`nis2`上验证`ypservers`的内容
 
-
+	```
+	# makedbm -u she/ypservers
+	nis3.she.guyongqiangx.com 
+	nis2.she.guyongqiangx.com 
+	nis1.she.guyongqiangx.com 
+	YP_LAST_MODIFIED 1241053445
+	YP_MASTER_NAME nis1.she.guyongqiangx.com
+	```
 
 ## 3. nis3上设置为NIS Slave服务
 
