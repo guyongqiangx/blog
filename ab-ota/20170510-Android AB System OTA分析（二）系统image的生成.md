@@ -2,6 +2,10 @@
 
 Android从7.0开始引入新的OTA升级方式，`A/B System Updates`，这里将其叫做`A/B`系统，涉及的内容较多，分多篇对`A/B`系统的各个方面进行分析。本文为第二篇，系统image的生成。
 
+> 版权声明：
+> 本文为[guyongqiangx](http://blog.csdn.net/guyongqiangx)原创，欢迎转载，请注明出处：</br>
+> [Android A/B System OTA分析（二）系统image的生成： http://blog.csdn.net/guyongqiangx/article/details/71516768](http://blog.csdn.net/guyongqiangx/article/details/71516768)
+
 `image`这个词的含义很多，这里指编译后可以烧写到设备的文件，如`boot.img`，`system.img`等，统称为镜像文件吧。
 
 > 我一直觉得将`image`翻译成镜像文件怪怪的，如果有更贴切词汇，请一定要告诉我啊，十分感谢。

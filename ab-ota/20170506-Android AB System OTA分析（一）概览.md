@@ -4,6 +4,10 @@ Android从7.0开始引入新的OTA升级方式，`A/B System Updates`，这里�
 
 `A/B`系统涉及的内容较多，分多篇对`A/B`系统的各个方面进行分析。本文为第一篇，概览。
 
+> 版权声明：
+> 本文为[guyongqiangx](http://blog.csdn.net/guyongqiangx)原创，欢迎转载，请注明出处：</br>
+> [Android A/B System OTA分析（一）概览： http://blog.csdn.net/guyongqiangx/article/details/71334889](http://blog.csdn.net/guyongqiangx/article/details/71334889)
+
 ## 1. `A/B`系统的特点
 
 顾名思义，`A/B`系统就是设备上有`A`和`B`两套可以工作的系统（用户数据只有一份，为两套系统共用），简单来讲，可以理解为一套系统分区，另外一套为备份分区。其系统版本可能一样；也可能不一样，其中一个是新版本，另外一个旧版本，通过升级，将旧版本也更新为新版本。当然，设备出厂时这两套系统肯定是一样的。
