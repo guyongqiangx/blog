@@ -307,72 +307,72 @@ Android从7.0开始引入新的OTA升级方式，`A/B System Updates`，这里�
 	bcm7252ssffdr4:/ # logcat -s update_engine:v
 	--------- beginning of main
 	--------- beginning of system
-	05-21 06:55:08.190  2539  2539 I update_engine: [0521/065508:INFO:main.cc(113)] Chrome OS Update Engine starting
-	05-21 06:55:08.194  2539  2539 I update_engine: [0521/065508:INFO:boot_control_android.cc(78)] Loaded boot_control HAL 'boot control hal for bcm platform' version 0.1 authored by 'Broadcom'.
-	05-21 06:55:08.194  2539  2539 I update_engine: [0521/065508:INFO:daemon_state_android.cc(43)] Booted in dev mode.
-	05-21 07:03:32.471  2539  2539 I update_engine: [0521/070332:INFO:update_attempter_android.cc(199)] Using this install plan:
-	05-21 07:03:32.471  2539  2539 I update_engine: [0521/070332:INFO:install_plan.cc(71)] InstallPlan: new_update, payload type: unknown, source_slot: A, target_slot: B, url: http://stbszx-bld-5/public/android/full-ota/payload.bin, payload size: 282164983, payload hash: ozGgyQEcnkI5ZaX+Wbjo5I/PCR7PEZka9fGd0nWa+oY=, metadata size: 21023, metadata signature: , hash_checks_mandatory: true, powerwash_required: false
-	05-21 07:03:32.471  2539  2539 W update_engine: [0521/070332:WARNING:hardware_android.cc(126)] STUB: Assuming OOBE is complete.
-	05-21 07:03:32.471  2539  2539 I update_engine: [0521/070332:INFO:cpu_limiter.cc(71)] Setting cgroup cpu shares to  2
-	05-21 07:03:32.471  2539  2539 E update_engine: [0521/070332:ERROR:utils.cc(199)] 0 == writer.Open(path, O_WRONLY | O_CREAT | O_TRUNC, 0600) failed: No such file or directory
-	05-21 07:03:32.471  2539  2539 E update_engine: [0521/070332:ERROR:cpu_limiter.cc(74)] Failed to change cgroup cpu shares to 2 using /sys/fs/cgroup/cpu/update-engine/cpu.shares
-	05-21 07:03:32.471  2539  2539 I update_engine: [0521/070332:INFO:update_attempter_android.cc(379)] Marking booted slot as good.
-	05-21 07:03:32.476  2539  2539 I update_engine: [0521/070332:INFO:update_attempter_android.cc(394)] Scheduling an action processor start.
-	05-21 07:03:32.476  2539  2539 I update_engine: [0521/070332:INFO:action_processor.cc(46)] ActionProcessor: starting InstallPlanAction
-	05-21 07:03:32.476  2539  2539 I update_engine: [0521/070332:INFO:action_processor.cc(116)] ActionProcessor: finished InstallPlanAction with code ErrorCode::kSuccess
-	05-21 07:03:32.476  2539  2539 I update_engine: [0521/070332:INFO:action_processor.cc(143)] ActionProcessor: starting DownloadAction
-	05-21 07:03:32.476  2539  2539 I update_engine: [0521/070332:INFO:install_plan.cc(71)] InstallPlan: new_update, payload type: unknown, source_slot: A, target_slot: B, url: http://stbszx-bld-5/public/android/full-ota/payload.bin, payload size: 282164983, payload hash: ozGgyQEcnkI5ZaX+Wbjo5I/PCR7PEZka9fGd0nWa+oY=, metadata size: 21023, metadata signature: , hash_checks_mandatory: true, powerwash_required: false
-	05-21 07:03:32.476  2539  2539 I update_engine: [0521/070332:INFO:download_action.cc(178)] Marking new slot as unbootable
-	05-21 07:03:32.478  2539  2539 I update_engine: [0521/070332:INFO:multi_range_http_fetcher.cc(45)] starting first transfer
-	05-21 07:03:32.478  2539  2539 I update_engine: [0521/070332:INFO:multi_range_http_fetcher.cc(73)] starting transfer of range 0+282164983
-	05-21 07:03:32.478  2539  2539 I update_engine: [0521/070332:INFO:libcurl_http_fetcher.cc(94)] Starting/Resuming transfer
-	05-21 07:03:32.488  2539  2539 I update_engine: [0521/070332:INFO:libcurl_http_fetcher.cc(106)] Using proxy: no
-	05-21 07:03:32.488  2539  2539 I update_engine: [0521/070332:INFO:libcurl_http_fetcher.cc(237)] Setting up curl options for HTTP
-	05-21 07:03:32.582  2539  2539 I update_engine: [0521/070332:INFO:delta_performer.cc(196)] Completed 0/? operations, 14169/282164983 bytes downloaded (0%), overall progress 0%
-	05-21 07:03:32.583  2539  2539 I update_engine: [0521/070332:INFO:delta_performer.cc(536)] Manifest size in payload matches expected value from Omaha
-	05-21 07:03:32.583  2539  2539 I update_engine: [0521/070332:INFO:delta_performer.cc(1396)] Verifying metadata hash signature using public key: /etc/update_engine/update-payload-key.pub.pem
-	05-21 07:03:32.584  2539  2539 I update_engine: [0521/070332:INFO:payload_verifier.cc(93)] signature blob size = 264
-	05-21 07:03:32.585  2539  2539 I update_engine: [0521/070332:INFO:payload_verifier.cc(112)] Verified correct signature 1 out of 1 signatures.
-	05-21 07:03:32.585  2539  2539 I update_engine: [0521/070332:INFO:delta_performer.cc(1439)] Metadata hash signature matches value in Omaha response.
-	05-21 07:03:32.586  2539  2539 I update_engine: [0521/070332:INFO:delta_performer.cc(1459)] Detected a 'full' payload.
-	05-21 07:03:32.587  2539  2539 I update_engine: [0521/070332:INFO:delta_performer.cc(374)] PartitionInfo old boot sha256:  size: 0
-	05-21 07:03:32.588  2539  2539 I update_engine: [0521/070332:INFO:delta_performer.cc(374)] PartitionInfo new boot sha256: dZpLY9KsQYa2B14B0oBzfUKxVFIH7ocbgT70JavheSc= size: 19480576
-	05-21 07:03:32.588  2539  2539 I update_engine: [0521/070332:INFO:delta_performer.cc(374)] PartitionInfo old system sha256:  size: 0
-	05-21 07:03:32.588  2539  2539 I update_engine: [0521/070332:INFO:delta_performer.cc(374)] PartitionInfo new system sha256: kFXbYzaM47PifNjuL+Plz1zTMEp1MoajOuXZuCh9yw0= size: 769654784
-	05-21 07:03:32.589  2539  2539 I update_engine: [0521/070332:INFO:delta_performer.cc(359)] Applying 10 operations to partition "boot"
-	05-21 07:03:32.714  2539  2539 I update_engine: [0521/070332:INFO:delta_performer.cc(647)] Starting to apply update payload operations
-	05-21 07:03:34.363  2539  2539 I update_engine: [0521/070334:INFO:delta_performer.cc(359)] Applying 367 operations to partition "system"
-	05-21 07:03:39.474  2539  2539 I update_engine: [0521/070339:INFO:delta_performer.cc(196)] Completed 23/377 operations (6%), 40302425/282164983 bytes downloaded (14%), overall progress 10%
-	05-21 07:03:49.487  2539  2539 I update_engine: [0521/070349:INFO:delta_performer.cc(196)] Completed 48/377 operations (12%), 79017817/282164983 bytes downloaded (28%), overall progress 20%
-	05-21 07:03:59.168  2539  2539 I update_engine: [0521/070359:INFO:delta_performer.cc(196)] Completed 74/377 operations (19%), 118519641/282164983 bytes downloaded (42%), overall progress 30%
-	05-21 07:04:08.520  2539  2539 I update_engine: [0521/070408:INFO:delta_performer.cc(196)] Completed 98/377 operations (25%), 158021465/282164983 bytes downloaded (56%), overall progress 40%
-	05-21 07:04:17.595  2539  2539 I update_engine: [0521/070417:INFO:delta_performer.cc(196)] Completed 121/377 operations (32%), 192001881/282164983 bytes downloaded (68%), overall progress 50%
-	05-21 07:04:27.051  2539  2539 I update_engine: [0521/070427:INFO:delta_performer.cc(196)] Completed 145/377 operations (38%), 231389017/282164983 bytes downloaded (82%), overall progress 60%
-	05-21 07:04:36.730  2539  2539 I update_engine: [0521/070436:INFO:delta_performer.cc(196)] Completed 171/377 operations (45%), 270890841/282164983 bytes downloaded (96%), overall progress 70%
-	05-21 07:04:43.221  2539  2539 I update_engine: [0521/070443:INFO:delta_performer.cc(196)] Completed 242/377 operations (64%), 273413977/282164983 bytes downloaded (96%), overall progress 80%
-	05-21 07:04:49.420  2539  2539 I update_engine: [0521/070449:INFO:delta_performer.cc(196)] Completed 317/377 operations (84%), 273430361/282164983 bytes downloaded (96%), overall progress 90%
-	05-21 07:04:54.689  2539  2539 I update_engine: [0521/070454:INFO:delta_performer.cc(196)] Completed 377/377 operations (100%), 282164983/282164983 bytes downloaded (100%), overall progress 100%
-	05-21 07:04:54.692  2539  2539 I update_engine: [0521/070454:INFO:delta_performer.cc(1336)] Extracted signature data of size 264 at 282143432
-	05-21 07:04:54.694  2539  2539 I update_engine: [0521/070454:INFO:multi_range_http_fetcher.cc(111)] terminating transfer
-	05-21 07:04:54.695  2539  2539 I update_engine: [0521/070454:INFO:multi_range_http_fetcher.cc(171)] Received transfer terminated.
-	05-21 07:04:54.695  2539  2539 I update_engine: [0521/070454:INFO:multi_range_http_fetcher.cc(123)] TransferEnded w/ code 206
-	05-21 07:04:54.695  2539  2539 I update_engine: [0521/070454:INFO:multi_range_http_fetcher.cc(157)] Done w/ all transfers
-	05-21 07:04:54.878  2539  2539 I update_engine: [0521/070454:INFO:delta_performer.cc(1596)] Verifying payload using public key: /etc/update_engine/update-payload-key.pub.pem
-	05-21 07:04:54.878  2539  2539 I update_engine: [0521/070454:INFO:payload_verifier.cc(93)] signature blob size = 264
-	05-21 07:04:54.879  2539  2539 I update_engine: [0521/070454:INFO:payload_verifier.cc(112)] Verified correct signature 1 out of 1 signatures.
-	05-21 07:04:54.879  2539  2539 I update_engine: [0521/070454:INFO:delta_performer.cc(1633)] Payload hash matches value in payload.
-	05-21 07:04:54.879  2539  2539 I update_engine: [0521/070454:INFO:action_processor.cc(116)] ActionProcessor: finished DownloadAction with code ErrorCode::kSuccess
-	05-21 07:04:54.879  2539  2539 I update_engine: [0521/070454:INFO:action_processor.cc(143)] ActionProcessor: starting FilesystemVerifierAction
-	05-21 07:04:54.879  2539  2539 I update_engine: [0521/070454:INFO:filesystem_verifier_action.cc(157)] Hashing partition 0 (boot) on device /dev/block/by-name/boot_e
-	05-21 07:04:55.358  2539  2539 I update_engine: [0521/070455:INFO:filesystem_verifier_action.cc(248)] Hash of boot: dZpLY9KsQYa2B14B0oBzfUKxVFIH7ocbgT70JavheSc=
-	05-21 07:04:55.365  2539  2539 I update_engine: [0521/070455:INFO:filesystem_verifier_action.cc(157)] Hashing partition 1 (system) on device /dev/block/by-name/system_e
-	05-21 07:05:14.188  2539  2539 I update_engine: [0521/070514:INFO:filesystem_verifier_action.cc(248)] Hash of system: kFXbYzaM47PifNjuL+Plz1zTMEp1MoajOuXZuCh9yw0=
-	05-21 07:05:14.264  2539  2539 I update_engine: [0521/070514:INFO:action_processor.cc(116)] ActionProcessor: finished FilesystemVerifierAction with code ErrorCode::kSuccess
-	05-21 07:05:14.264  2539  2539 I update_engine: [0521/070514:INFO:action_processor.cc(143)] ActionProcessor: starting PostinstallRunnerAction
-	05-21 07:05:14.265  2539  2539 I update_engine: [0521/070514:INFO:postinstall_runner_action.cc(341)] All post-install commands succeeded
-	05-21 07:05:14.265  2539  2539 I update_engine: [0521/070514:INFO:action_processor.cc(116)] ActionProcessor: finished last action PostinstallRunnerAction with code ErrorCode::kSuccess
-	05-21 07:05:14.265  2539  2539 I update_engine: [0521/070514:INFO:update_attempter_android.cc(282)] Processing Done.
-	05-21 07:05:14.269  2539  2539 I update_engine: [0521/070514:INFO:update_attempter_android.cc(291)] Update successfully applied, waiting to reboot.
+	I update_engine: [INFO:main.cc(113)] Chrome OS Update Engine starting
+	I update_engine: [INFO:boot_control_android.cc(78)] Loaded boot_control HAL 'boot control hal for bcm platform' version 0.1 authored by 'Broadcom'.
+	I update_engine: [INFO:daemon_state_android.cc(43)] Booted in dev mode.
+	I update_engine: [INFO:update_attempter_android.cc(199)] Using this install plan:
+	I update_engine: [INFO:install_plan.cc(71)] InstallPlan: new_update, payload type: unknown, source_slot: A, target_slot: B, url: http://stbszx-bld-5/public/android/full-ota/payload.bin, payload size: 282164983, payload hash: ozGgyQEcnkI5ZaX+Wbjo5I/PCR7PEZka9fGd0nWa+oY=, metadata size: 21023, metadata signature: , hash_checks_mandatory: true, powerwash_required: false
+	W update_engine: [WARNING:hardware_android.cc(126)] STUB: Assuming OOBE is complete.
+	I update_engine: [INFO:cpu_limiter.cc(71)] Setting cgroup cpu shares to  2
+	E update_engine: [ERROR:utils.cc(199)] 0 == writer.Open(path, O_WRONLY | O_CREAT | O_TRUNC, 0600) failed: No such file or directory
+	E update_engine: [ERROR:cpu_limiter.cc(74)] Failed to change cgroup cpu shares to 2 using /sys/fs/cgroup/cpu/update-engine/cpu.shares
+	I update_engine: [INFO:update_attempter_android.cc(379)] Marking booted slot as good.
+	I update_engine: [INFO:update_attempter_android.cc(394)] Scheduling an action processor start.
+	I update_engine: [INFO:action_processor.cc(46)] ActionProcessor: starting InstallPlanAction
+	I update_engine: [INFO:action_processor.cc(116)] ActionProcessor: finished InstallPlanAction with code ErrorCode::kSuccess
+	I update_engine: [INFO:action_processor.cc(143)] ActionProcessor: starting DownloadAction
+	I update_engine: [INFO:install_plan.cc(71)] InstallPlan: new_update, payload type: unknown, source_slot: A, target_slot: B, url: http://stbszx-bld-5/public/android/full-ota/payload.bin, payload size: 282164983, payload hash: ozGgyQEcnkI5ZaX+Wbjo5I/PCR7PEZka9fGd0nWa+oY=, metadata size: 21023, metadata signature: , hash_checks_mandatory: true, powerwash_required: false
+	I update_engine: [INFO:download_action.cc(178)] Marking new slot as unbootable
+	I update_engine: [INFO:multi_range_http_fetcher.cc(45)] starting first transfer
+	I update_engine: [INFO:multi_range_http_fetcher.cc(73)] starting transfer of range 0+282164983
+	I update_engine: [INFO:libcurl_http_fetcher.cc(94)] Starting/Resuming transfer
+	I update_engine: [INFO:libcurl_http_fetcher.cc(106)] Using proxy: no
+	I update_engine: [INFO:libcurl_http_fetcher.cc(237)] Setting up curl options for HTTP
+	I update_engine: [INFO:delta_performer.cc(196)] Completed 0/? operations, 14169/282164983 bytes downloaded (0%), overall progress 0%
+	I update_engine: [INFO:delta_performer.cc(536)] Manifest size in payload matches expected value from Omaha
+	I update_engine: [INFO:delta_performer.cc(1396)] Verifying metadata hash signature using public key: /etc/update_engine/update-payload-key.pub.pem
+	I update_engine: [INFO:payload_verifier.cc(93)] signature blob size = 264
+	I update_engine: [INFO:payload_verifier.cc(112)] Verified correct signature 1 out of 1 signatures.
+	I update_engine: [INFO:delta_performer.cc(1439)] Metadata hash signature matches value in Omaha response.
+	I update_engine: [INFO:delta_performer.cc(1459)] Detected a 'full' payload.
+	I update_engine: [INFO:delta_performer.cc(374)] PartitionInfo old boot sha256:  size: 0
+	I update_engine: [INFO:delta_performer.cc(374)] PartitionInfo new boot sha256: dZpLY9KsQYa2B14B0oBzfUKxVFIH7ocbgT70JavheSc= size: 19480576
+	I update_engine: [INFO:delta_performer.cc(374)] PartitionInfo old system sha256:  size: 0
+	I update_engine: [INFO:delta_performer.cc(374)] PartitionInfo new system sha256: kFXbYzaM47PifNjuL+Plz1zTMEp1MoajOuXZuCh9yw0= size: 769654784
+	I update_engine: [INFO:delta_performer.cc(359)] Applying 10 operations to partition "boot"
+	I update_engine: [INFO:delta_performer.cc(647)] Starting to apply update payload operations
+	I update_engine: [INFO:delta_performer.cc(359)] Applying 367 operations to partition "system"
+	I update_engine: [INFO:delta_performer.cc(196)] Completed 23/377 operations (6%), 40302425/282164983 bytes downloaded (14%), overall progress 10%
+	I update_engine: [INFO:delta_performer.cc(196)] Completed 48/377 operations (12%), 79017817/282164983 bytes downloaded (28%), overall progress 20%
+	I update_engine: [INFO:delta_performer.cc(196)] Completed 74/377 operations (19%), 118519641/282164983 bytes downloaded (42%), overall progress 30%
+	I update_engine: [INFO:delta_performer.cc(196)] Completed 98/377 operations (25%), 158021465/282164983 bytes downloaded (56%), overall progress 40%
+	I update_engine: [INFO:delta_performer.cc(196)] Completed 121/377 operations (32%), 192001881/282164983 bytes downloaded (68%), overall progress 50%
+	I update_engine: [INFO:delta_performer.cc(196)] Completed 145/377 operations (38%), 231389017/282164983 bytes downloaded (82%), overall progress 60%
+	I update_engine: [INFO:delta_performer.cc(196)] Completed 171/377 operations (45%), 270890841/282164983 bytes downloaded (96%), overall progress 70%
+	I update_engine: [INFO:delta_performer.cc(196)] Completed 242/377 operations (64%), 273413977/282164983 bytes downloaded (96%), overall progress 80%
+	I update_engine: [INFO:delta_performer.cc(196)] Completed 317/377 operations (84%), 273430361/282164983 bytes downloaded (96%), overall progress 90%
+	I update_engine: [INFO:delta_performer.cc(196)] Completed 377/377 operations (100%), 282164983/282164983 bytes downloaded (100%), overall progress 100%
+	I update_engine: [INFO:delta_performer.cc(1336)] Extracted signature data of size 264 at 282143432
+	I update_engine: [INFO:multi_range_http_fetcher.cc(111)] terminating transfer
+	I update_engine: [INFO:multi_range_http_fetcher.cc(171)] Received transfer terminated.
+	I update_engine: [INFO:multi_range_http_fetcher.cc(123)] TransferEnded w/ code 206
+	I update_engine: [INFO:multi_range_http_fetcher.cc(157)] Done w/ all transfers
+	I update_engine: [INFO:delta_performer.cc(1596)] Verifying payload using public key: /etc/update_engine/update-payload-key.pub.pem
+	I update_engine: [INFO:payload_verifier.cc(93)] signature blob size = 264
+	I update_engine: [INFO:payload_verifier.cc(112)] Verified correct signature 1 out of 1 signatures.
+	I update_engine: [INFO:delta_performer.cc(1633)] Payload hash matches value in payload.
+	I update_engine: [INFO:action_processor.cc(116)] ActionProcessor: finished DownloadAction with code ErrorCode::kSuccess
+	I update_engine: [INFO:action_processor.cc(143)] ActionProcessor: starting FilesystemVerifierAction
+	I update_engine: [INFO:filesystem_verifier_action.cc(157)] Hashing partition 0 (boot) on device /dev/block/by-name/boot_e
+	I update_engine: [INFO:filesystem_verifier_action.cc(248)] Hash of boot: dZpLY9KsQYa2B14B0oBzfUKxVFIH7ocbgT70JavheSc=
+	I update_engine: [INFO:filesystem_verifier_action.cc(157)] Hashing partition 1 (system) on device /dev/block/by-name/system_e
+	I update_engine: [INFO:filesystem_verifier_action.cc(248)] Hash of system: kFXbYzaM47PifNjuL+Plz1zTMEp1MoajOuXZuCh9yw0=
+	I update_engine: [INFO:action_processor.cc(116)] ActionProcessor: finished FilesystemVerifierAction with code ErrorCode::kSuccess
+	I update_engine: [INFO:action_processor.cc(143)] ActionProcessor: starting PostinstallRunnerAction
+	I update_engine: [INFO:postinstall_runner_action.cc(341)] All post-install commands succeeded
+	I update_engine: [INFO:action_processor.cc(116)] ActionProcessor: finished last action PostinstallRunnerAction with code ErrorCode::kSuccess
+	I update_engine: [INFO:update_attempter_android.cc(282)] Processing Done.
+	I update_engine: [INFO:update_attempter_android.cc(291)] Update successfully applied, waiting to reboot.
 
   `update_engine`输出`Processing Done.`后提示`Update successfully applied, waiting to reboot.`，要求系统进行重启，重启后会设置分区`slot`的`boot_successful`属性表明系统能够成功启动。
 
