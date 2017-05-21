@@ -1,0 +1,121 @@
+﻿bcm7252ssffdr4:/ $ su
+bcm7252ssffdr4:/ # 
+bcm7252ssffdr4:/ # which update_engine_client
+/system/bin/update_engine_client
+bcm7252ssffdr4:/ # 
+headers="FILE_HASH=ozGgyQEcnkI5ZaX+Wbjo5I/PCR7PEZka9fGd0nWa+oY=               <
+> FILE_SIZE=282164983
+> METADATA_HASH=GLIKfE6KRwylWMHsNadG/Q8iy5f7ENWTatvMdBlpoPg=
+> METADATA_SIZE=21023
+> "
+bcm7252ssffdr4:/ # 
+bcm7252ssffdr4:/ # logcat -s bcm-bootc:v update_engine:v
+--------- beginning of main
+--------- beginning of system
+05-21 06:52:55.577  2528  2528 I bcm-bootc: init: read magic (331100bb)
+05-21 06:52:55.578  2528  2528 I bcm-bootc: load commander...
+05-21 06:52:55.578  2528  2528 I bcm-bootc: ~~~~~~~~~~~~~~~~~~~~
+05-21 06:52:55.578  2528  2528 I bcm-bootc: COMMANDER:
+05-21 06:52:55.578  2528  2528 I bcm-bootc:     magic: 0x331100bb
+05-21 06:52:55.578  2528  2528 I bcm-bootc:   current: 0
+05-21 06:52:55.578  2528  2528 I bcm-bootc: 
+05-21 06:52:55.578  2528  2528 I bcm-bootc:      slot: 0 | 1
+05-21 06:52:55.578  2528  2528 I bcm-bootc:           -------
+05-21 06:52:55.578  2528  2528 I bcm-bootc:    suffix: i | e
+05-21 06:52:55.578  2528  2528 I bcm-bootc:     valid: 0 | 0
+05-21 06:52:55.578  2528  2528 I bcm-bootc:  boot_try: 0 | 0
+05-21 06:52:55.578  2528  2528 I bcm-bootc:   boot_ok: 1 | 0
+05-21 06:52:55.578  2528  2528 I bcm-bootc: boot_fail: 0 | 1
+05-21 06:52:55.578  2528  2528 I bcm-bootc: ~~~~~~~~~~~~~~~~~~~~
+05-21 06:52:58.623  2542  2542 I update_engine: [0521/065258:INFO:main.cc(113)] Chrome OS Update Engine starting
+05-21 06:52:58.627  2542  2542 I bcm-bootc: init: read magic (331100bb)
+05-21 06:52:58.627  2542  2542 I bcm-bootc: load commander...
+05-21 06:52:58.627  2542  2542 I bcm-bootc: ~~~~~~~~~~~~~~~~~~~~
+05-21 06:52:58.627  2542  2542 I bcm-bootc: COMMANDER:
+05-21 06:52:58.627  2542  2542 I bcm-bootc:     magic: 0x331100bb
+05-21 06:52:58.627  2542  2542 I bcm-bootc:   current: 0
+05-21 06:52:58.627  2542  2542 I bcm-bootc: 
+05-21 06:52:58.627  2542  2542 I bcm-bootc:      slot: 0 | 1
+05-21 06:52:58.627  2542  2542 I bcm-bootc:           -------
+05-21 06:52:58.627  2542  2542 I bcm-bootc:    suffix: i | e
+05-21 06:52:58.627  2542  2542 I bcm-bootc:     valid: 0 | 0
+05-21 06:52:58.627  2542  2542 I bcm-bootc:  boot_try: 0 | 0
+05-21 06:52:58.627  2542  2542 I bcm-bootc:   boot_ok: 1 | 0
+05-21 06:52:58.627  2542  2542 I bcm-bootc: boot_fail: 0 | 1
+05-21 06:52:58.627  2542  2542 I bcm-bootc: ~~~~~~~~~~~~~~~~~~~~
+05-21 06:52:58.627  2542  2542 I update_engine: [0521/065258:INFO:boot_control_android.cc(78)] Loaded boot_control HAL 'boot control hal for bcm platform' version 0.1 authored by 'Broadcom'.
+05-21 06:52:58.627  2542  2542 I update_engine: [0521/065258:INFO:daemon_state_android.cc(43)] Booted in dev mode.
+05-21 06:53:59.828  2542  2542 I update_engine: [0521/065359:INFO:update_attempter_android.cc(199)] Using this install plan:
+05-21 06:53:59.829  2542  2542 I update_engine: [0521/065359:INFO:install_plan.cc(71)] InstallPlan: new_update, payload type: unknown, source_slot: A, target_slot: B, url: http://stbszx-bld-5.she.broadcom.com/public/users/ygu/android/android-n-17.1/dist-output-new/full-ota/payload.bin, payload size: 282164983, payload hash: ozGgyQEcnkI5ZaX+Wbjo5I/PCR7PEZka9fGd0nWa+oY=, metadata size: 21023, metadata signature: , hash_checks_mandatory: true, powerwash_required: false
+05-21 06:53:59.829  2542  2542 W update_engine: [0521/065359:WARNING:hardware_android.cc(126)] STUB: Assuming OOBE is complete.
+05-21 06:53:59.829  2542  2542 I update_engine: [0521/065359:INFO:cpu_limiter.cc(71)] Setting cgroup cpu shares to  2
+05-21 06:53:59.829  2542  2542 E update_engine: [0521/065359:ERROR:utils.cc(199)] 0 == writer.Open(path, O_WRONLY | O_CREAT | O_TRUNC, 0600) failed: No such file or directory
+05-21 06:53:59.829  2542  2542 E update_engine: [0521/065359:ERROR:cpu_limiter.cc(74)] Failed to change cgroup cpu shares to 2 using /sys/fs/cgroup/cpu/update-engine/cpu.shares
+05-21 06:53:59.829  2542  2542 I update_engine: [0521/065359:INFO:update_attempter_android.cc(379)] Marking booted slot as good.
+05-21 06:53:59.829  2542  2542 E bcm-bootc: write commander...
+05-21 06:53:59.829  2542  2542 I bcm-bootc: ~~~~~~~~~~~~~~~~~~~~
+05-21 06:53:59.829  2542  2542 I bcm-bootc: COMMANDER:
+05-21 06:53:59.829  2542  2542 I bcm-bootc:     magic: 0x331100bb
+05-21 06:53:59.830  2542  2542 I bcm-bootc:   current: 0
+05-21 06:53:59.830  2542  2542 I bcm-bootc: 
+05-21 06:53:59.830  2542  2542 I bcm-bootc:      slot: 0 | 1
+05-21 06:53:59.830  2542  2542 I bcm-bootc:           -------
+05-21 06:53:59.830  2542  2542 I bcm-bootc:    suffix: i | e
+05-21 06:53:59.830  2542  2542 I bcm-bootc:     valid: 0 | 0
+05-21 06:53:59.830  2542  2542 I bcm-bootc:  boot_try: 0 | 0
+05-21 06:53:59.830  2542  2542 I bcm-bootc:   boot_ok: 1 | 0
+05-21 06:53:59.830  2542  2542 I bcm-bootc: boot_fail: 0 | 1
+05-21 06:53:59.830  2542  2542 I bcm-bootc: ~~~~~~~~~~~~~~~~~~~~
+05-21 06:53:59.830  2542  2542 I update_engine: [0521/065359:INFO:update_attempter_android.cc(394)] Scheduling an action processor start.
+05-21 06:53:59.831  2542  2542 I update_engine: [0521/065359:INFO:action_processor.cc(46)] ActionProcessor: starting InstallPlanAction
+05-21 06:53:59.831  2542  2542 I update_engine: [0521/065359:INFO:action_processor.cc(116)] ActionProcessor: finished InstallPlanAction with code ErrorCode::kSuccess
+05-21 06:53:59.831  2542  2542 I update_engine: [0521/065359:INFO:action_processor.cc(143)] ActionProcessor: starting DownloadAction
+05-21 06:53:59.831  2542  2542 I update_engine: [0521/065359:INFO:install_plan.cc(71)] InstallPlan: new_update, payload type: unknown, source_slot: A, target_slot: B, url: http://stbszx-bld-5.she.broadcom.com/public/users/ygu/android/android-n-17.1/dist-output-new/full-ota/payload.bin, payload size: 282164983, payload hash: ozGgyQEcnkI5ZaX+Wbjo5I/PCR7PEZka9fGd0nWa+oY=, metadata size: 21023, metadata signature: , hash_checks_mandatory: true, powerwash_required: false
+05-21 06:53:59.831  2542  2542 I update_engine: [0521/065359:INFO:download_action.cc(178)] Marking new slot as unbootable
+05-21 06:53:59.831  2542  2542 E bcm-bootc: write commander...
+05-21 06:53:59.831  2542  2542 I bcm-bootc: ~~~~~~~~~~~~~~~~~~~~
+05-21 06:53:59.831  2542  2542 I bcm-bootc: COMMANDER:
+05-21 06:53:59.831  2542  2542 I bcm-bootc:     magic: 0x331100bb
+05-21 06:53:59.831  2542  2542 I bcm-bootc:   current: 0
+05-21 06:53:59.831  2542  2542 I bcm-bootc: 
+05-21 06:53:59.831  2542  2542 I bcm-bootc:      slot: 0 | 1
+05-21 06:53:59.831  2542  2542 I bcm-bootc:           -------
+05-21 06:53:59.831  2542  2542 I bcm-bootc:    suffix: i | e
+05-21 06:53:59.831  2542  2542 I bcm-bootc:     valid: 0 | 0
+05-21 06:53:59.831  2542  2542 I bcm-bootc:  boot_try: 0 | 0
+05-21 06:53:59.831  2542  2542 I bcm-bootc:   boot_ok: 1 | 0
+05-21 06:53:59.831  2542  2542 I bcm-bootc: boot_fail: 0 | 1
+05-21 06:53:59.831  2542  2542 I bcm-bootc: ~~~~~~~~~~~~~~~~~~~~
+05-21 06:53:59.832  2542  2542 I update_engine: [0521/065359:INFO:multi_range_http_fetcher.cc(45)] starting first transfer
+05-21 06:53:59.832  2542  2542 I update_engine: [0521/065359:INFO:multi_range_http_fetcher.cc(73)] starting transfer of range 0+282164983
+05-21 06:53:59.832  2542  2542 I update_engine: [0521/065359:INFO:libcurl_http_fetcher.cc(94)] Starting/Resuming transfer
+05-21 06:53:59.842  2542  2542 I update_engine: [0521/065359:INFO:libcurl_http_fetcher.cc(106)] Using proxy: no
+05-21 06:53:59.842  2542  2542 I update_engine: [0521/065359:INFO:libcurl_http_fetcher.cc(237)] Setting up curl options for HTTP
+05-21 06:53:59.935  2542  2542 I update_engine: [0521/065359:INFO:delta_performer.cc(196)] Completed 0/? operations, 9825/282164983 bytes downloaded (0%), overall progress 0%
+05-21 06:53:59.935  2542  2542 I update_engine: [0521/065359:INFO:delta_performer.cc(536)] Manifest size in payload matches expected value from Omaha
+05-21 06:53:59.936  2542  2542 I update_engine: [0521/065359:INFO:delta_performer.cc(1396)] Verifying metadata hash signature using public key: /etc/update_engine/update-payload-key.pub.pem
+05-21 06:53:59.936  2542  2542 I update_engine: [0521/065359:INFO:payload_verifier.cc(93)] signature blob size = 264
+05-21 06:53:59.938  2542  2542 I update_engine: [0521/065359:INFO:payload_verifier.cc(112)] Verified correct signature 1 out of 1 signatures.
+05-21 06:53:59.938  2542  2542 I update_engine: [0521/065359:INFO:delta_performer.cc(1439)] Metadata hash signature matches value in Omaha response.
+05-21 06:53:59.939  2542  2542 I update_engine: [0521/065359:INFO:delta_performer.cc(1459)] Detected a 'full' payload.
+05-21 06:53:59.940  2542  2542 W update_engine: type=1400 audit(0.0:32): avc: denied { read } for name="mmcblk0p13" dev="tmpfs" ino=8100 scontext=u:r:update_engine:s0 tcontext=u:object_r:block_device:s0 tclass=blk_file permissive=0
+05-21 06:53:59.940  2542  2542 W update_engine: type=1400 audit(0.0:33): avc: denied { read write } for name="mmcblk0p13" dev="tmpfs" ino=8100 scontext=u:r:update_engine:s0 tcontext=u:object_r:block_device:s0 tclass=blk_file permissive=0
+05-21 06:53:59.941  2542  2542 I update_engine: [0521/065359:INFO:delta_performer.cc(374)] PartitionInfo old boot sha256:  size: 0
+05-21 06:53:59.941  2542  2542 I update_engine: [0521/065359:INFO:delta_performer.cc(374)] PartitionInfo new boot sha256: dZpLY9KsQYa2B14B0oBzfUKxVFIH7ocbgT70JavheSc= size: 19480576
+05-21 06:53:59.941  2542  2542 I update_engine: [0521/065359:INFO:delta_performer.cc(374)] PartitionInfo old system sha256:  size: 0
+05-21 06:53:59.941  2542  2542 I update_engine: [0521/065359:INFO:delta_performer.cc(374)] PartitionInfo new system sha256: kFXbYzaM47PifNjuL+Plz1zTMEp1MoajOuXZuCh9yw0= size: 769654784
+05-21 06:53:59.942  2542  2542 E update_engine: [0521/065359:ERROR:utils.cc(660)] Opening block device /dev/block/by-name/boot_e: Permission denied
+05-21 06:53:59.942  2542  2542 E update_engine: [0521/065359:ERROR:delta_performer.cc(127)] Unable to open file /dev/block/by-name/boot_e: Permission denied
+05-21 06:53:59.942  2542  2542 E update_engine: [0521/065359:ERROR:delta_performer.cc(352)] Unable to open target partition boot on slot B, file /dev/block/by-name/boot_e
+05-21 06:53:59.942  2542  2542 E update_engine: [0521/065359:ERROR:download_action.cc(273)] Error 7 in DeltaPerformer's Write method when processing the received payload -- Terminating processing
+05-21 06:53:59.943  2542  2542 I update_engine: [0521/065359:INFO:multi_range_http_fetcher.cc(171)] Received transfer terminated.
+05-21 06:53:59.943  2542  2542 I update_engine: [0521/065359:INFO:multi_range_http_fetcher.cc(123)] TransferEnded w/ code 206
+05-21 06:53:59.943  2542  2542 I update_engine: [0521/065359:INFO:multi_range_http_fetcher.cc(125)] Terminating.
+05-21 06:53:59.943  2542  2542 I update_engine: [0521/065359:INFO:action_processor.cc(116)] ActionProcessor: finished DownloadAction with code ErrorCode::kInstallDeviceOpenError
+05-21 06:53:59.943  2542  2542 I update_engine: [0521/065359:INFO:action_processor.cc(121)] ActionProcessor: Aborting processing due to failure.
+05-21 06:53:59.943  2542  2542 I update_engine: [0521/065359:INFO:update_attempter_android.cc(282)] Processing Done.
+
+^C
+130|bcm7252ssffdr4:/ # 
+130|bcm7252ssffdr4:/ # 
+130|bcm7252ssffdr4:/ # reboot
