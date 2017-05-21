@@ -374,6 +374,8 @@ Android从7.0开始引入新的OTA升级方式，`A/B System Updates`，这里�
 	I update_engine: [INFO:update_attempter_android.cc(282)] Processing Done.
 	I update_engine: [INFO:update_attempter_android.cc(291)] Update successfully applied, waiting to reboot.
 
-  `update_engine`输出`Processing Done.`后提示`Update successfully applied, waiting to reboot.`，要求系统进行重启，重启后会设置分区`slot`的`boot_successful`属性表明系统能够成功启动。
+  > 以上logcat信息已经去掉了时间戳，原始的log信息请参考：[update_engine_client log](https://raw.githubusercontent.com/guyongqiangx/blog/dev/ab-ota/logs/20170521-update_engine_client.log)
+
+  `update_engine`更新操作成功后会提示`Update successfully applied, waiting to reboot.`，要求系统进行重启，重启后会设置相应分区`slot`的属性为`successful`，表明系统能够成功启动。
 
   重启系统，检查`Android`系统的编译版本和时间戳，验证升级是否成功。
