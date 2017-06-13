@@ -21,7 +21,7 @@
 
 > 通过以下命令获得`envsetup.sh`中所定义的函数总数：
 > ```
-> ygu@stbszx-bld-5:src$ sed -n "/^[[:blank:]]*function /s/function \([a-z_]\w*\).*/\1/p" < build/envsetup.sh | wc -l
+> ygu@guyongqiangx:src$ sed -n "/^[[:blank:]]*function /s/function \([a-z_]\w*\).*/\1/p" < build/envsetup.sh | wc -l
 > 75
 > ```
 >
@@ -175,8 +175,8 @@
   
   命令行直接调用`getprebuilt`：
   ```
-  ygu@stbszx-bld-5:/local/public/android/src$ getprebuilt
-  /local/public/android/src/prebuilt/linux-x86
+  ygu@guyongqiangx:src$ getprebuilt
+  /android/src/prebuilt/linux-x86
   ```
   实际上src目录下并不存在路径`prebuilt/linux-x86`
   
@@ -376,7 +376,7 @@
 #### `printconfig`
   `printconfig`输出当前的编译配置，如：
   ```
-  ygu@stbszx-bld-5:/local/public/users/ygu/android/android-n-17.1/src$ printconfig
+  ygu@guyongqiangx:src$ printconfig
   ============================================
   PLATFORM_VERSION_CODENAME=REL
   PLATFORM_VERSION=7.1.1
@@ -450,7 +450,7 @@
 #### `godir`
   `godir`函数的用法为"Usage: godir <regex>"，在编译路径下搜索匹配<regex>模式的目录，然后跳转到此目录。
   ```
-  ygu@stbszx-bld-5:/public/ygu/android/android-n-17.1/src$ godir fugu
+  ygu@guyongqiangx:src$ godir fugu
      [1] ./device/asus/fugu
      [2] ./device/asus/fugu-kernel
      [3] ./device/asus/fugu/bluetooth
@@ -572,10 +572,10 @@
   `findmakefile`查找当前模块的Android.mk并输出文件的详细路径
   以下是在目录`cd device/asus/fugu/kernel-headers/linux/sound/`内执行`findmakefile`的例子：
   ```
-  ygu@stbszx-bld-5:/public/ygu/android/android-n-17.1/src$ cd device/asus/fugu/kernel-headers/linux/sound/
-  ygu@stbszx-bld-5:/public/ygu/android/android-n-17.1/src/device/asus/fugu/kernel-headers/linux/sound$ findmakefile
-  /local/public/users/ygu/android/android-n-17.1/src/device/asus/fugu/Android.mk
-  ygu@stbszx-bld-5:/public/ygu/android/android-n-17.1/src/device/asus/fugu/kernel-headers/linux/sound$ 
+  ygu@guyongqiangx:src$ cd device/asus/fugu/kernel-headers/linux/sound/
+  ygu@guyongqiangx:src/device/asus/fugu/kernel-headers/linux/sound$ findmakefile
+  /android/src/device/asus/fugu/Android.mk
+  ygu@guyongqiangx:src/device/asus/fugu/kernel-headers/linux/sound$ 
   ```
   显然，会在当前目录下逐层往外查找Android.mk，找到后显示Android.mk的完整路径，显示完路径后仍然在当前目录下。
   
@@ -724,7 +724,7 @@
       #
       # 搜索envsetup.sh文件中所有调用get_build_var的地方，提取其调用参数，并存放到cached_vars中
       # 我尝试在命令行直接执行操作，其得到的结果如下：
-      # ygu@stbszx-bld-5:/public/ygu/android/android-n-17.1/src$ cat build/envsetup.sh | tr '()' '  ' | awk '{for(i=1;i<=NF;i++) if($i~/get_build_var/) print $(i+1)}'
+      # ygu@guyongqiangx:src$ cat build/envsetup.sh | tr '()' '  ' | awk '{for(i=1;i<=NF;i++) if($i~/get_build_var/) print $(i+1)}'
       # print
       # 
       # TARGET_DEVICE
@@ -739,7 +739,7 @@
       cached_vars=`cat $T/build/envsetup.sh | tr '()' '  ' | awk '{for(i=1;i<=NF;i++) if($i~/get_build_var/) print $(i+1)}' | sort -u | tr '\n' ' '`
       
       # 搜索envsetup.sh文件中所有调用get_abs_build_var的地方，提取其调用参数，并存放到cached_abs_vars中
-      # ygu@stbszx-bld-5:/public/ygu/android/android-n-17.1/src$ cat build/envsetup.sh | tr '()' '  ' | awk '{for(i=1;i<=NF;i++) if($i~/get_abs_build_var/) print $(i+1)}'
+      # ygu@guyongqiangx:src$ cat build/envsetup.sh | tr '()' '  ' | awk '{for(i=1;i<=NF;i++) if($i~/get_abs_build_var/) print $(i+1)}'
       # print
       # 
       # ANDROID_GCC_PREBUILTS
@@ -771,9 +771,9 @@
       # Excute the script to store the "<val>=<value>" pairs as shell variables.
       # 对$build_dicts_script内容进行求值处理，从注释看起来是建立一个"<val>=<value>"的键值对
       # 通过在eval操作前“echo $build_dicts_script”输出发现，其格式是这样的（为便于阅读，已经经过换行处理）：
-      # ygu@stbszx-bld-5:/public/ygu/android/android-n-17.1/src$ build_build_var_cache  
+      # ygu@guyongqiangx:src$ build_build_var_cache  
       # var_cache_2ND_TARGET_GCC_VERSION='' 
-      # var_cache_ANDROID_BUILD_PATHS='/local/public/users/ygu/android/android-n-17.1/src/out/host/linux-x86/bin' 
+      # var_cache_ANDROID_BUILD_PATHS='/android/src/out/host/linux-x86/bin' 
       # var_cache_TARGET_ARCH='arm' 
       # var_cache_TARGET_DEVICE='bcm7252ssffdr4' 
       # var_cache_TARGET_GCC_VERSION='4.9' 
@@ -803,10 +803,10 @@
       #           echo 'BUILD_ID=NMF27D'; \
       #           echo 'OUT_DIR=out'; \
       #           echo '============================================';` 
-      # abs_var_cache_ANDROID_GCC_PREBUILTS='/local/public/users/ygu/android/android-n-17.1/src/prebuilts/gcc/linux-x86' 
-      # abs_var_cache_ANDROID_PREBUILTS='/local/public/users/ygu/android/android-n-17.1/src/prebuilt/linux-x86' 
-      # abs_var_cache_HOST_OUT='/local/public/users/ygu/android/android-n-17.1/src/out/host/linux-x86' 
-      # abs_var_cache_PRODUCT_OUT='/local/public/users/ygu/android/android-n-17.1/src/out/target/product/bcm7252ssffdr4' 
+      # abs_var_cache_ANDROID_GCC_PREBUILTS='/android/src/prebuilts/gcc/linux-x86' 
+      # abs_var_cache_ANDROID_PREBUILTS='/android/src/prebuilt/linux-x86' 
+      # abs_var_cache_HOST_OUT='/android/src/out/host/linux-x86' 
+      # abs_var_cache_PRODUCT_OUT='/android/src/out/target/product/bcm7252ssffdr4' 
       # abs_var_cache_print=''
       #
       eval "$build_dicts_script"
