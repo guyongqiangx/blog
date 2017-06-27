@@ -638,7 +638,7 @@ function set_sequence_number()
 }
 ```
 #### `set_stuff_for_environment`
-  `set_stuff_for_environment`
+  `set_stuff_for_environment` 调用前面定义的一系列函数设置`title`, `java home`, `path`, `sequence number`, `android build top dir`等环境变量
 ```
 function set_stuff_for_environment()
 {
@@ -931,7 +931,7 @@ function check_product()
 }
 ```
 #### `check_variant`
-  `check_variant`检查输入的选项是否`(user userdebug eng)`这三者之一，找到返回0，找不到返回1
+  `check_variant` 检查输入的选项是否`(user userdebug eng)`这三者之一，找到返回0，找不到返回1
 ```
 VARIANT_CHOICES=(user userdebug eng)
 
@@ -952,7 +952,7 @@ function check_variant()
 }
 ```
 #### `choosetype`
-  `choosetype`命令根据传入选项或读取用户输入设置编译版本是release还是debug版
+  `choosetype` 根据传入选项或读取用户输入设置编译版本是release还是debug版
 ```
 function choosetype()
 {
@@ -1020,7 +1020,7 @@ function choosetype()
 }
 ```
 #### `chooseproduct`
-  `chooseproduct`命令
+  `chooseproduct` 根据预先设置的变量或读取用户输入设置TARGET_PRODUCT
 ```
 #
 # This function isn't really right:  It chooses a TARGET_PRODUCT
@@ -1084,7 +1084,7 @@ function chooseproduct()
 }
 ```
 #### `choosevariant`
-  `choosevariant`
+  `choosevariant` 读取用户输入设置`TARGET_BUILD_VARIANT`为`user`,`userdebug`或`eng`
 ```
 function choosevariant()
 {
@@ -1493,7 +1493,7 @@ function mmm()
 }
 ```
 #### `mma`
-  `mma`命令相当于mm执行相应目录下的all_modules参数
+  `mma` 相当于mm执行相应目录下的all_modules参数
 ```
 function mma()
 {
@@ -1521,7 +1521,7 @@ function mma()
 }
 ```
 #### `mmma`
-  `mmma`
+  `mmma` 相当于mmm执行相应目录下的all_modules参数
 ```
 function mmma()
 {
@@ -1647,30 +1647,47 @@ function make()
 }
 ```
 #### `tapas`
-  `tapgas`
+  `tapas` 以交互方式设置单个app编译的build环境变量，调用格式为：
+  ```
+  tapas [<App1> <App2> ...] [arm|x86|mips] [eng|userdebug|user]
+  ```
+  话说tapas长这样，其实做底层的我一次都没有用过这个命令。
+  
 ```
 # Configures the build to build unbundled apps.
 # Run tapas with one or more app names (from LOCAL_PACKAGE_NAME)
 function tapas()
 {
+    # 获取参数里的arch相关变量（arm|x86|mips|armv5|arm64|x86_64|mips64）
     local arch="$(echo $* | xargs -n 1 echo | \grep -E '^(arm|x86|mips|armv5|arm64|x86_64|mips64)$' | xargs)"
+    # 获取参数里variant相关变量（user|userdebug|eng）
     local variant="$(echo $* | xargs -n 1 echo | \grep -E '^(user|userdebug|eng)$' | xargs)"
+    # 获取参数里分辨率DPI（`Dot Per Inch`，每英寸像素数）相关的参数
     local density="$(echo $* | xargs -n 1 echo | \grep -E '^(ldpi|mdpi|tvdpi|hdpi|xhdpi|xxhdpi|xxxhdpi|alldpi)$' | xargs)"
+    # 使用`grep -v`过滤参数中arch, variant，density相关参数，然后将剩余参数指定为apps
     local apps="$(echo $* | xargs -n 1 echo | \grep -E -v '^(user|userdebug|eng|arm|x86|mips|armv5|arm64|x86_64|mips64|ldpi|mdpi|tvdpi|hdpi|xhdpi|xxhdpi|xxxhdpi|alldpi)$' | xargs)"
 
+    #
+    # 检查命令行是否设置了多个arch, variant和density参数，显然这类相关参数变量只能有唯一值
+    #
+    
+    # 检查是否设置了多个arch参数，显示错误消息
     if [ $(echo $arch | wc -w) -gt 1 ]; then
         echo "tapas: Error: Multiple build archs supplied: $arch"
         return
     fi
+    # 检查是否设置了多个variant参数，显示错误消息
     if [ $(echo $variant | wc -w) -gt 1 ]; then
         echo "tapas: Error: Multiple build variants supplied: $variant"
         return
     fi
+    # 检查是否设置了多个density参数，显示错误消息
     if [ $(echo $density | wc -w) -gt 1 ]; then
         echo "tapas: Error: Multiple densities supplied: $density"
         return
     fi
 
+    # 根据arch设置针对相应平台的默认的product
     local product=aosp_arm
     case $arch in
       x86)    product=aosp_x86;;
@@ -1680,42 +1697,167 @@ function tapas()
       x86_64) product=aosp_x86_64;;
       mips64)  product=aosp_mips64;;
     esac
+    # 没有指定variant，则默认设置为eng
     if [ -z "$variant" ]; then
         variant=eng
     fi
+    # 没有指定app，则默认为all
     if [ -z "$apps" ]; then
         apps=all
     fi
+    # 没有指定density参数，则默认设置为alldpi
     if [ -z "$density" ]; then
         density=alldpi
     fi
 
+    # 根据以上的各参数设置编译环境变量TARGET_PRODUCT, TARGET_BUILD_{VARIANT, DENSITY, TYPE, APPS}
     export TARGET_PRODUCT=$product
     export TARGET_BUILD_VARIANT=$variant
     export TARGET_BUILD_DENSITY=$density
     export TARGET_BUILD_TYPE=release
     export TARGET_BUILD_APPS=$apps
 
+    # 设置编译环境相关变量var_cache_xxx和abs_var_cache_xxx
     build_build_var_cache
+    # 设置其他环境变量，如PROMPT_COMMAND，编译toolchain和tools相关的路径等
     set_stuff_for_environment
+    # 显示当前选择的编译配置
     printconfig
+    # 清空环境变量，不懂为什么刚设置了这些变量，这里又要取消？
     destroy_build_var_cache
 }
 ```
 ### 1.3 代码搜索类
-  - `sgrep`
-  - `sgrep`
-  - `ggrep`
-  - `jgrep`
-  - `cgrep`
-  - `resgrep`
-  - `mangrep`
-  - `sepgrep`
-  - `rcgrep`
-  - `mgrep`
-  - `treegrep`
-  - `mgrep`
-  - `treegrep`
+
+代码搜索类函数定义了各种xxxgrep函数，并导入到当前环境中，使其可以直接在命令行调用。
+这些函数先用find命令在除.repo/.git/out的目录外搜索相应后名称的目录或文件，然后基于搜索结果调用grep进行模式查找。
+
+  - `sgrep`，基于(c|h|cc|cpp|S|java|xml|sh|mk|aidl|vts)文件查找
+  - `ggrep`，基于(.gradle)的文件查找
+  - `jgrep`，基于(.java)文件查找
+  - `cgrep`，基于(c|cc|cpp|h|hpp)文件查找
+  - `resgrep`，基于res目录下(xml)文件查找
+  - `mangrep`，基于AndroidManifest.xml文件查找
+  - `sepgrep`，基于sepolicy目录下查找
+  - `rcgrep`，基于`*.rc*`文件查找
+  - `mgrep`，基于(`Makefile|Makefile\..*|.*\.make|.*\.mak|.*\.mk`)的Makefile文件查找
+  - `treegrep`，基于代码的文件(c|h|cpp|S|java|xml)进行查找
+
+```
+# 针对MAC和非MAC环境定义sgrep函数
+case `uname -s` in
+    Darwin)
+        function sgrep()
+        {
+            # 排除 .repo, .git目录
+            # 并对后缀(c|h|cc|cpp|S|java|xml|sh|mk|aidl|vts)的文件执行grep模式搜索
+            find -E . -name .repo -prune -o -name .git -prune -o  -type f -iregex '.*\.(c|h|cc|cpp|S|java|xml|sh|mk|aidl|vts)' \
+                -exec grep --color -n "$@" {} +
+        }
+
+        ;;
+    *)
+        function sgrep()
+        {
+            find . -name .repo -prune -o -name .git -prune -o  -type f -iregex '.*\.\(c\|h\|cc\|cpp\|S\|java\|xml\|sh\|mk\|aidl\|vts\)' \
+                -exec grep --color -n "$@" {} +
+        }
+        ;;
+esac
+
+function ggrep()
+{
+    # 排除 .repo, .git, out目录
+    # 并对后缀.gradle的文件执行grep模式搜索
+    find . -name .repo -prune -o -name .git -prune -o -name out -prune -o -type f -name "*\.gradle" \
+        -exec grep --color -n "$@" {} +
+}
+
+function jgrep()
+{
+    # 排除 .repo, .git, out目录
+    # 并对后缀为.java的文件执行grep模式搜索
+    find . -name .repo -prune -o -name .git -prune -o -name out -prune -o -type f -name "*\.java" \
+        -exec grep --color -n "$@" {} +
+}
+
+function cgrep()
+{
+    # 排除 .repo, .git, out目录
+    # 并对后缀为(.c|.cc|.cpp|.h|.hpp)的文件执行grep模式搜索
+    find . -name .repo -prune -o -name .git -prune -o -name out -prune -o -type f \( -name '*.c' -o -name '*.cc' -o -name '*.cpp' -o -name '*.h' -o -name '*.hpp' \) \
+        -exec grep --color -n "$@" {} +
+}
+
+function resgrep()
+{
+    # 排除 .repo, .git, out目录
+    # 并对名为res目录下的*.xml文件执行grep模式搜索
+    for dir in `find . -name .repo -prune -o -name .git -prune -o -name out -prune -o -name res -type d`; do
+        find $dir -type f -name '*\.xml' -exec grep --color -n "$@" {} +
+    done
+}
+
+function mangrep()
+{
+    # 排除 .repo, .git, out目录
+    # 并对名为AndroidManifest.xml的文件执行grep模式搜索
+    find . -name .repo -prune -o -name .git -prune -o -path ./out -prune -o -type f -name 'AndroidManifest.xml' \
+        -exec grep --color -n "$@" {} +
+}
+
+function sepgrep()
+{
+    # 排除 .repo, .git, out目录
+    # 并对名为sepolicy目录中的文件执行grep模式搜索
+    find . -name .repo -prune -o -name .git -prune -o -path ./out -prune -o -name sepolicy -type d \
+        -exec grep --color -n -r --exclude-dir=\.git "$@" {} +
+}
+
+function rcgrep()
+{
+    # 排除 .repo, .git, out目录
+    # 并对名为*.rc*的文件执行grep模式搜索
+    find . -name .repo -prune -o -name .git -prune -o -name out -prune -o -type f -name "*\.rc*" \
+        -exec grep --color -n "$@" {} +
+}
+
+case `uname -s` in
+    Darwin)
+        function mgrep()
+        {
+            # 排除 .repo, .git, ./out目录
+            # 并对Makefile，后缀为(.make|.mak|.mk)的文件或Makefile目录下的文件执行grep模式搜索
+            find -E . -name .repo -prune -o -name .git -prune -o -path ./out -prune -o -type f -iregex '.*/(Makefile|Makefile\..*|.*\.make|.*\.mak|.*\.mk)' \
+                -exec grep --color -n "$@" {} +
+        }
+
+        function treegrep()
+        {
+            # 排除 .repo, .git目录
+            # 并对后缀为(.c|.h|.cpp|.S|.java|.xml)的文件执行grep模式搜索
+            find -E . -name .repo -prune -o -name .git -prune -o -type f -iregex '.*\.(c|h|cpp|S|java|xml)' \
+                -exec grep --color -n -i "$@" {} +
+        }
+
+        ;;
+    *)
+        function mgrep()
+        {
+            find . -name .repo -prune -o -name .git -prune -o -path ./out -prune -o -regextype posix-egrep -iregex '(.*\/Makefile|.*\/Makefile\..*|.*\.make|.*\.mak|.*\.mk)' -type f \
+                -exec grep --color -n "$@" {} +
+        }
+
+        function treegrep()
+        {
+            find . -name .repo -prune -o -name .git -prune -o -regextype posix-egrep -iregex '.*\.(c|h|cpp|S|java|xml)' -type f \
+                -exec grep --color -n -i "$@" {} +
+        }
+
+        ;;
+esac
+
+```
 
 ### 1.4 `adb`调试类
 #### `qpid`
