@@ -154,4 +154,111 @@ if __name__ == '__main__':
         print(pub_key)
 ```
 
-好吧，很方便。
+# 4. 将公钥输出到PEM文件
+
+既然都已经成功构建公钥了，不妨再多一步，将公钥保存为pem文件，代码如下：
+```
+#
+# pupulate-pub-key-v3.py
+#
+from cryptography.hazmat.backends import default_backend
+from cryptography.hazmat.primitives.asymmetric import rsa
+from cryptography.hazmat.primitives import serialization
+
+# 从little-endian格式的数据缓冲data中解析公钥模数并构建公钥
+def populate_public_key(data):
+    # convert bytes to integer with int.from_bytes
+    # 指定从little格式将bytes转换为int，一句话就得到了公钥模数，省了多少事
+    n = int.from_bytes(data, byteorder='little')
+    e = 65537
+
+    # 使用(e, n)初始化RSAPublicNumbers，并通过public_key方法得到公钥
+    # construct key with parameter (e, n)
+    key = rsa.RSAPublicNumbers(e, n).public_key(default_backend())
+
+    return key
+
+
+# 将公钥以PEM格式保存到文件中
+def save_pub_key(pub_key, pem_name):
+    # 将公钥编码为PEM格式的数据
+    pem = pub_key.public_bytes(
+        encoding=serialization.Encoding.PEM,
+        format=serialization.PublicFormat.SubjectPublicKeyInfo
+    )
+
+    # print(pem)
+
+    # 将PEM个数的数据写入文本文件中
+    with open(pem_name, 'w+') as f:
+        f.writelines(pem.decode())
+
+    return
+
+if __name__ == '__main__':
+    data_file = r'data.bin.sign'
+
+    # 读取数据文件，并从中提取公钥 
+    with open(data_file, 'rb') as f:
+        # 将数据读取到缓冲data
+        data = f.read()
+
+        # little-endian格式的公钥模数存放在0x260-0x35F处，将其传入populate_public_key进行解析
+        pub_key = populate_public_key(data[0x260:0x360])
+
+        # 将公钥输出到pub_key.pem文件中
+        pem_file = r'pub_key.pem'
+        save_pub_key(pub_key, pem_file)
+```
+
+查看公钥输出的PEM文件：
+```
+$ cat pub_key.pem 
+-----BEGIN PUBLIC KEY-----
+MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAuZ6gqkv2f16lSAfWSMXA
+L6DXaG6Cwz0S/R5+oQFkBS0CLKzHxm6QKv2Esf9Fh8EJR0BI+cL44s5V++WRjEcW
+USBGIntQ4vXoqAuWCKY6G9YFcboHEK44mswrNgcsuhwib7+HHHFr4He940rMaSLT
+ce9bSZOHWMQ83WSJpJm1Aoz8QVYL3Wnvm5uo0+sL9/XRRsan2BKm7A/HjvWiKj2I
+eIiXNMppha3sHWeoC2C9PGRC3PN5C0GXzQmAVnxaClGKyUX06NloxBARuDRUmVs+
+8tqr7x9yAKi1ObajEwMaesNg58vZVUZjZqeVOtwgFQkQw/r9xHN+vOk39soZkfFo
+YwIDAQAB
+-----END PUBLIC KEY-----
+```
+
+或者以明文方式查看：
+```
+$ openssl rsa -in pub_key.pem -pubin -text      
+Public-Key: (2048 bit)
+Modulus:
+    00:b9:9e:a0:aa:4b:f6:7f:5e:a5:48:07:d6:48:c5:
+    c0:2f:a0:d7:68:6e:82:c3:3d:12:fd:1e:7e:a1:01:
+    64:05:2d:02:2c:ac:c7:c6:6e:90:2a:fd:84:b1:ff:
+    45:87:c1:09:47:40:48:f9:c2:f8:e2:ce:55:fb:e5:
+    91:8c:47:16:51:20:46:22:7b:50:e2:f5:e8:a8:0b:
+    96:08:a6:3a:1b:d6:05:71:ba:07:10:ae:38:9a:cc:
+    2b:36:07:2c:ba:1c:22:6f:bf:87:1c:71:6b:e0:77:
+    bd:e3:4a:cc:69:22:d3:71:ef:5b:49:93:87:58:c4:
+    3c:dd:64:89:a4:99:b5:02:8c:fc:41:56:0b:dd:69:
+    ef:9b:9b:a8:d3:eb:0b:f7:f5:d1:46:c6:a7:d8:12:
+    a6:ec:0f:c7:8e:f5:a2:2a:3d:88:78:88:97:34:ca:
+    69:85:ad:ec:1d:67:a8:0b:60:bd:3c:64:42:dc:f3:
+    79:0b:41:97:cd:09:80:56:7c:5a:0a:51:8a:c9:45:
+    f4:e8:d9:68:c4:10:11:b8:34:54:99:5b:3e:f2:da:
+    ab:ef:1f:72:00:a8:b5:39:b6:a3:13:03:1a:7a:c3:
+    60:e7:cb:d9:55:46:63:66:a7:95:3a:dc:20:15:09:
+    10:c3:fa:fd:c4:73:7e:bc:e9:37:f6:ca:19:91:f1:
+    68:63
+Exponent: 65537 (0x10001)
+writing RSA key
+-----BEGIN PUBLIC KEY-----
+MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAuZ6gqkv2f16lSAfWSMXA
+L6DXaG6Cwz0S/R5+oQFkBS0CLKzHxm6QKv2Esf9Fh8EJR0BI+cL44s5V++WRjEcW
+USBGIntQ4vXoqAuWCKY6G9YFcboHEK44mswrNgcsuhwib7+HHHFr4He940rMaSLT
+ce9bSZOHWMQ83WSJpJm1Aoz8QVYL3Wnvm5uo0+sL9/XRRsan2BKm7A/HjvWiKj2I
+eIiXNMppha3sHWeoC2C9PGRC3PN5C0GXzQmAVnxaClGKyUX06NloxBARuDRUmVs+
+8tqr7x9yAKi1ObajEwMaesNg58vZVUZjZqeVOtwgFQkQw/r9xHN+vOk39soZkfFo
+YwIDAQAB
+-----END PUBLIC KEY-----
+```
+
+很好，很方便。
