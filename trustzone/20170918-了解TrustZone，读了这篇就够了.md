@@ -239,7 +239,7 @@ Monitor Mode内执行的代码依赖于具体的实现，其功能类似于进�
 
 整个系统内存和外设隔离机制示意图见图6.
 
-![系统内存和外设隔离机制示意图](http://stbszx-bld-6.she.broadcom.com/public/users/ygu/trustzone/images/memory-isolation.png?raw=true)
+![系统内存和外设隔离机制示意图](https://github.com/guyongqiangx/blog/blob/dev/trustzone/images/memory-isolation.png?raw=true)
 
 图6. 系统内存和外设隔离机制示意图
 
