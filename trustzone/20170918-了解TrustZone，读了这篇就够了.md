@@ -274,7 +274,7 @@ AMBA3 AXI总线机制隔离出安全世界和非安全世界，但这是系统�
 
 整个系统的架构如图8：
 
-![image](http://stbszx-bld-6.she.broadcom.com/public/users/ygu/trustzone/images/qsee-hlos.png?raw=true)
+![image](https://github.com/guyongqiangx/blog/blob/dev/trustzone/images/qsee-hlos.png?raw=true)
 
 图8. 高通QSEE系统架构图
 
