@@ -98,3 +98,5 @@
     
     exit 0
     ```
+- 脚本下载地址
+  [check-android-services.sh](https://raw.githubusercontent.com/guyongqiangx/blog/dev/android/src/check-android-services.sh)
