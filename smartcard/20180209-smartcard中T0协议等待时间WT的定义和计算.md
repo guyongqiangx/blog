@@ -86,6 +86,32 @@ WT = 10 \times 960 \times 1 \times 1etu = 9600etu
 
 ## 3. 实例分析
 
+### 3.1 卡1
+
+某CA的T0卡发送的原始ATR为：
+```
+3B 34 94 00 30 42 30 30
+```
+对ATR解析后的数据如下：
+
+- | -
+---|---
+TS = 0x3B | Direct Convention
+T0 = 0x34 | Y(1): b0011, K: 4 (historical bytes)
+TA(1) = 0x94 | Fi=512, Di=8, 64 cycles/ETU (62500 bits/s at 4.00 MHz, 78125 bits/s for fMax=5 MHz)
+TB(1) = 0x00 | VPP is not electrically connected
+---- | 
+Historical bytes | 30 42 30 30
+Category indicator byte: 0x30 | (proprietary format) "B00"
+
+这里存在TA1(`Fi=512, f=5, Di=8`)，但不存在TC2(`WI=10`)，因此WT：
+```math
+WT = WI \times Di \times 960etu = 10 \times 8 \times 960etu = 76800 etu
+```
+
+所以在驱动中，需要将卡工作时的WT设置为76800etu，而不是默认的9600etu。
+
+### 3.2 卡2
 某CA的T0卡发送的原始ATR为：
 ```
 3F 77 18 00 00 C2 EB 41 02 6C 90 00
@@ -110,12 +136,42 @@ WT = WI \times Di \times 960etu = 10 \times 12 \times 960etu = 115200 etu
 
 所以在驱动中，需要将卡工作时的WT设置为115200etu，而不是默认的9600etu。
 
+### 3.3 卡3
+某CA的T0卡发送的原始ATR为：
+```
+3B 64 00 02 30 42 30 30
+```
+
+对ATR解析后的数据如下：
+
+- | -
+---|---
+TS = 0x3B | Direct Convention
+T0 = 0x64 | Y(1): b0110, K: 4 (historical bytes)
+TB(1) = 0x00 | VPP is not electrically connected
+TC(1) = 0x02 | Extra guard time: 2
+---- | 
+Historical bytes | 30 42 30 30
+Category indicator byte: 0x30 | (proprietary format) "B00"
+
+这里TA1和TC2都不存在，所以Fi, f, Di 和 WI都取默认值。
+即：
+```math
+Fi = 372; f = 5; Di = 1; WI = 10
+
+WT = WI \times Di \times 960etu = 10 \times 1 \times 960etu = 9600 etu
+```
+
+所以在驱动中，卡工作时的WT跟ATR传输时的一样，都是9600etu。
+
 ## 4. ATR解析的福利
 
 最后送上一个福利。
 
-你可能不了解7816-3标准，也不清楚ATR如何解析，没有关系，一个名为“Smart card ATR parsing”的网站为你解析ATR，省了多少烦恼，我第一次发现的时候开心得不行。
+看了第3节，可见，计算etu的关键是要先解析收到的ATR，但你可能不了解7816-3标准，也不清楚ATR如何解析，那怎么办啊？
 
-好了，地址在：[Smart card ATR parsing: https://smartcard-atr.appspot.com/](https://smartcard-atr.appspot.com/)
+没有关系，一个名为“Smart card ATR parsing”的网站为你解析ATR，省了多少烦恼，我第一次发现的时候开心得不行。
+
+好了，地址在：[\[Smart card ATR parsing\]: https://smartcard-atr.appspot.com/](https://smartcard-atr.appspot.com/)
 
 赶快去体验吧！
