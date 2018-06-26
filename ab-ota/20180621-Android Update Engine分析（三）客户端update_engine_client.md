@@ -1,6 +1,13 @@
 # Android Update Engine分析（三）客户端update_engine_client
 
-Android自带的`update_engine`客户端`update_engine_client`应用很简单
+> 技术文章直入主题，展示结论，容易让人知其然，不知其所以然。</br>
+> 我个人更喜欢在文章中展示如何阅读代码，逐步分析解决问题的思路和过程。这样的思考比知道结论更重要，希望我的分析能让你有所收获。
+
+前面两篇分别分析了Makefile，Protobuf和AIDL相关文件，从本篇开始正式深入功能实现的代码文件去探究Update Engine。
+
+## 1. `update_engine_client`的文件依赖
+
+Android自带的`update_engine`客户端`update_engine_client`应用很简单，只涉及到几个代码文件。
 
 依赖的文件:
 ```
@@ -23,7 +30,33 @@ update_engine_client
       )
 ```
 
-分析可以从具体的升级情景开始入手，如：
+这里可以看到，Android自带的客户端demo进程`update_engine_client`的依赖比较简单，代码设计的文件比较少。
+
+
+## 2. `update_engine_client`代码分析
+
+### 2.1 命令行参数
+在开始逐行分析代码前，我们来看看这个客户端都有哪些参数和功能。
+
+我们在命令行运行`update_engine_client --help`，其输出如下：
+```
+bcm7252ssffdr4:/ # update_engine_client --help 
+Android Update Engine Client
+
+  --cancel  (Cancel the ongoing update and exit.)  type: bool  default: false
+  --follow  (Follow status update changes until a final state is reached. Exit status is 0 if the update succeeded, and 1 otherwise.)  type: bool  default: false
+  --headers  (A list of key-value pairs, one element of the list per line. Used when --update is passed.)  type: string  default: ""
+  --help  (Show this help message)  type: bool  default: false
+  --offset  (The offset in the payload where the CrAU update starts. Used when --update is passed.)  type: int64  default: 0
+  --payload  (The URI to the update payload to use.)  type: string  default: "http://127.0.0.1:8080/payload"
+  --reset_status  (Reset an already applied update and exit.)  type: bool  default: false
+  --resume  (Resume a suspended update.)  type: bool  default: false
+  --size  (The size of the CrAU part of the payload. If 0 is passed, it will be autodetected. Used when --update is passed.)  type: int64  default: 0
+  --suspend  (Suspend an ongoing update and exit.)  type: bool  default: false
+  --update  (Start a new update, if no update in progress.)  type: bool  default: false
+```
+
+我们在《Android A/B System OTA分析（四）系统的启动和升级》中有提到一个具体的升级场景，调用参数如下：
 ```
 bcm7252ssffdr4:/ # update_engine_client \
 --payload=http://stbszx-bld-5/public/android/full-ota/payload.bin \
@@ -36,8 +69,17 @@ bcm7252ssffdr4:/ # update_engine_client \
 "
 ```
 
-从`update_engine_client`入口main函数开始分析：
+### 2.2 代码分析
+
+在开始代码逐行分析之前，通过检查类UpdateEngineClientAndroid的定义，我画了一个类图，便于查看各个类之间的关系：
+
+![image](https://github.com/guyongqiangx/blog/blob/dev/ab-ota/images/UpdateEngineClientAndroid.png?raw=true)
+
+图1. UpdateEngineClientAndroid类图
+
+下面从`update_engine_client`入口main函数开始分析：
 ```
+# system\update_engine\update_engine_client_android.cc
 int main(int argc, char** argv) {
   chromeos_update_engine::internal::UpdateEngineClientAndroid client(
       argc, argv);
@@ -50,6 +92,7 @@ int main(int argc, char** argv) {
 
 先看看UpdateEngineClientAndroid的初始化：
 ```
+# system\update_engine\update_engine_client_android.cc
 class UpdateEngineClientAndroid : public brillo::Daemon {
   public:
     // 用传入的参数argc, argv初始化私有成员变量argc_, argv_
@@ -119,6 +162,7 @@ int Daemon::Run() {
 1. 执行OnInit函数进行初始化
 由于`int Daemon::OnInit()`定义为虚函数：
 ```
+# external\libbrillo\brillo\daemons\daemon.h
 class BRILLO_EXPORT Daemon : public AsynchronousSignalHandlerInterface {
   ...
   protected:
@@ -221,35 +265,18 @@ bool Daemon::OnRestart() {
   }
 ```
 
-我们在命令行运行`update_engine_client`，看看其参数是怎样的：
-```
-bcm7252ssffdr4:/ # update_engine_client --help 
-Android Update Engine Client
+参考`2.1`节的命令行参数，显然，命令行处理选项将宏`DEFINE_xxx`展开，最终得到`FLAGS_xxx`变量，因此命令行选项和生成的`FLAGS_xxx`变量的对应关系为：
 
-  --cancel  (Cancel the ongoing update and exit.)  type: bool  default: false
-  --follow  (Follow status update changes until a final state is reached. Exit status is 0 if the update succeeded, and 1 otherwise.)  type: bool  default: false
-  --headers  (A list of key-value pairs, one element of the list per line. Used when --update is passed.)  type: string  default: ""
-  --help  (Show this help message)  type: bool  default: false
-  --offset  (The offset in the payload where the CrAU update starts. Used when --update is passed.)  type: int64  default: 0
-  --payload  (The URI to the update payload to use.)  type: string  default: "http://127.0.0.1:8080/payload"
-  --reset_status  (Reset an already applied update and exit.)  type: bool  default: false
-  --resume  (Resume a suspended update.)  type: bool  default: false
-  --size  (The size of the CrAU part of the payload. If 0 is passed, it will be autodetected. Used when --update is passed.)  type: int64  default: 0
-  --suspend  (Suspend an ongoing update and exit.)  type: bool  default: false
-  --update  (Start a new update, if no update in progress.)  type: bool  default: false
-```
-显然，前面的命令行处理选项将宏`DEFINE_xxx`展开，最终得到`FLAGS_xxx`变量，因此命令行选项和生成的`FLAGS_xxx`变量的对应关系为：
-
-- update --> FLAGS_update, 
-- payload --> FLAGS_payload, 
-- offset --> FLAGS_offset, 
-- size --> FLAGS_size, 
-- headers --> FLAGS_headers, 
-- suspend --> FLAGS_suspend, 
-- resume --> FLAGS_resume, 
-- cancel --> FLAGS_cancel, 
-- reset_status --> FLAGS_reset_status, 
-- follow --> FLAGS_follow
+- `update` --> `FLAGS_update`, 
+- `payload` --> `FLAGS_payload`, 
+- `offset` --> `FLAGS_offset`, 
+- `size` --> `FLAGS_size`, 
+- `headers` --> `FLAGS_headers`, 
+- `suspend` --> `FLAGS_suspend`, 
+- `resume` --> `FLAGS_resume`, 
+- `cancel` --> `FLAGS_cancel`, 
+- `reset_status` --> `FLAGS_reset_status`, 
+- `follow` --> `FLAGS_follow`
 
 我没有深入看过base::CommandLine和brillo::FlagHelper类，从网上的介绍看是进行命令行处理的，从后面的操作看，这里应该是对`argc_`, `argv_`里面包含的命令行参数进行解析。
 
@@ -425,6 +452,7 @@ METADATA_SIZE=21023
 
 回到`client.Run()`实际执行的`Daemon::Run()`函数，其实会发现除了前面分析的`OnInit`函数，剩下的就很简单了：
 ```
+# external\libbrillo\brillo\daemons\daemon.cc
 int Daemon::Run() {
   int exit_code = OnInit();
   if (exit_code != EX_OK)
@@ -449,8 +477,18 @@ int Daemon::Run() {
 
 成功执行`OnInit(`)操作后，进程调用`brillo_message_loop_.Run()`来循环处理消息。
 
+# 3. 总结
+
 分析完`update_engine_client`的代码，我们发现整个操作还是比较简单，一句话总结如下：
 
 `update_engine_client`解析命令行的各种操作(`suspend`/`resume`/`cancel`/`reset_status`/`follow`/`update`)，并将这些操作和参数通过binder机制，转发为对服务端进程`UpdateEngineService`相应操作的调用。
 
 所以，剩下的事就是根据`update_engine_client`的各种操作和传入参数，分析服务端进程`UpdateEngineService`的行为。
+
+## 4. 联系和福利
+
+- 个人微信公众号“洛奇看世界”，一个大龄码农的救赎之路。
+  - 公众号回复关键词“Android电子书”，获取超过150本Android相关的电子书和文档。电子书包含了Android开发相关的方方面面，从此你再也不需要到处找Android开发的电子书了。
+  - 公众号回复关键词“个人微信”，获取个人微信联系方式。<font color="red">我组建了一个Android OTA的讨论组，联系我，说明Android OTA，拉你进组一起讨论。</font>
+
+  ![image](https://img-blog.csdn.net/20180507223120679)
