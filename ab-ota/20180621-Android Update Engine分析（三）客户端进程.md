@@ -1,9 +1,11 @@
-# Android Update Engine分析（三）客户端update_engine_client
+# Android Update Engine分析（三）客户端进程
 
 > 技术文章直入主题，展示结论，容易让人知其然，不知其所以然。</br>
 > 我个人更喜欢在文章中展示如何阅读代码，逐步分析解决问题的思路和过程。这样的思考比知道结论更重要，希望我的分析能让你有所收获。
 
 前面两篇分别分析了Makefile，Protobuf和AIDL相关文件，从本篇开始正式深入功能实现的代码文件去探究Update Engine。
+
+首先从Update Engine最简单的部分，客户端进程`update_engine_client`入手。
 
 ## 1. `update_engine_client`的文件依赖
 
