@@ -1446,7 +1446,7 @@ delta_generator (host)
 
 __总体上，共生成了4可执行个应用，具体为android主系统使用的的服务端`update_engine`和客户端`update_engine_client`, recovery系统使用的`update_engine_sideload`，以及host上的升级包工具`delta_generator`。这4个可执行应用，部分依赖于4个静态库（`update_metadata-protos, libpayload_consumer, libupdate_engine_android, libpayload_generator`）和1个共享库（`libupdate_engine_client`）。__
 
-### 3. Update Engine各模块的文件依赖
+## 3. Update Engine各模块的文件依赖
 
 啰嗦一点，再将上面的各个可执行应用或库文件目标的依赖详细列举出来，如下（没有列举依赖的非Update Engine的库）
 
@@ -1620,3 +1620,11 @@ delta_generator (EXECUTABLES)
 - 自底向上从最底层的小模块开始，层层向上分析，直到最上层的应用逻辑，好处是一开始就了解代码的底层实现，坏处是容易陷入到各个模块中，没有全局观，弄不清楚各模块的关系。
 
 可以考虑从升级场景入手，先分析较简单的客户端`update_engine_client`，再分析代码复杂的服务端`update_engine`。
+
+## 4. 联系和福利
+
+- 个人微信公众号“洛奇看世界”，一个大龄码农的救赎之路。
+  - 公众号回复关键词“Android电子书”，获取超过150本Android相关的电子书和文档。电子书包含了Android开发相关的方方面面，从此你再也不需要到处找Android开发的电子书了。
+  - 公众号回复关键词“个人微信”，获取个人微信联系方式。<font color="red">我组建了一个Android OTA的讨论组，联系我，说明Android OTA，我拉你进讨论组一起讨论。</font>
+
+  ![image](https://img-blog.csdn.net/20180507223120679)
