@@ -3,6 +3,8 @@
 > 技术文章直入主题，展示结论，容易让人知其然，不知其所以然。</br>
 > 我个人更喜欢在文章中展示如何阅读代码，逐步分析解决问题的思路和过程。这样的思考比知道结论更重要，希望我的分析能让你有所收获。
 
+## 1. Update Engine中的特殊源文件
+
 在上一篇《Android Update Engine分析（一）Makefile》的最后"`3. 模块对Update Engine文件的依赖`"一节时有提到3个特殊的`.proto`和`.aidl`文件，如下：
 ```
 update_metadata-protos (STATIC_LIBRARIES)
@@ -37,7 +39,8 @@ update_engine_client (EXECUTABLES)
 
 下面详细来分析下这两类文件。
 
-## 1. Protobuf 文件
+## 2. Protobuf和AIDL文件分析
+### 2.1 Protobuf 文件
 
 打开`update_metadata.proto`文件一看，我去，这都是什么鬼？完全不明白啊。
 
@@ -197,7 +200,7 @@ const int InstallOperation_Type_Type_ARRAYSIZE = InstallOperation_Type_Type_MAX 
 这样就分析完了`update_metadata.proto`文件了？有没有意犹未尽的感觉？
 以目前的分析，完全够了，再往细看你就要陷进去了。记住，有时候看代码，不要太计较那些细节，要注意在整体上的把握。
 
-## 2. AIDL文件
+### 2.2 AIDL文件
 
 AIDL文件也是一样，惭愧，我对android研究不全面，在update_engine分析中也是第一次接触`.aidl`文件。
 
@@ -358,7 +361,7 @@ EXECUTABLES/update_engine_client_intermediates/aidl-generated
 
 这里生成的文件跟Binder机制有关，具体的Binder细节请自行度娘。
 
-### 2.1 `IUpdateEngine.aidl`
+#### 2.2.1 `IUpdateEngine.aidl`
 
 简单说来，会生成一个`IUpdateEngine.h`的接口类定义文件，然后再分别生成两个Binder的Native和Proxy相关的类文件`BnUpdateEngine.h`和`BpUpdateEngine.h`，这两个文件分别用于实现Bind的Native端接口和Proxy端接口。
 
@@ -383,7 +386,7 @@ class BnUpdateEngine : public ::android::BnInterface<IUpdateEngine>
 
 > 这里BnInterface是一个模板类(模板数据类型是IUpdateEngine)，我在Visio上没有找到模板类如何画，所以将IUpdateEngine画成了依赖关系。有大神指导如何在Visio上话模板类的请指导下，非常感谢！
 
-### 2.2 `IUpdateEngineCallback.aidl`
+#### 2.2.2 `IUpdateEngineCallback.aidl`
 
 跟前面的`IUpdateEngine.aidl`一样，这里也会生成以下的类：
 ```
@@ -463,6 +466,6 @@ int UpdateEngineClientAndroid::OnInit() {
 
 - 个人微信公众号“洛奇看世界”，一个大龄码农的救赎之路。
   - 公众号回复关键词“Android电子书”，获取超过150本Android相关的电子书和文档。电子书包含了Android开发相关的方方面面，从此你再也不需要到处找Android开发的电子书了。
-  - 公众号回复关键词“个人微信”，获取个人微信联系方式。<font color="red">我组建了一个Android OTA的讨论组，联系我，说明Android OTA，我拉你进讨论组一起讨论。</font>
+  - 公众号回复关键词“个人微信”，获取个人微信联系方式。<font color="red">我组建了一个Android OTA的讨论组，联系我，说明Android OTA，拉你进组一起讨论。</font>
 
   ![image](https://img-blog.csdn.net/20180507223120679)
