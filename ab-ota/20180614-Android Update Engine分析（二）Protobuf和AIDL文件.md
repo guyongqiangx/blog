@@ -358,7 +358,9 @@ EXECUTABLES/update_engine_client_intermediates/aidl-generated
 
 这里生成的文件跟Binder机制有关，具体的Binder细节请自行度娘。
 
-以`IUpdateEngine.aidl`为例，简单说来，会生成一个`IUpdateEngine.h`的接口类定义文件，然后再分别生成两个Binder的Native和Proxy相关的类文件`BnUpdateEngine.h`和`BpUpdateEngine.h`，这两个文件分别用于实现Bind的Native端接口和Proxy端接口。
+### 2.1 `IUpdateEngine.aidl`
+
+简单说来，会生成一个`IUpdateEngine.h`的接口类定义文件，然后再分别生成两个Binder的Native和Proxy相关的类文件`BnUpdateEngine.h`和`BpUpdateEngine.h`，这两个文件分别用于实现Bind的Native端接口和Proxy端接口。
 
 这3个类的继承定义如下：
 ```
@@ -371,40 +373,96 @@ class BnUpdateEngine : public ::android::BnInterface<IUpdateEngine>
 
 实际上这里`IUpdateEngine`定义了整个服务的接口，`BnUpdateEnging`和`BpUpdateEngine`通过模板类的方式，支持所有`IUpdateEngine`的操作。
 
-通过搜索，可以看到整个`update_engine`文件夹没有对`BpUpdateEngine`的引用，所以这个类没有被使用。除了`BpUpdateEngine`，我这里整理了下`IUpdateEngine`，`BnUpdateEngine`的继承关系类图，如下：
+通过搜索，可以看到整个`update_engine`文件夹没有对`BpUpdateEngine`的引用，所以这个类没有被使用。除了`BpUpdateEngine`，我这里整理了下`IUpdateEngine`，`BnUpdateEngine`的在`update_engine`服务端的关系类图，如下：
 
+![image](https://github.com/guyongqiangx/blog/blob/dev/ab-ota/images/BnUpdateEngine.png?raw=true)
 
-除了这里的关系外，`update_engine`还有哪些地方使用了这三个类呢？不妨使用grep命令来在`update_engine`目录下找找看：
+图1. `BnUpdateEngine`在服务端进程`UpdateEngineDaemon`中的类关系
+
+后面深入读代码的时候再详细分析类关系。
+
+> 这里BnInterface是一个模板类(模板数据类型是IUpdateEngine)，我在Visio上没有找到模板类如何画，所以将IUpdateEngine画成了依赖关系。有大神指导如何在Visio上话模板类的请指导下，非常感谢！
+
+### 2.2 `IUpdateEngineCallback.aidl`
+
+跟前面的`IUpdateEngine.aidl`一样，这里也会生成以下的类：
 ```
-src/system/update_engine$ grep -rnw IUpdateEngine .
-./client_library/client_binder.h:31:#include "android/brillo/IUpdateEngine.h"
-./client_library/client_binder.h:102:  android::sp<android::brillo::IUpdateEngine> service_;
-./Android.mk:345:    binder_bindings/android/brillo/IUpdateEngine.aidl \
-./Android.mk:408:    binder_bindings/android/os/IUpdateEngine.aidl \
-./Android.mk:572:    binder_bindings/android/brillo/IUpdateEngine.aidl \
-./Android.mk:619:    binder_bindings/android/os/IUpdateEngine.aidl \
-./binder_bindings/android/brillo/IUpdateEngine.aidl:22:interface IUpdateEngine {
-./binder_bindings/android/os/IUpdateEngine.aidl:21:interface IUpdateEngine {
-./update_engine_client_android.cc:39:#include "android/os/IUpdateEngine.h"
-./update_engine_client_android.cc:80:  android::sp<android::os::IUpdateEngine> service_;
-./update_engine_client_android.cc:161:    LOG(ERROR) << "Failed to get IUpdateEngine binder from service manager: "
-./update_engine_client_android.cc:216:      android::os::IUpdateEngine::asBinder(service_),
-src/system/update_engine$ 
+class IUpdateEngineCallback : public ::android::IInterface
+class BpUpdateEngineCallback : public ::android::BpInterface<IUpdateEngineCallback> 
+class BnUpdateEngineCallback : public ::android::BnInterface<IUpdateEngineCallback>
 ```
 
----
+再次搜索，也可以看到整个`update_engine`文件夹没有对`BpUpdateEngineCallback`的引用。
+以下是`IUpdateEngineCallback`，`BnUpdateEngineCallback`在客户端`update_engine_client`的关系类图，如下：
 
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+![image](https://github.com/guyongqiangx/blog/blob/dev/ab-ota/images/BnUpdateEngineCallback.png?raw=true)
 
-update_metadata.proto定义的message:
+图2. `BnUpdateEngineCallback`在客户端进程`UpdateEngineClientAndroid`中的类关系
+
+有意思的是，UECallback是定义在UpdateEngineClientAndroid内部的命名空间中，两个类内部互相都有指针成员指向对方：
 ```
-Extent
-Signatures
-PartitionInfo
-ImageInfo
-InstallOperation
-PartitionUpdate
-DeltaArchiveManifest
+# system\update_engine\update_engine_client_android.cc
+class UpdateEngineClientAndroid : public brillo::Daemon {
+ ...
+
+ private:
+  # 这里定义的UECallback定义在UpdateEngineClientAndroid命名空间中
+  class UECallback : public android::os::BnUpdateEngineCallback {
+   public:
+    explicit UECallback(UpdateEngineClientAndroid* client) : client_(client) {}
+
+    ...
+
+   private:
+    # client_指针指向实际调用的客户端
+    UpdateEngineClientAndroid* client_;
+  };
+
+  ...
+  # callback_指针指向客户端需要处理的回调函数
+  android::sp<android::os::BnUpdateEngineCallback> callback_;
+
+  ...
+};
 ```
 
-aidl: Android Interface Definition Language
+UpdateEngineClientAndroid在OnInit()函数中用自己的this指针初始化UECallback的`client_`成员，然后类UECallback创建完毕后赋值回自己的`callback_`指针，如下：
+```
+# system\update_engine\update_engine_client_android.cc
+int UpdateEngineClientAndroid::OnInit() {
+  ...
+
+  if (FLAGS_follow) {
+    // Register a callback object with the service.
+    # 先用this初始化UECallback->client_成员，然后将创建的UECallback对象赋值给自身的callback_指针
+    callback_ = new UECallback(this);
+    bool bound;
+    # 这里将callback_对象绑定到service_对象上，后续会在service_服务中合适的时候调用callback_
+    if (!service_->bind(callback_, &bound).isOk() || !bound) {
+      LOG(ERROR) << "Failed to bind() the UpdateEngine daemon.";
+      return 1;
+    }
+    keep_running = true;
+  }
+
+  ...
+}
+```
+
+## 3. 其它
+
+读到这里，难免会有疑问，分析Update Engine的代码为什么不直接进入main函数进行分析，反而在这里扯Protobuf和AIDL文件的闲篇？这里分析Protobuf和AIDL有什么用？
+
+其实我想说，我还没有完整的看完代码，我也不知道分析Protobuf和AIDL到底会不会做无用功。
+
+但可以肯定的是，从依赖结构看，如果要分析系统升级过程中最后patch的操作，肯定需要根据`update_metadata.proto`定义的元数据来进行分析处理；
+
+另外，Update Engine涉及的类比较多，通过对AIDL文件的分析，很容易搞清楚service服务相关的类BnUpdateEngine和回调函数类BnUpdateEngineCallback在整个Update Engine中与其他类的关系。
+
+## 4. 联系和福利
+
+- 个人微信公众号“洛奇看世界”，一个大龄码农的救赎之路。
+  - 公众号回复关键词“Android电子书”，获取超过150本Android相关的电子书和文档。电子书包含了Android开发相关的方方面面，从此你再也不需要到处找Android开发的电子书了。
+  - 公众号回复关键词“个人微信”，获取个人微信联系方式。<font color="red">我组建了一个Android OTA的讨论组，联系我，说明Android OTA，我拉你进讨论组一起讨论。</font>
+
+  ![image](https://img-blog.csdn.net/20180507223120679)
