@@ -1,8 +1,22 @@
+# Android Update Engine分析（一）Makefile
+
 写完《Android AB System OTA分析》系列后打算一口气将Update Engine也写了的，但一直由于各种借口，最终没有完成。后来6月份的时候陆陆续续读了Update Engine部分代码，记了点笔记，本打算等彻底读完再分享的，但按照目前的进度不知道读完是哪一天，所以先将笔记贴在这里，如果我的这几篇笔记能对您阅读或理解Update Engine机制有一丝帮助，那花时间整理也是值得的，由于个人水平有限，如果发现错误，恳请指出，我会更正以免误导别人。
+
+> 技术文章直入主题，展示结论，容易让人知其然，不知其所以然。</br>
+> 我个人更喜欢在文章中展示如何阅读代码，逐步分析解决问题的思路和过程。这样的思考比知道结论更重要，希望我的分析能让你有所收获。
+
+> 这篇文章最初发布于2017年8月份，最近打算完成整个Update Engine分析系列，因此在2018年6月中对本文做了一些更新。
+> 更新主要包括：
+> - 从代码确定宏BRILLO没有定义
+> - 从编译结果确认宏BRILLO没有定义
+> - `libupdate_engine_client`与非BRILLO平台无关
+> - 缩减代码分析范围，确认那些代码参与编译
 
 《Android A/B System OTA分析》主要从功能上分析A/B系统的特点、设置和操作，Update Engine分析深入A/B系统的底层实现，所以相对于前者，需要更加深入代码。
 
 > 本文涉及的Android代码版本：android‐7.1.1_r23 (NMF27D)
+
+## 0. Update Engine代码统计
 
 Android Update Engine模块涉及的代码较多，这里主要以`system/update_engine`目录的代码为主，其它部分代码会编译为库的形式供`system/update_engine`下的代码调用。
 如果只看`update_engine`目录，用`find`命令统计下：
@@ -488,6 +502,125 @@ else  # !defined(BRILLO)
 ```
 以上if-else中间的代码定义了BRILLO平台上的`libupdate_engine`库模块，由于我们是非BRILLO平台，但并不需要我们去关心。不管里面是神马，写了神马，定义了神马，`we don't care`。
 
+> 2018/06/13补充，关于BRILLO宏没有定义是如何确认的？如果对这部分不感兴趣，请直接跳过这里的分析。
+>
+> 有人可能会问：我怎么知道当前BRILLO平台有没有定义呢? 
+>
+> 没关系，同前面搜索`"BRILLO_USE_*"`宏一样，可以尝试在代码里面搜索下所有可能的BRILLO定义，个人觉得定义BRILLO最可能的地方是build和device以及system目录。如果不放心，为了保险起见，我们可以搜索除了out目录以外的所有android代码。当然，在整个android源码中搜索BRILLO字符串，可能需要花点时间。
+> 
+> 注意，在整个代码中包含BRILLO的字符串的地方特别多，所以需要进一步精确搜索，可能的办法有：
+> 1. 搜索非代码文件；
+> 2. 搜索精确匹配"BRILLO"的字符串；
+> 
+> 以下是我在Android源码中除`{.h, .c, .cc, .cpp, .py}`文件中搜索"BRILLO"的结果，有点长，不喜欢的可以跳过。
+> ```
+> src$ grep -rn "BRILLO" --exclude-dir=out --exclude=*.h --exclude=*.c --exclude=*.cc --exclude=*.cpp --exclude=*.py                                           
+> frameworks/wilhelm/src/Android.mk:197:ifndef BRILLO
+> bionic/libc/Android.mk:1415:ifdef BRILLO
+> system/core/metricsd/Android.mk:202:ifdef BRILLO
+> system/core/metricsd/Android.mk:220:ifdef BRILLO
+> system/core/crash_reporter/Android.mk:103:# Optionally populate the BRILLO_CRASH_SERVER variable from a product
+> system/core/crash_reporter/Android.mk:105:LOADED_BRILLO_CRASH_SERVER := $(call cfgtree-get-if-exists,brillo/crash_server)
+> system/core/crash_reporter/Android.mk:109:$(LOCAL_BUILT_MODULE): BRILLO_CRASH_SERVER ?= "$(LOADED_BRILLO_CRASH_SERVER)"
+> system/core/crash_reporter/Android.mk:112:      echo $(BRILLO_CRASH_SERVER) > $@
+> system/core/crash_reporter/Android.mk:138:ifdef BRILLO
+> system/core/crash_reporter/README.md:42:- The `BRILLO_CRASH_SERVER` make variable should be set in the `product.mk`
+> system/core/crash_reporter/README.md:47:- The `BRILLO_PRODUCT_ID` make variable should be set in the `product.mk` file
+> system/core/crash_reporter/crash_sender:20:BRILLO_PRODUCT=Brillo
+> system/core/crash_reporter/crash_sender:386:    product="${BRILLO_PRODUCT}"
+> system/core/crash_reporter/crash_sender:416:  if [ "${product}" != "${BRILLO_PRODUCT}" ]; then
+> system/extras/brillo_config/Android.mk:28:LOADED_BRILLO_PRODUCT_ID := $(call cfgtree-get-if-exists,brillo/product_id)
+> system/extras/brillo_config/Android.mk:32:$(LOCAL_BUILT_MODULE): BRILLO_PRODUCT_ID ?= "$(LOADED_BRILLO_PRODUCT_ID)"
+> system/extras/brillo_config/Android.mk:35:      echo $(BRILLO_PRODUCT_ID) > $@
+> system/extras/brillo_config/Android.mk:47:ifeq ($(BRILLO_PRODUCT_VERSION),)
+> system/extras/brillo_config/Android.mk:49:BRILLO_PRODUCT_VERSION := $(call cfgtree-get-if-exists,brillo/product_version)
+> system/extras/brillo_config/Android.mk:52:ifeq ($(BRILLO_PRODUCT_VERSION),)
+> system/extras/brillo_config/Android.mk:53:BRILLO_PRODUCT_VERSION := "0.0.0"
+> system/extras/brillo_config/Android.mk:55:ifeq ($(shell echo $(BRILLO_PRODUCT_VERSION) | grep -E '^[0-9]+\.[0-9]+\.[0-9]+$$'),)
+> system/extras/brillo_config/Android.mk:56:$(error Invalid BRILLO_PRODUCT_VERSION "$(BRILLO_PRODUCT_VERSION)", must be \
+> system/extras/brillo_config/Android.mk:68:      echo $(BRILLO_PRODUCT_VERSION).$(BUILD_NUMBER) > $@
+> system/extras/brillo_config/Android.mk:70:      echo $(BRILLO_PRODUCT_VERSION).$(BUILD_DATETIME) > $@
+> system/nativepower/daemon/Android.mk:94:ifdef BRILLO
+> system/nativepower/client/Android.mk:51:ifdef BRILLO
+> system/tools/aidl/Android.mk:23:ifdef BRILLO
+> system/tools/aidl/Android.mk:181:ifndef BRILLO
+> system/tools/aidl/Android.mk:201:endif  # not defined BRILLO
+> system/firewalld/Android.mk:70:ifdef BRILLO
+> system/weaved/Android.mk:57:ifdef BRILLO
+> system/weaved/Android.mk:122:ifdef BRILLO
+> system/webservd/test-client/Android.mk:26:ifdef BRILLO
+> system/webservd/webservd/Android.mk:32:ifdef BRILLO
+> system/webservd/webservd/Android.mk:57:ifdef BRILLO
+> system/update_engine/Android.mk:20:# by setting BRILLO_USE_* values. Note that we define local variables like
+> system/update_engine/Android.mk:22:local_use_binder := $(if $(BRILLO_USE_BINDER),$(BRILLO_USE_BINDER),1)
+> system/update_engine/Android.mk:23:local_use_dbus := $(if $(BRILLO_USE_DBUS),$(BRILLO_USE_DBUS),0)
+> system/update_engine/Android.mk:25:    $(if $(BRILLO_USE_HWID_OVERRIDE),$(BRILLO_USE_HWID_OVERRIDE),0)
+> system/update_engine/Android.mk:28:local_use_libcros := $(if $(BRILLO_USE_LIBCROS),$(BRILLO_USE_LIBCROS),0)
+> system/update_engine/Android.mk:29:local_use_mtd := $(if $(BRILLO_USE_MTD),$(BRILLO_USE_MTD),0)
+> system/update_engine/Android.mk:31:    $(if $(BRILLO_USE_POWER_MANAGEMENT),$(BRILLO_USE_POWER_MANAGEMENT),0)
+> system/update_engine/Android.mk:32:local_use_weave := $(if $(BRILLO_USE_WEAVE),$(BRILLO_USE_WEAVE),0)
+> system/update_engine/Android.mk:229:ifdef BRILLO
+> system/update_engine/Android.mk:360:else  # !defined(BRILLO)
+> system/update_engine/Android.mk:424:endif  # !defined(BRILLO)
+> system/update_engine/Android.mk:450:ifdef BRILLO
+> system/update_engine/Android.mk:458:else  # !defined(BRILLO)
+> system/update_engine/Android.mk:464:endif  # !defined(BRILLO)
+> system/update_engine/Android.mk:601:ifdef BRILLO
+> system/update_engine/Android.mk:607:else  # !defined(BRILLO)
+> system/update_engine/Android.mk:624:endif  # !defined(BRILLO)
+> system/update_engine/Android.mk:770:ifdef BRILLO
+> system/update_engine/Android.mk:782:    $(eval $(ifeq $(BRILLO), 1, LOCAL_MODULE_TAGS := eng)) \
+> system/update_engine/Android.mk:792:    $(eval $(ifeq $(BRILLO), 1, LOCAL_MODULE_TAGS := eng)) \
+> system/update_engine/Android.mk:814:    $(eval $(ifeq $(BRILLO), 1, LOCAL_MODULE_TAGS := eng)) \
+> system/update_engine/Android.mk:843:ifdef BRILLO
+> system/update_engine/Android.mk:865:ifdef BRILLO
+> system/update_engine/Android.mk:976:endif  # BRILLO
+> system/update_engine/Android.mk:989:ifdef BRILLO
+> system/update_engine/Android.mk:998:endif  # BRILLO
+> system/connectivity/shill/Android.mk:352:ifdef BRILLO
+> system/connectivity/shill/Android.mk:356:endif # BRILLO
+> system/connectivity/shill/Android.mk:378:ifdef BRILLO
+> system/connectivity/shill/Android.mk:381:endif # BRILLO
+> system/connectivity/shill/Android.mk:394:ifdef BRILLO
+> system/connectivity/shill/Android.mk:396:endif # BRILLO
+> system/connectivity/shill/Android.mk:613:ifdef BRILLO
+> system/connectivity/shill/Android.mk:615:endif # BRILLO
+> system/connectivity/apmanager/Android.mk:106:ifdef BRILLO
+> system/connectivity/apmanager/Android.mk:108:endif # BRILLO
+> system/tpm/trunks/Android.mk:87:ifeq ($(BRILLOEMULATOR),true)
+> system/tpm/trunks/Android.mk:91:ifeq ($(BRILLOEMULATOR),true)
+> system/tpm/trunks/Android.mk:102:ifeq ($(BRILLOEMULATOR),true)
+> external/minijail/Android.mk:34:ifndef BRILLO
+> external/minijail/Android.mk:143:ifdef BRILLO
+> external/minijail/Android.mk:167:ifdef BRILLO
+> external/minijail/Android.mk:188:ifdef BRILLO
+> external/libbrillo/Android.mk:16:# by setting BRILLO_USE_* values. Note that we define local variables like
+> external/libbrillo/Android.mk:18:local_use_dbus := $(if $(BRILLO_USE_DBUS),$(BRILLO_USE_DBUS),1)
+> external/libbrillo/Android.mk:374:ifdef BRILLO
+> external/libchrome/Android.mk:16:# by setting BRILLO_USE_* values. Note that we define local variables like
+> external/libchrome/Android.mk:18:local_use_dbus := $(if $(BRILLO_USE_DBUS),$(BRILLO_USE_DBUS),1)
+> external/libchrome/Android.mk:566:ifdef BRILLO
+> external/libchrome/Android.mk:585:ifdef BRILLO
+> external/icu/icu4c/source/common/Android.mk:239:ifndef BRILLO
+> external/icu/icu4c/source/common/Android.mk:284:ifndef BRILLO
+> device/generic/goldfish-opengl/system/gralloc/Android.mk:26:endif  # defined(BRILLO)
+> device/intel/edison/BoardConfig.mk:62:BRILLO_VENDOR_PARTITIONS := \
+> device/intel/edison/flash_tools/brillo-flashall-edison.sh:28:    "${BRILLO_OUT_DIR}" \
+> build/core/config.mk:771:ifdef BRILLO
+> build/core/config.mk:772:# Add a C define that identifies Brillo targets. __BRILLO__ should only be used
+> build/core/config.mk:777:TARGET_GLOBAL_CFLAGS += -D__BRILLO__
+> build/core/config.mk:779:$(TARGET_2ND_ARCH_VAR_PREFIX)TARGET_GLOBAL_CFLAGS += -D__BRILLO__
+> build/core/Makefile:712:ifeq ($(BRILLO),)
+> build/core/soong.mk:43: echo '    "Brillo": $(if $(BRILLO),true,false),'; \
+> build/soong/cc/cc.go:989:                       flags.GlobalFlags = append(flags.GlobalFlags, "-D__BRILLO__")
+> build/tools/signapk/Android.mk:29:ifeq ($(BRILLO),)  
+>
+> src$ 
+> ```
+> 这里的搜索结果大约有100条，仔细观察上面的每一条结果，没有任何一个地方是关于“BRILLO”宏定义的，在这一节的后面我们再对“BRILLO没有定义”的结果进行确认。
+> 
+
+
 下面这部分才是非BRILLO平台的`libupdate_engine_android`库：
 
 ```
@@ -563,6 +696,21 @@ LOCAL_C_INCLUDES := \
     $(ue_common_c_includes) \
     bootable/recovery
 ```
+
+> 2018/06/13补充：
+>
+> 从这一节的分析可见，如果是BRILLO平台，则这里定义了`libupdate_engine`静态库模块的编译规则；如果是非BRILLO平台，则这里定义了`libupdate_engine_android`静态库模块的编译规则。显然，这里BRILLO宏的定义与否，会影响生成静态库的名字。
+>
+> 所以，我们只需要在编译结果中检查生成的static_library是`libupdate_engine`还是`libupdate_engine_android`就能反过来验证BRILLO到底有没有定义了。
+> 
+> 以下是我在生成的STATIC_LIBRARY目录中查找"update_engine"相关模块的结果：
+> ```
+> src/out/target/product/bcm7252ssffdr4/obj$ find STATIC_LIBRARIES -type d -iname "*update_engine*"
+> STATIC_LIBRARIES/libupdate_engine_android_intermediates
+> STATIC_LIBRARIES/update_metadata-protos_intermediates/proto/system/update_engine
+> src/out/target/product/bcm7252ssffdr4/obj$ 
+> ```
+> 显然，从这里编译生成的目录“libupdate_engine_android_intermediates”可以反推，我们前面看到的BRILLO是没有定义的。
 
 ### 第425~467行
 ```
@@ -757,7 +905,7 @@ endif  # local_use_binder == 1
 
 include $(BUILD_SHARED_LIBRARY)
 ```
-以上定义了生成静态库`libupdate_engine_client`的规则，从字面看，这个静态库应该是用于`update_engine`的客户端的。
+以上定义了生成静态库`libupdate_engine_client`的规则，从字面看，这个静态库应该是用于`update_engine`的客户端的。从后面的分析可以看到，这个`libupdate_engine_client`只有在BRILLO有定义时才会被`update_engine_client`引用，否则就不会引用。
 
 ### 第587~625行
 
@@ -802,6 +950,21 @@ endif  # !defined(BRILLO)
 include $(BUILD_EXECUTABLE)
 ```
 以上定义了生成target可执行应用`update_engine_client`，这个是Android自带的uploade_engine客户端demo应用，实际各Android设备产商会开发自己的Update Engine客户端应用。
+
+> 2018/06/13补充：
+> 留意以下宏：
+> ```
+> ifdef BRILLO
+> LOCAL_SHARED_LIBRARIES += \
+>     libupdate_engine_client
+> LOCAL_SRC_FILES := \
+>     update_engine_client.cc \
+>     common/error_code_utils.cc
+> else  # !defined(BRILLO)
+> ...
+> endif  # !defined(BRILLO)
+> ```
+> 这里说明，只有在定义了BRILLO的情况下，`update_engine_client`才会依赖于`libupdate_engine_client`，对于非BRILLO平台，我们甚至不需要去分析`libupdate_engine_client`模块。又少一个不用看的模块，哈哈，有没有觉得轻松一点。
 
 ### 第626~714行
 ```
@@ -1246,6 +1409,7 @@ EXECUTABLES:
 # 共享库模块
 SHARED_LIBRARIES:
 	libupdate_engine_client 	(target)
+# 事实上，只有定义了BRILLO的情况下，update_engine_client才会引用libupdate_engine_client
 
 # 预编译模块
 PREBUILT:
@@ -1282,12 +1446,15 @@ delta_generator (host)
 
 __总体上，共生成了4可执行个应用，具体为android主系统使用的的服务端`update_engine`和客户端`update_engine_client`, recovery系统使用的`update_engine_sideload`，以及host上的升级包工具`delta_generator`。这4个可执行应用，部分依赖于4个静态库（`update_metadata-protos, libpayload_consumer, libupdate_engine_android, libpayload_generator`）和1个共享库（`libupdate_engine_client`）。__
 
-### 3. 模块对Update Engine文件的依赖
+### 3. Update Engine各模块的文件依赖
 
-啰嗦一点，再将上面的各个可执行应用或库库文件目标的依赖详细列举出来，如下（没有列举依赖的非Update Engine的库）：
+啰嗦一点，再将上面的各个可执行应用或库文件目标的依赖详细列举出来，如下（没有列举依赖的非Update Engine的库）
+
+> 后续分析中，如果不确定代码是否有起作用，是否有参与编译时可能还需要反复检查这里的文件依赖列表
+
 ```
 update_metadata-protos (STATIC_LIBRARIES)
-  --> update_metadata.proto
+  --> update_metadata.proto <注意：这里是.proto文件>
 
 libpayload_consumer (STATIC_LIBRARIES)
   --> common/action_processor.cc
@@ -1321,8 +1488,8 @@ libpayload_consumer (STATIC_LIBRARIES)
       payload_consumer/xz_extent_writer.cc
 
 libupdate_engine_android (STATIC_LIBRARIES)
-  --> binder_bindings/android/os/IUpdateEngine.aidl
-      binder_bindings/android/os/IUpdateEngineCallback.aidl
+  --> binder_bindings/android/os/IUpdateEngine.aidl         <注意：这里是.aidl文件>
+      binder_bindings/android/os/IUpdateEngineCallback.aidl <注意：这里是.aidl文件>
       binder_service_android.cc
       boot_control_android.cc
       certificate_checker.cc
@@ -1351,13 +1518,13 @@ update_engine_sideload (EXECUTABLES)
       boot_control_recovery_stub.cc
 
 update_engine_client (EXECUTABLES)
-  --> binder_bindings/android/os/IUpdateEngine.aidl
-      binder_bindings/android/os/IUpdateEngineCallback.aidl
+  --> binder_bindings/android/os/IUpdateEngine.aidl         <注意：这里是.aidl文件>
+      binder_bindings/android/os/IUpdateEngineCallback.aidl <注意：这里是.aidl文件>
       common/error_code_utils.cc
       update_engine_client_android.cc
       update_status_utils.cc
 
-libpayload_generator (SHARED_LIBRARIES)
+libpayload_generator (STATIC_LIBRARIES)
   --> payload_generator/ab_generator.cc
       payload_generator/annotated_operation.cc
       payload_generator/blob_file_writer.cc
@@ -1385,10 +1552,71 @@ delta_generator (EXECUTABLES)
   --> payload_generator/generate_delta_main.cc
 ```
 
+> 2018/06/13补充：
+> 
+> 上面依赖的目标大部分是`.cc`文件，但除了`.cc`文件外，还依赖`update_metadata.proto`文件和`IUpdateEngine.aidl`以及`IUpdateEngineCallback.aidl`这两个`aidl`文件。后续会对`.proto`和`.aidl`文件进行分析。
+>
+> 另外，仔细看这些模块所依赖的代码目录路径，主要有：
+> - update_engine的根目录
+> - common
+> - payload_consumer
+> - binder_bindings/android/os
+> - payload_generator
+> 
+> update_engine目录共有13个子目录，这里除了根目录外只用到了4个子目录的代码，可见实际使用的代码只是其中一部分，整体涉及的文件数大大减少，不到100个文件。
+>
+> 所以不要看到目录和文件很多担心无从下手，其实并没有想象的那么难。
+> 如果不确定某个模块到底依赖于哪些文件，则可以到out目录的相应位置查找。
+> 例如：模块`update_engine_client`到底依赖于哪些代码文件？由于`update_engine_client`是在target运行的可执行文件，则需要到out/target下的EXECUTABLE目录下查找。
+> ```
+> src/out/target/product/bcm7252ssffdr4/obj$ tree EXECUTABLES/update_engine_client_intermediates/
+> EXECUTABLES/update_engine_client_intermediates/
+> |-- LINKED
+> |   `-- update_engine_client
+> |-- PACKED
+> |   `-- update_engine_client
+> |-- aidl-generated
+> |   |-- include
+> |   |   `-- android
+> |   |       `-- os
+> |   |           |-- BnUpdateEngine.h
+> |   |           |-- BnUpdateEngineCallback.h
+> |   |           |-- BpUpdateEngine.h
+> |   |           |-- BpUpdateEngineCallback.h
+> |   |           |-- IUpdateEngine.h
+> |   |           `-- IUpdateEngineCallback.h
+> |   `-- src
+> |       `-- binder_bindings
+> |           `-- android
+> |               `-- os
+> |                   |-- IUpdateEngine.cc
+> |                   |-- IUpdateEngine.o
+> |                   |-- IUpdateEngineCallback.cc
+> |                   `-- IUpdateEngineCallback.o
+> |-- common
+> |   `-- error_code_utils.o
+> |-- export_includes
+> |-- import_includes
+> |-- update_engine_client
+> |-- update_engine_client_android.o
+> `-- update_status_utils.o
+> 
+> 11 directories, 18 files
+> ```
+> 这里对应的`.o`文件包括：
+> - aidl-generated/src/binder_bindings/android/os/IUpdateEngine.o
+> - aidl-generated/src/binder_bindings/android/os/IUpdateEngineCallback.o
+> - common/error_code_utils.o
+> - update_engine_client_android.o
+> - update_status_utils.o
+> 
+> 再对比看看我们前面分析得到的5个代码文件，是不是觉得简单多了？
+
 细分到目标对库和文件的依赖后，看起好好像没有那么漫无目的、无从下手的感觉了。
+
 基于上面提出的目标和文件依赖关系，后续可以自顶向下或自底向上对代码进行分析：
 
 - 自顶向下从顶层代码入手，向下分析各层模块，直到最底层的实现，好处是对代码容易有全局观，坏处是开始对底层实现不清楚。
 - 自底向上从最底层的小模块开始，层层向上分析，直到最上层的应用逻辑，好处是一开始就了解代码的底层实现，坏处是容易陷入到各个模块中，没有全局观，弄不清楚各模块的关系。
 
-后续从升级场景入手，先分析较简单的客户端`update_engine_client`，再分析代码复杂的服务端`update_engine_client`。
+可以考虑从升级场景入手，先分析较简单的客户端`update_engine_client`，再分析代码复杂的服务端`update_engine`。
