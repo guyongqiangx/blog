@@ -1621,10 +1621,11 @@ delta_generator (EXECUTABLES)
 
 可以考虑从升级场景入手，先分析较简单的客户端`update_engine_client`，再分析代码复杂的服务端`update_engine`。
 
-## 4. 联系和福利
+## 联系和福利
 
-- 个人微信公众号“洛奇看世界”，一个大龄码农的救赎之路。
-  - 公众号回复关键词“Android电子书”，获取超过150本Android相关的电子书和文档。电子书包含了Android开发相关的方方面面，从此你再也不需要到处找Android开发的电子书了。
-  - 公众号回复关键词“个人微信”，获取个人微信联系方式。<font color="red">我组建了一个Android OTA的讨论组，联系我，说明Android OTA，我拉你进讨论组一起讨论。</font>
+- 本文原创发布于微信公众号“洛奇看世界”，一个大龄2b码农的世界。
+- 关注微信公众号“洛奇看世界”
+  - 回复关键词“Android电子书”，获取超过150本Android相关的电子书和文档。电子书包含了Android开发相关的方方面面，从此你再也不需要到处找Android开发的电子书了。
+  ![image](https://github.com/guyongqiangx/blog/blob/dev/shell/images/qrcode-public-account.jpg?raw=true)
 
-  ![image](https://img-blog.csdn.net/20180507223120679)
+---
