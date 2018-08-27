@@ -997,7 +997,7 @@ int UpdateEngineClientAndroid::OnInit() {
 
 在`Run()`中进入主循环前，通过`OnInit()`初始化生成两个业务对象`binder_service_`和`daemon_state_`，前者负责binder服务对外的工作，后者则负责后台的实际业务。
 
-`binder_service_`在客户端调用`bind`操作时会保存客户端注册的回调函数，从而在适当的时候通过回调函数告知客户端升级的状态信息；同时`binder_service_`接收到客户端的服务请求后，将其交给`daemon_state_`的成员`update_attempter_`去完成，所以整个`update_attemer_`才是Update Engine服务端业务的核心。
+`binder_service_`在客户端调用`bind`操作时会保存客户端注册的回调函数，从而在适当的时候通过回调函数告知客户端升级的状态信息；同时`binder_service_`接收到客户端的服务请求后，将其交给`daemon_state_`的成员`update_attempter_`去完成，所以`update_attempter_`才是Update Engine服务端业务的核心。
 
 可以看到，目前基本上所有调用最后都会转到`update_attempter_`中，代码分析都在涉及到`update_attempter_`的操作时停止。所以`update_attempter_`是Update Engine服务端的核心对象，代码比较复杂，我们另外开篇分析。
 
