@@ -255,13 +255,15 @@ Android从7.0开始引入新的OTA升级方式，`A/B System Updates`，这里�
 		bcm7252ssffdr4:/ # update_engine_client \
 		--payload=http://stbszx-bld-5/public/android/full-ota/payload.bin \
 		--update \
-		--headers="\
-		  FILE_HASH=ozGgyQEcnkI5ZaX+Wbjo5I/PCR7PEZka9fGd0nWa+oY= \
+		--headers="
+		  FILE_HASH=ozGgyQEcnkI5ZaX+Wbjo5I/PCR7PEZka9fGd0nWa+oY= 
 		  FILE_SIZE=282164983
-		  METADATA_HASH=GLIKfE6KRwylWMHsNadG/Q8iy5f7ENWTatvMdBlpoPg= \
-		  METADATA_SIZE=21023 \
+		  METADATA_HASH=GLIKfE6KRwylWMHsNadG/Q8iy5f7ENWTatvMdBlpoPg= 
+		  METADATA_SIZE=21023 
 		"
 	其中`headers`选项需要填写`payload_properties.txt`文件的内容。
+	
+	[2019/08/13]补充一点，这里`update_engine_client`的`--headers=`参数最终是按行进行拆分提取的，所以需要将`--headers=`的每个参数分别写到一行上，然后全部参数用双引号包含，否则可能会出现无法正常解析headers参数导致无法正常执行的情况。
 
 ### 2.2 增量升级/差分升级
 
@@ -298,10 +300,10 @@ Android从7.0开始引入新的OTA升级方式，`A/B System Updates`，这里�
 	--payload=http://stbszx-bld-5/public/android/full-ota/payload.bin \
 	--update \
 	--headers="\
-	  FILE_HASH=ozGgyQEcnkI5ZaX+Wbjo5I/PCR7PEZka9fGd0nWa+oY= \
-	  FILE_SIZE=282164983 \
-	  METADATA_HASH=GLIKfE6KRwylWMHsNadG/Q8iy5f7ENWTatvMdBlpoPg= \
-	  METADATA_SIZE=21023 \
+	  FILE_HASH=ozGgyQEcnkI5ZaX+Wbjo5I/PCR7PEZka9fGd0nWa+oY= 
+	  FILE_SIZE=282164983 
+	  METADATA_HASH=GLIKfE6KRwylWMHsNadG/Q8iy5f7ENWTatvMdBlpoPg= 
+	  METADATA_SIZE=21023 
 	"
 	bcm7252ssffdr4:/ #
 	bcm7252ssffdr4:/ # logcat -s update_engine:v
