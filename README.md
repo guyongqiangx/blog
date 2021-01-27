@@ -1,1 +1,76 @@
-# blog
+# 博文目录
+
+## 按时间
+
+- [已解决]possibly undefined macro AC_PROG_LIBTOOL.md
+- [已解决]'make menuconfig' requires the ncurses libraries.md
+- [已解决]libtool_args+= not found.md
+- [已解决]intltool scripts were not found.md
+- [已解决]Can't locate TextCSV.pm.md
+- 博通机顶盒平台启动时间优化（一）.md
+- 博通机顶盒平台framebuffer输出（二）.md
+- 博通机顶盒平台framebuffer输出（一）.md
+- u-boot-2016.09 make配置过程分析.md
+- u-boot-2016.09 make编译过程分析（二）.md
+- u-boot-2016.09 make编译过程分析（一）.md
+- u-boot-2016.09 make工具之fixdep.md
+- u-boot-2016.09 make工具之conf.md
+- u-boot-2016.09 ld链接脚本分析.md
+- CFE文件内嵌bmp图像并显示.md
+- 20210118-分享一些我做笔记的经验(一).md
+- 20210115-没有经过毒打的计划，永远是理想中的计划.md
+- 20180927-Android Update Engine分析（八）升级包制作脚本分析.md
+- 20180920-Android Update Engine分析（七） DownloadAction之FileWriter.md
+- 20180830-Android Update Engine分析（六）服务端核心之Action详解.md
+- 20180828-Android Update Engine分析（五）服务端核心之Action机制.md
+- 20180827-Android Update Engine分析（四）服务端进程.md
+- 20180621-Android Update Engine分析（三）客户端进程.md
+- 20180620-问题即是机会.md
+- 20180614-Android Update Engine分析（二）Protobuf和AIDL文件.md
+- 20180611-深度思考故事4，从买土豆看职场思维.md
+- 20180605-深度思考故事3，三节课单月涨粉两万五.md
+- 20180530-深度思考故事2，出租司机的经济学.md
+- 20180525-深度思考故事1，贴发票和贴海报.md
+- 20180523-BASH命令行快捷键指南(二).md
+- 20180520-BASH命令行快捷键指南.md
+- 20180509-职业发展的ABZ，你规划好了吗？.md
+- 20180506-详细解析Shell中的IFS变量.md
+- 20180320-嵌入式开发，没有串口如何看日志？.md
+- 20180313-工程师如何向技术支持请求帮助.md
+- 20180217-Smartcard中PPS数据交换分析.md
+- 20180209-Smartcard中T0协议等待时间WT的定义和计算.md
+- 20180123-将Android启动的logcat消息发送到串口.md
+- 20180119-一个统计Android Service的脚本.md
+- 20170918-了解TrustZone，读了这篇就够了.md
+- 20170828-Android Update Engine分析（一）Makefile.md
+- 20170825-Solaris系统cron服务异常解决记录.md
+- 20170711-Python从二进制文件中提取Exponent和Modulus数据(e, n)并构建公钥.md
+- 20170710-为什么RSA公钥每次加密得到的结果都不一样.md
+- 20170707-OpenSSL和Python实现RSA Key公钥加密私钥解密.md
+- 20170705-OpenSSL和Python实现RSA Key数字签名和验证.md
+- 20170704-OpenSSL RSA Key的生成和转换.md
+- 20170622-[已解决]Ubuntu安装libssl-dev失败.md
+- 20170613-Android脚本envsetup.sh逐行分析.md
+- 20170610-使用find查找代码文件的几个示例.md
+- 20170610-win10下SecureCRT SSH连接慢.md
+- 20170521-Android AB System OTA分析（四）系统的启动和升级.md
+- 20170518-Android AB System OTA分析（三）主系统和bootloader的通信.md
+- 20170512-etckeeper在Ubuntu上的安装和使用.md
+- 20170510-Android AB System OTA分析（二）系统image的生成.md
+- 20170506-Android AB System OTA分析（一）概览.md
+- 20170422-基于Ubuntu 12.04搭建NIS Slave服务.md
+- 20170422-Ubuntu挂载远程共享目录到本地.md
+- 2017/04/13 [使用grep搜索代码的几个示例](https://github.com/guyongqiangx/blog/blob/dev/20170413-%E4%BD%BF%E7%94%A8grep%E6%90%9C%E7%B4%A2%E4%BB%A3%E7%A0%81%E7%9A%84%E5%87%A0%E4%B8%AA%E7%A4%BA%E4%BE%8B.md)
+- 20170331-手动更新NIS服务的用户密码.md
+- 2017/03/31 [工程师如何增加自己的影响力](https://github.com/guyongqiangx/blog/blob/dev/20170331-%E5%B7%A5%E7%A8%8B%E5%B8%88%E5%A6%82%E4%BD%95%E5%A2%9E%E5%8A%A0%E8%87%AA%E5%B7%B1%E7%9A%84%E5%BD%B1%E5%93%8D%E5%8A%9B.md)
+- 20170331-博通机顶盒平台GPT分区和制作工具.md
+- 2016/12/01 [基于busybox的bootchart分析](https://github.com/guyongqiangx/blog/blob/dev/20161201-%E5%9F%BA%E4%BA%8Ebusybox%E7%9A%84bootchart%E5%88%86%E6%9E%90.md)
+- 2016/11/07 [GCC中的强符号和弱符号及强引用和弱引用](https://github.com/guyongqiangx/blog/blob/dev/20161107-GCC%E4%B8%AD%E7%9A%84%E5%BC%BA%E7%AC%A6%E5%8F%B7%E5%92%8C%E5%BC%B1%E7%AC%A6%E5%8F%B7%E5%8F%8A%E5%BC%BA%E5%BC%95%E7%94%A8%E5%92%8C%E5%BC%B1%E5%BC%95%E7%94%A8.md)
+- 2016/10/10 [神奇的'asdf;'错误](https://github.com/guyongqiangx/blog/blob/dev/20161010-%E7%A5%9E%E5%A5%87%E7%9A%84'asdf%3B'%E9%94%99%E8%AF%AF.md)
+- 2016/10/09 [基于Ubuntu 14.04的Android Build Server搭建](https://github.com/guyongqiangx/blog/blob/dev/20161009-%E5%9F%BA%E4%BA%8EUbuntu%2014.04%E7%9A%84Android%20Build%20Server%E6%90%AD%E5%BB%BA.md)
+- 2016/09/15 [RaspberryPi之软件组件和启动流程介绍](https://github.com/guyongqiangx/blog/blob/dev/20160915-RaspberryPi%E4%B9%8B%E8%BD%AF%E4%BB%B6%E7%BB%84%E4%BB%B6%E5%92%8C%E5%90%AF%E5%8A%A8%E6%B5%81%E7%A8%8B%E4%BB%8B%E7%BB%8D.md)
+- [makefile中SHELL变量的设置](https://github.com/guyongqiangx/blog/blob/dev/20160831-makefile%E4%B8%ADSHELL%E5%8F%98%E9%87%8F%E7%9A%84%E8%AE%BE%E7%BD%AE.md)
+- 2016/08/13 [bootloader使用SLRAM设备向Kernel传递块数据](https://github.com/guyongqiangx/blog/blob/dev/20160813-bootloader%E4%BD%BF%E7%94%A8SLRAM%E8%AE%BE%E5%A4%87%E5%90%91Kernel%E4%BC%A0%E9%80%92%E5%9D%97%E6%95%B0%E6%8D%AE.md)
+- 2016/07/27 [图解数据读写与Cache操作])(https://github.com/guyongqiangx/blog/blob/dev/20160727-%E5%9B%BE%E8%A7%A3%E6%95%B0%E6%8D%AE%E8%AF%BB%E5%86%99%E4%B8%8ECache%E6%93%8D%E4%BD%9C.md)
+
+## 按分类
