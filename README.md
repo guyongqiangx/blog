@@ -2,21 +2,21 @@
 
 ## 按时间
 
-- [已解决]possibly undefined macro AC_PROG_LIBTOOL.md
-- [已解决]'make menuconfig' requires the ncurses libraries.md
-- [已解决]libtool_args+= not found.md
-- [已解决]intltool scripts were not found.md
-- [已解决]Can't locate TextCSV.pm.md
-- 博通机顶盒平台启动时间优化（一）.md
-- 博通机顶盒平台framebuffer输出（二）.md
-- 博通机顶盒平台framebuffer输出（一）.md
-- u-boot-2016.09 make配置过程分析.md
-- u-boot-2016.09 make编译过程分析（二）.md
-- u-boot-2016.09 make编译过程分析（一）.md
-- u-boot-2016.09 make工具之fixdep.md
-- u-boot-2016.09 make工具之conf.md
-- u-boot-2016.09 ld链接脚本分析.md
-- CFE文件内嵌bmp图像并显示.md
+- 2016/10/08 [[已解决]possibly undefined macro AC_PROG_LIBTOOL]()
+- 2016/10/10 [[已解决]'make menuconfig' requires the ncurses libraries]()
+- 2016/10/10 [[已解决]libtool_args+= not found]()
+- 2016/11/03 [[已解决]intltool scripts were not found]()
+- 2016/10/14 [[已解决]Can't locate TextCSV.pm]()
+- 2016/11/23 [博通机顶盒平台启动时间优化（一）]()
+- 2016/11/18 [博通机顶盒平台framebuffer输出（二）]()
+- 2016/11/18 [博通机顶盒平台framebuffer输出（一）]()
+- 2016/10/21 [u-boot-2016.09 ld链接脚本分析]()
+- 2016/10/08 [u-boot-2016.09 make编译过程分析（二）]()
+- 2016/09/29 [u-boot-2016.09 make编译过程分析（一）]()
+- 2016/09/27 [u-boot-2016.09 make工具之conf]()
+- 2016/09/22 [u-boot-2016.09 make配置过程分析]()
+- 2016/09/20 [u-boot-2016.09 make工具之fixdep]()
+- 2016/11/09 [CFE文件内嵌bmp图像并显示]()
 - 2021/01/18 [分享一些我做笔记的经验(一)](https://github.com/guyongqiangx/blog/blob/dev/20210118-%E5%88%86%E4%BA%AB%E4%B8%80%E4%BA%9B%E6%88%91%E5%81%9A%E7%AC%94%E8%AE%B0%E7%9A%84%E7%BB%8F%E9%AA%8C(%E4%B8%80).md)
 - 2021/01/15 [没有经过毒打的计划，永远是理想中的计划](https://github.com/guyongqiangx/blog/blob/dev/20210115-%E6%B2%A1%E6%9C%89%E7%BB%8F%E8%BF%87%E6%AF%92%E6%89%93%E7%9A%84%E8%AE%A1%E5%88%92%EF%BC%8C%E6%B0%B8%E8%BF%9C%E6%98%AF%E7%90%86%E6%83%B3%E4%B8%AD%E7%9A%84%E8%AE%A1%E5%88%92.md)
 - 2018/09/27 [Android Update Engine分析（八）升级包制作脚本分析](https://github.com/guyongqiangx/blog/blob/dev/ab-ota/20180927-Android%20Update%20Engine%E5%88%86%E6%9E%90%EF%BC%88%E5%85%AB%EF%BC%89%E5%8D%87%E7%BA%A7%E5%8C%85%E5%88%B6%E4%BD%9C%E8%84%9A%E6%9C%AC%E5%88%86%E6%9E%90.md)
@@ -43,14 +43,14 @@
 - 2018/01/19 [一个统计Android Service的脚本](https://github.com/guyongqiangx/blog/blob/dev/android/20180119-%E4%B8%80%E4%B8%AA%E7%BB%9F%E8%AE%A1Android%20Service%E7%9A%84%E8%84%9A%E6%9C%AC.md)
 - 2017/09/18 [了解TrustZone，读了这篇就够了](https://github.com/guyongqiangx/blog/blob/dev/trustzone/20170918-%E4%BA%86%E8%A7%A3TrustZone%EF%BC%8C%E8%AF%BB%E4%BA%86%E8%BF%99%E7%AF%87%E5%B0%B1%E5%A4%9F%E4%BA%86.md)
 - 2017/08/28 [Android Update Engine分析（一）Makefile](https://github.com/guyongqiangx/blog/blob/dev/ab-ota/20170828-Android%20Update%20Engine%E5%88%86%E6%9E%90%EF%BC%88%E4%B8%80%EF%BC%89Makefile.md)
-- 2017/08/25 [Solaris系统cron服务异常解决记录]()
+- 2017/08/25 [Solaris系统cron服务异常解决记录](https://github.com/guyongqiangx/blog/blob/dev/nis/20170825-Solaris%E7%B3%BB%E7%BB%9Fcron%E6%9C%8D%E5%8A%A1%E5%BC%82%E5%B8%B8%E8%A7%A3%E5%86%B3%E8%AE%B0%E5%BD%95.md)
 - 2017/07/11 [Python从二进制文件中提取Exponent和Modulus数据(e, n)并构建公钥](https://github.com/guyongqiangx/blog/blob/dev/openssl/20170711-Python%E4%BB%8E%E4%BA%8C%E8%BF%9B%E5%88%B6%E6%96%87%E4%BB%B6%E4%B8%AD%E6%8F%90%E5%8F%96Exponent%E5%92%8CModulus%E6%95%B0%E6%8D%AE(e%2C%20n)%E5%B9%B6%E6%9E%84%E5%BB%BA%E5%85%AC%E9%92%A5.md)
 - 2017/07/10 [为什么RSA公钥每次加密得到的结果都不一样](https://github.com/guyongqiangx/blog/blob/dev/openssl/20170710-%E4%B8%BA%E4%BB%80%E4%B9%88RSA%E5%85%AC%E9%92%A5%E6%AF%8F%E6%AC%A1%E5%8A%A0%E5%AF%86%E5%BE%97%E5%88%B0%E7%9A%84%E7%BB%93%E6%9E%9C%E9%83%BD%E4%B8%8D%E4%B8%80%E6%A0%B7.md)
 - 2017/07/07 [OpenSSL和Python实现RSA Key公钥加密私钥解密](https://github.com/guyongqiangx/blog/blob/dev/openssl/20170707-OpenSSL%E5%92%8CPython%E5%AE%9E%E7%8E%B0RSA%20Key%E5%85%AC%E9%92%A5%E5%8A%A0%E5%AF%86%E7%A7%81%E9%92%A5%E8%A7%A3%E5%AF%86.md)
 - 2017/07/05 [OpenSSL和Python实现RSA Key数字签名和验证](https://github.com/guyongqiangx/blog/blob/dev/openssl/20170705-OpenSSL%E5%92%8CPython%E5%AE%9E%E7%8E%B0RSA%20Key%E6%95%B0%E5%AD%97%E7%AD%BE%E5%90%8D%E5%92%8C%E9%AA%8C%E8%AF%81.md)
 - 2017/07/04 [OpenSSL RSA Key的生成和转换](https://github.com/guyongqiangx/blog/blob/dev/openssl/20170704-OpenSSL%20RSA%20Key%E7%9A%84%E7%94%9F%E6%88%90%E5%92%8C%E8%BD%AC%E6%8D%A2.md)
-- 2017/06/22 [[已解决]Ubuntu安装libssl-dev失败]()
-- 2017/06/13 [Android脚本envsetup.sh逐行分析]()
+- 2017/06/22 [[已解决]Ubuntu安装libssl-dev失败](https://github.com/guyongqiangx/blog/blob/dev/errors/20170622-%5B%E5%B7%B2%E8%A7%A3%E5%86%B3%5DUbuntu%E5%AE%89%E8%A3%85libssl-dev%E5%A4%B1%E8%B4%A5.md)
+- 2017/06/13 [Android脚本envsetup.sh逐行分析](https://github.com/guyongqiangx/blog/blob/dev/android-build/20170613-Android%E8%84%9A%E6%9C%ACenvsetup.sh%E9%80%90%E8%A1%8C%E5%88%86%E6%9E%90.md)
 - 2017/06/10 [使用find查找代码文件的几个示例](https://github.com/guyongqiangx/blog/blob/dev/20170610-%E4%BD%BF%E7%94%A8find%E6%9F%A5%E6%89%BE%E4%BB%A3%E7%A0%81%E6%96%87%E4%BB%B6%E7%9A%84%E5%87%A0%E4%B8%AA%E7%A4%BA%E4%BE%8B.md)
 - 2017/06/10 [win10下SecureCRT SSH连接慢]()
 - 2017/05/21 [Android AB System OTA分析（四）系统的启动和升级](https://github.com/guyongqiangx/blog/blob/dev/ab-ota/20170521-Android%20AB%20System%20OTA%E5%88%86%E6%9E%90%EF%BC%88%E5%9B%9B%EF%BC%89%E7%B3%BB%E7%BB%9F%E7%9A%84%E5%90%AF%E5%8A%A8%E5%92%8C%E5%8D%87%E7%BA%A7.md)
@@ -58,12 +58,12 @@
 - 2017/05/12 [etckeeper在Ubuntu上的安装和使用](https://github.com/guyongqiangx/blog/blob/dev/20170512-etckeeper%E5%9C%A8Ubuntu%E4%B8%8A%E7%9A%84%E5%AE%89%E8%A3%85%E5%92%8C%E4%BD%BF%E7%94%A8.md)
 - 2017/05/10 [Android AB System OTA分析（二）系统image的生成](https://github.com/guyongqiangx/blog/blob/dev/ab-ota/20170510-Android%20AB%20System%20OTA%E5%88%86%E6%9E%90%EF%BC%88%E4%BA%8C%EF%BC%89%E7%B3%BB%E7%BB%9Fimage%E7%9A%84%E7%94%9F%E6%88%90.md)
 - 2017/05/06 [Android AB System OTA分析（一）概览](https://github.com/guyongqiangx/blog/blob/dev/ab-ota/20170506-Android%20AB%20System%20OTA%E5%88%86%E6%9E%90%EF%BC%88%E4%B8%80%EF%BC%89%E6%A6%82%E8%A7%88.md)
-- 2017/04/22 [基于Ubuntu 12.04搭建NIS Slave服务]()
+- 2017/04/22 [基于Ubuntu 12.04搭建NIS Slave服务](https://github.com/guyongqiangx/blog/blob/dev/nis/20170422-%E5%9F%BA%E4%BA%8EUbuntu%2012.04%E6%90%AD%E5%BB%BANIS%20Slave%E6%9C%8D%E5%8A%A1.md)
 - 2017/04/22 [Ubuntu挂载远程共享目录到本地](https://github.com/guyongqiangx/blog/blob/dev/20170422-Ubuntu%E6%8C%82%E8%BD%BD%E8%BF%9C%E7%A8%8B%E5%85%B1%E4%BA%AB%E7%9B%AE%E5%BD%95%E5%88%B0%E6%9C%AC%E5%9C%B0.md)
 - 2017/04/13 [使用grep搜索代码的几个示例](https://github.com/guyongqiangx/blog/blob/dev/20170413-%E4%BD%BF%E7%94%A8grep%E6%90%9C%E7%B4%A2%E4%BB%A3%E7%A0%81%E7%9A%84%E5%87%A0%E4%B8%AA%E7%A4%BA%E4%BE%8B.md)
-- 2017/03/31-[手动更新NIS服务的用户密码]()
+- 2017/03/31-[手动更新NIS服务的用户密码](https://github.com/guyongqiangx/blog/blob/dev/nis/20170331-%E6%89%8B%E5%8A%A8%E6%9B%B4%E6%96%B0NIS%E6%9C%8D%E5%8A%A1%E7%9A%84%E7%94%A8%E6%88%B7%E5%AF%86%E7%A0%81.md)
 - 2017/03/31 [工程师如何增加自己的影响力](https://github.com/guyongqiangx/blog/blob/dev/20170331-%E5%B7%A5%E7%A8%8B%E5%B8%88%E5%A6%82%E4%BD%95%E5%A2%9E%E5%8A%A0%E8%87%AA%E5%B7%B1%E7%9A%84%E5%BD%B1%E5%93%8D%E5%8A%9B.md)
-- 2017/03/31-[博通机顶盒平台GPT分区和制作工具]()
+- 2017/03/31-[博通机顶盒平台GPT分区和制作工具](https://github.com/guyongqiangx/blog/blob/dev/gpt/20170331-%E5%8D%9A%E9%80%9A%E6%9C%BA%E9%A1%B6%E7%9B%92%E5%B9%B3%E5%8F%B0GPT%E5%88%86%E5%8C%BA%E5%92%8C%E5%88%B6%E4%BD%9C%E5%B7%A5%E5%85%B7.md)
 - 2016/12/01 [基于busybox的bootchart分析](https://github.com/guyongqiangx/blog/blob/dev/20161201-%E5%9F%BA%E4%BA%8Ebusybox%E7%9A%84bootchart%E5%88%86%E6%9E%90.md)
 - 2016/11/07 [GCC中的强符号和弱符号及强引用和弱引用](https://github.com/guyongqiangx/blog/blob/dev/20161107-GCC%E4%B8%AD%E7%9A%84%E5%BC%BA%E7%AC%A6%E5%8F%B7%E5%92%8C%E5%BC%B1%E7%AC%A6%E5%8F%B7%E5%8F%8A%E5%BC%BA%E5%BC%95%E7%94%A8%E5%92%8C%E5%BC%B1%E5%BC%95%E7%94%A8.md)
 - 2016/11/07 [GCC中的强符号和弱符号及强引用和弱引用](https://github.com/guyongqiangx/blog/blob/dev/20161107-GCC%E4%B8%AD%E7%9A%84%E5%BC%BA%E7%AC%A6%E5%8F%B7%E5%92%8C%E5%BC%B1%E7%AC%A6%E5%8F%B7%E5%8F%8A%E5%BC%BA%E5%BC%95%E7%94%A8%E5%92%8C%E5%BC%B1%E5%BC%95%E7%94%A8.md)
