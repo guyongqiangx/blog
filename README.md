@@ -3,6 +3,7 @@
 ## 按时间
 
 ### 2021
+- 2021/02/01 [一张图让你掌握清单文件manifest.xml的重点](git-repo/20210201-一张图让你掌握清单文件manifest.xml的重点.md)
 - 2021/01/18 [分享一些我做笔记的经验(一)](https://github.com/guyongqiangx/blog/blob/dev/20210118-%E5%88%86%E4%BA%AB%E4%B8%80%E4%BA%9B%E6%88%91%E5%81%9A%E7%AC%94%E8%AE%B0%E7%9A%84%E7%BB%8F%E9%AA%8C(%E4%B8%80).md)
 - 2021/01/15 [没有经过毒打的计划，永远是理想中的计划](https://github.com/guyongqiangx/blog/blob/dev/20210115-%E6%B2%A1%E6%9C%89%E7%BB%8F%E8%BF%87%E6%AF%92%E6%89%93%E7%9A%84%E8%AE%A1%E5%88%92%EF%BC%8C%E6%B0%B8%E8%BF%9C%E6%98%AF%E7%90%86%E6%83%B3%E4%B8%AD%E7%9A%84%E8%AE%A1%E5%88%92.md)
 
