@@ -3,13 +3,14 @@
 ## 按时间
 
 ### 2021
+- 2021/03/02 [从本地Android代码恢复官方文档](android/20210302-从本地Android代码恢复官方文档.md)
 - 2021/02/01 [一张图让你掌握清单文件manifest.xml的重点](git-repo/20210201-一张图让你掌握清单文件manifest.xml的重点.md)
-- 2021/01/18 [分享一些我做笔记的经验(一)](https://github.com/guyongqiangx/blog/blob/dev/20210118-%E5%88%86%E4%BA%AB%E4%B8%80%E4%BA%9B%E6%88%91%E5%81%9A%E7%AC%94%E8%AE%B0%E7%9A%84%E7%BB%8F%E9%AA%8C(%E4%B8%80).md)
-- 2021/01/15 [没有经过毒打的计划，永远是理想中的计划](https://github.com/guyongqiangx/blog/blob/dev/20210115-%E6%B2%A1%E6%9C%89%E7%BB%8F%E8%BF%87%E6%AF%92%E6%89%93%E7%9A%84%E8%AE%A1%E5%88%92%EF%BC%8C%E6%B0%B8%E8%BF%9C%E6%98%AF%E7%90%86%E6%83%B3%E4%B8%AD%E7%9A%84%E8%AE%A1%E5%88%92.md)
+- 2021/01/18 [分享一些我做笔记的经验(一)](20210118-分享一些我做笔记的经验(一).md)
+- 2021/01/15 [没有经过毒打的计划，永远是理想中的计划](20210115-没有经过毒打的计划，永远是理想中的计划.md)
 
 ### 2020
-- 2020/12/24 [《驾驭Makefile》中编译死循环问题彻底调试](https://github.com/guyongqiangx/blog/blob/dev/makefile/20201224-%E3%80%8A%E9%A9%BE%E9%A9%ADMakefile%E3%80%8B%E4%B8%AD%E7%BC%96%E8%AF%91%E6%AD%BB%E5%BE%AA%E7%8E%AF%E9%97%AE%E9%A2%98%E5%BD%BB%E5%BA%95%E8%B0%83%E8%AF%95.md)
-- 2020/12/22 [Makefile新手？千万别错过了这个入门教程](https://github.com/guyongqiangx/blog/blob/dev/makefile/20201222-Makefile%E6%96%B0%E6%89%8B%EF%BC%9F%E5%8D%83%E4%B8%87%E5%88%AB%E9%94%99%E8%BF%87%E4%BA%86%E8%BF%99%E4%B8%AA%E5%85%A5%E9%97%A8%E6%95%99%E7%A8%8B.md)
+- 2020/12/24 [《驾驭Makefile》中编译死循环问题彻底调试](makefile/20201224-《驾驭Makefile》中编译死循环问题彻底调试.md)
+- 2020/12/22 [Makefile新手？千万别错过了这个入门教程](makefile/20201222-Makefile新手？千万别错过了这个入门教程.md)
 
 ### 2018
 - 2018/09/27 [Android Update Engine分析（八）升级包制作脚本分析](https://github.com/guyongqiangx/blog/blob/dev/ab-ota/20180927-Android%20Update%20Engine%E5%88%86%E6%9E%90%EF%BC%88%E5%85%AB%EF%BC%89%E5%8D%87%E7%BA%A7%E5%8C%85%E5%88%B6%E4%BD%9C%E8%84%9A%E6%9C%AC%E5%88%86%E6%9E%90.md)
