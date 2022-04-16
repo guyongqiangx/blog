@@ -1,0 +1,134 @@
+@startuml
+participant delta_performer.cc
+participant install_plan.cc
+participant boot_control_android.cc
+participant dynamic_partition_control_android.cc
+participant builder.cpp
+
+
+[->delta_performer.cc: Write()
+activate delta_performer.cc
+
+delta_performer.cc -> delta_performer.cc: ParseManifestPartitions()
+activate delta_performer.cc
+
+group 更新 DynamicPartitionMetadata
+
+delta_performer.cc -> delta_performer.cc: InitPartitionMetadata()
+activate delta_performer.cc #00BBFF
+
+delta_performer.cc -> boot_control_android.cc: InitPartitionMetadata()
+activate boot_control_android.cc
+
+boot_control_android.cc -> boot_control_android.cc: UnmapTargetPartitions(target_slot)
+activate boot_control_android.cc
+
+boot_control_android.cc -> dynamic_partition_control_android.cc: UnmapPartitionOnDeviceMapper(partition_name)
+activate dynamic_partition_control_android.cc
+
+dynamic_partition_control_android.cc -> dynamic_partition_control_android.cc: DestroyLogicalPartition(partition_name)
+return
+
+deactivate boot_control_android.cc
+
+boot_control_android.cc -> boot_control_android.cc: UpdatePartitionMetadata(target_slot, metadata)
+activate boot_control_android.cc
+
+boot_control_android.cc -> dynamic_partition_control_android.cc: LoadMetadataBuilder()
+activate dynamic_partition_control_android.cc
+return
+
+boot_control_android.cc -> builder.cpp: RemoveGroupAndPartitions()
+activate builder.cpp
+return
+boot_control_android.cc -> builder.cpp: AddGroup(group.name, group.size)
+activate builder.cpp
+return
+boot_control_android.cc -> builder.cpp: AddPartition(partition.name)
+activate builder.cpp
+return
+boot_control_android.cc -> builder.cpp: ResizePartition(partition.name, partition.size)
+activate builder.cpp
+return
+
+boot_control_android.cc -> dynamic_partition_control_android.cc: StoreMetadata(target_slot)
+activate dynamic_partition_control_android.cc
+
+dynamic_partition_control_android.cc -> dynamic_partition_control_android.cc: UpdatePartitionTable(metadata, target_slot)
+return
+
+deactivate boot_control_android.cc
+return
+
+deactivate delta_performer.cc
+
+end
+
+
+delta_performer.cc -> install_plan.cc: LoadPartitionsFromSlots()
+activate install_plan.cc
+
+group 映射 source 设备
+
+install_plan.cc -> boot_control_android.cc: GetPartitionDevice(source_slot)
+activate boot_control_android.cc
+
+boot_control_android.cc -> boot_control_android.cc: GetDynamicPartitionDevice(slot, device)
+activate boot_control_android.cc
+
+boot_control_android.cc -> dynamic_partition_control_android.cc: LoadMetadataBuilder()
+activate dynamic_partition_control_android.cc
+return
+
+boot_control_android.cc -> dynamic_partition_control_android.cc: GetDmDevicePathByName()
+activate dynamic_partition_control_android.cc
+return
+boot_control_android.cc -> dynamic_partition_control_android.cc: MapPartitionOnDeviceMapper()
+activate dynamic_partition_control_android.cc
+
+dynamic_partition_control_android.cc -> dynamic_partition_control_android.cc: MapPartitionInternal()
+return
+
+deactivate boot_control_android.cc
+return
+
+end
+
+group 映射 target 设备
+
+install_plan.cc -> boot_control_android.cc: GetPartitionDevice(target_slot)
+activate boot_control_android.cc
+
+
+boot_control_android.cc -> boot_control_android.cc: GetDynamicPartitionDevice(slot, device)
+activate boot_control_android.cc
+
+boot_control_android.cc -> dynamic_partition_control_android.cc: LoadMetadataBuilder()
+activate dynamic_partition_control_android.cc
+return
+
+boot_control_android.cc -> dynamic_partition_control_android.cc: GetDmDevicePathByName()
+activate dynamic_partition_control_android.cc
+return
+boot_control_android.cc -> dynamic_partition_control_android.cc: MapPartitionOnDeviceMapper()
+activate dynamic_partition_control_android.cc
+
+dynamic_partition_control_android.cc -> dynamic_partition_control_android.cc: MapPartitionInternal()
+return
+
+deactivate boot_control_android.cc
+
+return
+
+end
+
+return
+deactivate delta_performer.cc
+
+
+
+[<-delta_performer.cc :done
+deactivate delta_performer.cc
+
+
+@enduml
