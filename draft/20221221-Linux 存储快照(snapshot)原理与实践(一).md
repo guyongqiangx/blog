@@ -111,7 +111,7 @@ snapshot 中文翻译就是快照，但快照究竟是什么? 我在网上看到
 
 > 进一步解释 snapshot:
 >
-> 在计算机系统中，**快照**是系统在特定时间点的状态[。](https://en-m-wikipedia-org.translate.goog/wiki/State_(computer_science)?_x_tr_sl=auto&_x_tr_tl=zh-CN&_x_tr_hl=zh-CN&_x_tr_pto=wapp)该术语是作为摄影中的类比而创造的。它可以指系统状态的实际副本或某些系统提供的功能。
+> 在计算机系统中，**快照**是系统在特定时间点的状态。该术语是作为摄影中的类比而创造的。它可以指系统状态的实际副本或某些系统提供的功能。
 
 简直惊了个呆，对我来说，这里已经简简单单、明明白白地解释了什么是 snapshot，这天杀的墙~
 
