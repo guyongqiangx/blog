@@ -1,6 +1,48 @@
-# Linux 快照 (snapshot) 原理与实践(二)
+# Linux 快照 (snapshot) 原理与实践(二) 快照功能实践
+
+![linux_snapshot_2_title](images-20221229-Linux 存储快照(snapshot)原理与实践(二)/linux_snapshot_2_title.png)
+
+作者: 顾永强 (洛奇看世界)
+
+博客: https://blog.csdn.net/guyongqiangx
+
+本文为顾永强原创，转载请注明出处~
+
+本文目录如下:
+
+[TOC]
 
 ## 0. 概要
+
+上一篇[《Linux 快照 (snapshot) 原理与实践(一)》]( https://blog.csdn.net/guyongqiangx/article/details/128494795)中简单介绍了快照的基本原理，并着重介绍了 Linux 下 snapshot 快照的实现，这应该是目前全网唯一一篇介绍 Linux 下 snapshot 模型的文章。
+
+对一线工程师来说，只有理论是远远不够的，于是我又另外设计了本文这一组实验操作来验证 Linux 下 snapshot 快照模型的各种功能，以此加深对 snapshot 快照的理解。
+
+具体的实验包括：
+
+- snapshot-origin 目标的创建 (第 2 节)
+- snapshot 目标的创建 (第 3 节)
+
+- COW 模式 (第 4 节)
+  - 第一次写入数据的验证 (第 4.1 节)
+  - 第二次写入数据的验证 (第 4.2 节)
+- ROW 模式 (第 5 节)
+  - 第一次写入数据的验证 (第 5.1 节)
+  - 第二次写入数据的验证 (第 5.2 节)
+- snapshot-merge 目标的创建 (第 6 节)
+- 合并 (merge) 操作中 COW 模式和 ROW 模式数据变化 (第 7 节)
+
+由于这些实验一环套一环，所以建议从第一节开始，跟随我提供的各种操作命令在你的本地把这些实验重复一遍，并亲自去检查数据的变化，这样才能达到比较好的效果。
+
+> 本文使用到了以下 Linux 的命令行工具:
+>
+> echo, tr, dd, md5, hexdump, xxd, losetup, dmsetup 
+>
+> 最后 3 个命令比较少见，但很重要：
+>
+> - xxd, 超好用的二进制工具，也可以很方便的用于文件的修改
+> - losetup，用于 loop 设备的管理操作
+> - dmsetup，用于 device mapper 虚拟设备的管理操作
 
 ## 1. 准备演示数据
 
@@ -177,7 +219,7 @@ f0cb475bc4c1a84c31ba9c9053445daf  data-cow.img
 
 仔细观察上面最后一步 step 5b 计算 data-cow.img 的 md5 值，其和前面 step 4c 的 md5 值相比，已经发生了变化。
 
-![image-20221229184854465](images-20221229-Linux 存储快照(snapshot)原理与实践(二)/image-20221229184854465.png)
+![image-20221229184854465](images-20221229-Linux 存储快照(snapshot)原理与实践(二)/md5-diff-for-snapshot-creation.png)
 
 **图 1. 创建 snapshot 目标前后各设备 md5 值对比**
 
@@ -200,7 +242,7 @@ $ hexdump -C data-cow.img
 
 到此为止，我们创建的 snapshot 设备间的关系模型如下:
 
-![image-20221229190315521](images-20221229-Linux 存储快照(snapshot)原理与实践(二)/image-20221229190315521.png)
+![image-20221229190315521](images-20221229-Linux 存储快照(snapshot)原理与实践(二)/snapshot-device-relations.png)
 
 **图 2. snapshot 实验的设备间关系**
 
@@ -210,7 +252,7 @@ $ hexdump -C data-cow.img
 
 验证 COW 操作需要在 origin 设备上进行。
 
-根据在《Linux 存储快照 (snapshot) 原理》一文中的结论，对于 COW：
+根据在[《Linux 快照 (snapshot) 原理与实践(一)》]( https://blog.csdn.net/guyongqiangx/article/details/128494795)一文中的结论，对于 COW：
 
 在新数据第一次写入到 origin 设备的某个存储位置时：
 
@@ -269,7 +311,7 @@ b7ce3102b418858009e5a3662d8a6a5a  data-cow.img
 
 上面检查数据文件和虚拟设备的 md5 时，和写入数据前的值比较，data-base.img, /dev/mapper/origin 和 data-cow.img 已经发生了 变化。/dev/mapper/snapshot 因为没有操作，所以 md5 没有改变。
 
-![image-20221229192802603](images-20221229-Linux 存储快照(snapshot)原理与实践(二)/image-20221229192802603.png)
+![image-20221229192802603](images-20221229-Linux 存储快照(snapshot)原理与实践(二)/md5-diff-for-cow-1st-modification.png)
 
 **图 3. 第一次往 origin 写入数据前后各中设备的 md5 值变化**
 
@@ -312,8 +354,6 @@ $ hexdump -C data-cow.img
    disk header 之外的部分，全部填充为 0；
 
 2. 区域: 0x00001000-0x00001fff, 1 个 chunk，现在里面只存放了 COW 的映射表，有一块进行了映射，所以内容比较简单，其余数据全部为 0。
-
-   > 具体的映射表格式我还没详细研究~
 
 3. 区域: 0x00002000-0x00002fff, 1 个 chunk，里面存放了来自 origin 设备第一个 chunk (0x0000~0x0fff)的内容。
 
@@ -368,7 +408,7 @@ b7ce3102b418858009e5a3662d8a6a5a  data-cow.img
 
 对比第一次写入数据时的 md5 值，data-base.img 和 /dev/mapper/origin 的 md5 值变了，但快照卷 data-cow.img 并没有变化，所以确定第二次修改同一块数据并不会产生 COW 操作。
 
-![image-20221229194958063](images-20221229-Linux 存储快照(snapshot)原理与实践(二)/image-20221229194958063.png)
+![image-20221229194958063](images-20221229-Linux 存储快照(snapshot)原理与实践(二)/md5-diff-for-cow-2nd-modification.png)
 
 **图 4. 第二次往 origin 写入数据前后各中设备的 md5 值变化**
 
@@ -401,7 +441,7 @@ $ hexdump -C data-cow.img
 
 验证 ROW 操作需要在 snapshot 设备上进行。
 
-根据在《Linux 存储快照 (snapshot) 原理》一文中的结论，对于 ROW：
+根据在[《Linux 快照 (snapshot) 原理与实践(一)》]( https://blog.csdn.net/guyongqiangx/article/details/128494795)一文中的结论，对于 ROW：
 
 - 在新数据第一次写入到 snapshot 设备时，将会被重定向写入到快照卷 data-cow.img 中，源卷 data-base.img 不发生变化。
 
@@ -457,7 +497,7 @@ effae9af0f5a4aa453af2185b741e300  data-cow.img
 
 这一次，snapshot 设备中的数据发生了改变，快照卷 data-cow.img 也发生了改变，但源卷 data-base.img 中没有变化，如下图：
 
-![image-20221229200537014](images-20221229-Linux 存储快照(snapshot)原理与实践(二)/image-20221229200537014.png)
+![image-20221229200537014](images-20221229-Linux 存储快照(snapshot)原理与实践(二)/md5-diff-for-row-1st-modification.png)
 
 **图 5. 第一次往 snapshot 设备写入数据前后的 md5 变化**
 
@@ -586,7 +626,7 @@ b566e218b059f01f4aac7ad185845fe8  /dev/mapper/origin
 
 以下是 md5 值对比结果:
 
-![image-20221229201818801](images-20221229-Linux 存储快照(snapshot)原理与实践(二)/image-20221229201818801.png)
+![image-20221229201818801](images-20221229-Linux 存储快照(snapshot)原理与实践(二)/md5-diff-for-row-2nd-modification.png)
 
 **图 6. 第二次往 snapshot 设备写入数据前后的 md5 变化**
 
@@ -623,7 +663,7 @@ $ hexdump -C data-cow.img
 
 ## 6. 创建 snapshot-merge 目标
 
-根据在《Linux 存储快照 (snapshot) 原理》一文中的结论，snapshot-merge 的作用就是将快照卷 data-cow.img 中的数据合并 (merge) 回源卷 data-base.img:
+根据在[《Linux 快照 (snapshot) 原理与实践(一)》]( https://blog.csdn.net/guyongqiangx/article/details/128494795)一文中的结论，snapshot-merge 的作用就是将快照卷 data-cow.img 中的数据合并 (merge) 回源卷 data-base.img:
 
 - 对 COW 操作来说，源卷 data-base.img 保存了最新数据，合并 (merge) 操作会将源卷 data-base.img 回滚到快照时间点的数据。
 
@@ -789,7 +829,7 @@ $ hexdump -C data-cow.img
 
 下面是合并前后的数据对比图:
 
-![image-20221229174920123](images-20221229-Linux 存储快照(snapshot)原理与实践(二)/image-20221229174920123.png)
+![image-20221229174920123](images-20221229-Linux 存储快照(snapshot)原理与实践(二)/md5-diff-for-merge.png)
 
 对比之下，很明显，合并后映射表区域  (0x1000-0x1fff) 的数据被清零 0 了，换言之所有映射都失效了。
 
@@ -826,10 +866,26 @@ $ sudo dmsetup resume origin
 
 至此，我们关于 snapshot 原理验证的实验全部都完成了。
 
-至此，《Linux 快照 (snapshot) 原理与实践》两篇都完成了。
-
-如果大家有任何疑问，又或者发现描述有错误的地方，欢迎加我微信讨论，请在公众号("洛奇看世界")后台回复 "wx" 获取二维码。
+至此，《Linux 快照 (snapshot) 原理与实践》的原理介绍和实践操作两篇都完成了。
 
 ## 8. 后记
 
-《Linux 快照 (snapshot) 原理与实践》的两篇文章从筹划到最终成稿，前后花了差不多一个月。
+《Linux 快照 (snapshot) 原理与实践》的两篇文章从筹划到最终成稿，前后花了接近一个月，中间改了很多次稿，调整了很多次实验的内容。
+
+即使 Linux snapshot 快照原理以及实验都讲了，但文字的表达能力终究有限，我发现仍然有不少问题还没有交代清楚，比如:
+
+- Linux 下快照设备的各种行为关系，
+- COW 设备的细节，
+- 对驱动代码进行分析，
+- 如何对快照设备扩容，
+- 如何对快照设备进行调试等。
+
+只不过写作本文的初衷已经达成，所以对 Linux 下快照设备的介绍算是告一段落，至于是否还要继续深入完善本系列，后续待定。
+
+
+
+不过最近分析发现 linux 下的 device mapper 真是个宝藏，所以后面真可以考虑继续挖掘。
+
+
+
+如果大家有任何疑问，又或者发现描述有错误的地方，欢迎加我微信讨论，请在公众号("洛奇看世界")后台回复 "wx" 获取二维码。
