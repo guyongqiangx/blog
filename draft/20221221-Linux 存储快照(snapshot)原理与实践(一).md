@@ -1,12 +1,68 @@
 # Linux 快照 (snapshot) 原理与实践(一)
 
+![](images-20221221-Linux 存储快照(snapshot)原理与实践(一)/linux_snapshot_1_title.png)
+
+作者: 顾永强 (洛奇看世界)
+
+博客: https://blog.csdn.net/guyongqiangx
+
+本文为顾永强原创，转载请注明出处~
+
+本文目录如下:
+
+[TOC]
+
+## 0. 背景
+
+网上介绍存储快照原理的文章很多，要我说简直是太多了，但大多都只是讲最基础的原理。
+
+我还没有找到一篇可以从基础的原理，落实到随处可见的 linux 中的实现，然后再来一些具体操作例子的文章。
+
+于是我自己产生了写一篇快照科普的想法，希望把快照的基础原理同 linux 下具体的 snapshot 实现结合起来，再来一些操作实验增加对快照的理解。
+
+才写 1/3，就发现这样篇幅太长，于是就把一篇拆分成了现在的两篇，并命名为《Linux 快照 (snapshot) 原理与实践》：
+
+- 第一篇介绍原理，包括：
+  - 快照基本原理
+  - Linux 下的快照模型
+- 第二篇侧重实践，包括多个 Linux 实验:
+  - COW 模式下多次写入数据并验证的实验
+  - ROW 模式下多次写入数据并验证的实验
+  - 合并 (merge) 操作中 COW 模式和 ROW 模式数据变化的验证
+
+当我把两篇都写完以后才发现仍然有不少问题还没有交代清楚，比如:
+
+- Linux 下快照设备的各种行为关系，
+- COW 设备的细节，
+- 对驱动代码进行分析，
+- 如何对快照设备扩容，
+- 如何对快照设备进行调试等。
+
+只不过写作本文的初衷已经达成，所以对 Linux 下快照设备的介绍算是告一段落，至于是否还要继续上面提到的话题，后面看情况吧。
+
+
+
+由于网上太多人介绍过快照的基本原理了，所以本篇对快照原理的介绍比较简单，属于一个简要的总结，也没有提及快照的意义，发展和其他话题。如果觉得本篇关于原理的部分介绍得不够详细，请参考我推荐的几篇文章，以及自行搜索。
+
+
+
+本篇作为《Linux 快照 (snapshot) 原理与实践》的原理篇：
+
+第 1 节介绍了我对快照的理解，其实我以前对为啥叫快照这个词有些不解，为什么不叫照相，到底什么是快照？要是觉得太废话，请自行跳过。
+
+第 2.1 节总结了两种全量快照方式，感觉应该没啥人用全量快照；
+
+第 2.2 节总结了两种增量快照方式 COW 和 ROW，网上一大堆介绍这个的，我连图都不想画，直接都借用别人的了；
+
+第 3 节介绍了 linux 下的快照模型，本文的精华，应该是目前网上唯一全面介绍 linux 快照细节的文章；
+
 
 
 ## 1. 如何理解快照(snapshot)?
 
 snapshot 中文翻译就是快照，但快照究竟是什么? 我在网上看到一个解释，觉得特别准确：
 
-快照(snapshot)，来自照相领域的概念，是指特定时间点的一个状态。
+快照 (snapshot)，来自照相领域的概念，是指特定时间点的一个状态。
 
 > 来源: [《Git快照(snapshot)到底该如何理解？》, https://www.h5w3.com/82381.html](https://www.h5w3.com/82381.html)
 
@@ -36,7 +92,7 @@ snapshot 中文翻译就是快照，但快照究竟是什么? 我在网上看到
 
 在写完这段以后，我特地翻出去看了下维基百科上关于 snapshot 的解释：
 
-![image-20221222154036757](images-20221221-Linux 存储快照(snapshot)原理与实践(一)/image-20221222154036757.png)
+![image-20221222154036757](images-20221221-Linux 存储快照(snapshot)原理与实践(一)/wiki-snapshot.png)
 
 **图 1. 维基百科对 snapshot 的解释 **
 
@@ -47,7 +103,7 @@ snapshot 中文翻译就是快照，但快照究竟是什么? 我在网上看到
 
 
 
-![image-20221222154152598](images-20221221-Linux 存储快照(snapshot)原理与实践(一)/image-20221222154152598.png)
+![image-20221222154152598](images-20221221-Linux 存储快照(snapshot)原理与实践(一)/wiki-snapshot-computer-storage.png)
 
 **图 2. 维基百科对 Snapshot (computer storage) 的解释**
 
@@ -63,7 +119,7 @@ snapshot 中文翻译就是快照，但快照究竟是什么? 我在网上看到
 
 另外，从这里也能看到，snapshot(快照) 和 photography(照相) 有些细微的区别:
 
-![image-20221222154135096](images-20221221-Linux 存储快照(snapshot)原理与实践(一)/image-20221222154135096.png)
+![image-20221222154135096](images-20221221-Linux 存储快照(snapshot)原理与实践(一)/wiki-snapshot-photography.png)
 
 **图 3. 维基百科对 Snapshot (Photography) 的解释**
 
@@ -71,7 +127,7 @@ snapshot 中文翻译就是快照，但快照究竟是什么? 我在网上看到
 
 其实我觉得维基百科中文页面的这个解释更接近我们的理解习惯:
 
-![image-20221222160054303](images-20221221-Linux 存储快照(snapshot)原理与实践(一)/image-20221222160054303.png)
+![image-20221222160054303](images-20221221-Linux 存储快照(snapshot)原理与实践(一)/wiki-snapshot-chinese.png)
 
 **图 4. 维基百科对抓拍的解释**
 
@@ -99,7 +155,7 @@ snapshot 中文翻译就是快照，但快照究竟是什么? 我在网上看到
 
 
 
-按照 SNIA 的定义, 快照有全量快照 (full snapshot) 和增量快照 (incremental snapshot) 两种类型, 其中又各自使用了不同的快照技术:
+按照 SNIA 的定义, 快照有全量快照 (full snapshot) 和增量快照 (incremental snapshot) 两种类型。网上介绍快照原理的文章中提到了多种不同的快照技术:
 
 - 全量快照
   - 克隆 (Clone)
@@ -108,13 +164,21 @@ snapshot 中文翻译就是快照，但快照究竟是什么? 我在网上看到
   - 写时拷贝 COW (Copy-On-Write)
   - 写时重定向 ROW (Redirect-On-Write)
 
+
+
 ### 2.1 全量快照
 
 #### 1. 克隆 (Clone)
 
-克隆 (Clone) 快照创建的是数据的完整副本，快照的对象可以是一个存储卷、一个文件系统或者一个LUN，Clone 的优点就是具有高可用性，但是缺点也很明显，就是在创建的时候，数据要完整的复制一份。
+克隆 (Clone) 快照创建的是数据的完整副本，快照的对象可以是一个存储卷、一个文件系统或者一个 LUN，Clone 的优点是具有高可用性，但缺点也很明显，就是在创建的时候，数据要完整的复制一份。
 
 使用克隆 (Clone) 快照需要面对的一个非常严重的问题是每个快照都需要占用和源数据空间一样大的存储空间。尤其对快照需求较大、较多的情况，资源成本会非常高。另外就是创建的时候消耗时间较长。
+
+克隆 (Clone) 快照创建的时刻，系统的所有的操作都会停止，创建一个和源数据空间大小一样的快照空间，将数据完整拷贝到快照空间中，快照完成后，系统恢复正常工作。
+
+> 这段话来自: https://www.cnblogs.com/zhaochunhui/p/13597675.html
+>
+> 仔细看这段话，跟备份操作一个意思。
 
 
 
@@ -143,7 +207,7 @@ snapshot 中文翻译就是快照，但快照究竟是什么? 我在网上看到
 
 操作 1 只在第一次写入数据时发生，下次针对这一位置的写操作直接将新数据写入到源卷中，不再执行写时复制操作。
 
-![img](images-20221221-Linux 存储快照(snapshot)原理与实践(一)/1010726-20170828225355655-1088905935.jpg)
+![img](images-20221221-Linux 存储快照(snapshot)原理与实践(一)/snapshot-cow-model.png)
 
 **图 5. 写时拷贝 (COW) 模型**
 
@@ -200,7 +264,7 @@ ROW 的实现原理与 COW 非常相似，区别在于 ROW 对源卷的首次写
 
 
 
-![img](images-20221221-Linux 存储快照(snapshot)原理与实践(一)/1010726-20170828230100155-1585998507.jpg)
+![img](images-20221221-Linux 存储快照(snapshot)原理与实践(一)/snapshot-row-model.png)
 
 **图 6. 写时重定向 (ROW) 模型**
 
@@ -261,7 +325,7 @@ Device Mapper 对 snapshot 的支持，代码位于 `drivers/md` 目录，文档
 
 
 
-> 如果您不想深入代码，但又希望透彻了解 snapshot，强烈建议看看这个文档。因为这是一手资料，网上所有其它解读都是二手了，包括本篇。
+> 如果您不想深入代码，但又希望透彻了解 snapshot，强烈建议参考官方文档。因为这是一手资料，网上所有其它解读都是二手了，包括本篇。
 >
 > **不懂看一手资料和二手资料有什么区别？微信转我 88，我来告诉你，别问为啥要 88 这么多，智商税。**
 >
@@ -271,16 +335,16 @@ Device Mapper 对 snapshot 的支持，代码位于 `drivers/md` 目录，文档
 
 对于增量快照，除了源卷以外，不论是 COW 方式还是 ROW 方式都需要再分配一个快照卷。在 linux 中，这个快照卷统一被称为 COW 设备。
 
-事实上，在 linux 的代码和文档中，甚至都没有 "ROW" 这样的字眼。正是因为理论上 snapshot 有 COW 和 ROW 两种方式，而在实际的 linux 驱动和文档中都没有看到，这一度让我走了不少弯路。
+事实上，在 linux 的代码和文档中，并没有提及 COW 和 ROW 这两种增量快照的方式，甚至都没有出现 "ROW"  这 3 个字母。正是因为理论上增量快照有 COW 和 ROW 两种方式，而在实际的 linux 驱动和文档中都没有看到，这一度让我走了不少弯路。
 
 所以，linux 快照对 COW 和 ROW 两种方式都支持，只不过都称之为 Copy-On-Write 罢了。
 
 
 
-对于 linux 下的 snapshot，其能够虚拟的 target device 有 3 类，分别是: snapshot-origin, snapshot 和 snapshot-merge。这 3 个设备对应于不同的场景：
+对于 linux 下的 snapshot，其能够虚拟的 target device 有 3 类，分别是: snapshot-origin, snapshot 和 snapshot-merge。这 3 个设备对应于各自不同的场景：
 
 - snapshot-origin，所有读取操作都直接映射到后端设备中，所谓后端设备，就是这里说的源卷。对每一次写入操作，原始数据(源卷中的旧数据)会被保存到 COW 设备中，新数据写入到源卷中。
-- snapshot，所有写入操作的数据都保存到 COW 设备中。对于读取操作，如果数据没有改动，则从源卷读取数据; 如果数据改动了，则从 COW 设备读取数据；
+- snapshot，所有写入操作都保存到 COW 设备中。对于读取操作，如果数据没有改动，则从源卷读取数据; 如果数据改动了，则从 COW 设备读取数据；
 - snapshot-merge，用于将 COW 设备中的数据合并 (merge) 回源卷中；
 
 对 snapshot-origin 和 snapshot 设备的读写操作是不是有点眼熟？
@@ -301,19 +365,19 @@ Device Mapper 对 snapshot 的支持，代码位于 `drivers/md` 目录，文档
 
 
 
-对于 snapshot-origin 设备，写入操作时，把原来 source 设备中的旧数据复制到 cow 设备中(步骤 1')，然后将新数据写入到 source 设备中(步骤 1）。读取操作则直接映射到 source 设备中(步骤 2)；
+对于 snapshot-origin 设备，写入操作时，把源卷 source 设备中的旧数据复制到快照卷 cow 设备中(步骤 1')，然后将新数据写入到源卷 source 设备中(步骤 1）。读取操作则直接映射到源卷 source 设备中(步骤 2)；
 
 
 
-对于 snapshot 设备，写入操作时，直接将新数据写入到 cow 设备中(步骤 3)。读取时，没改动的数据映射到 source 设备(步骤 4'')，改动过的数据映射到 cow 设备中(步骤 4')。
+对于 snapshot 设备，写入操作时，直接将新数据写入到快照卷 cow 设备中(步骤 3)。读取时，没改动的数据映射到源卷 source 设备(步骤 4'')，改动过的数据映射到快照卷 cow 设备中(步骤 4')。
 
 
 
-另外，这里的 snapshot-origin 和 snapshot 虚拟设备可以同时存在，而且二者可以共用一个 cow 设备。因此，cow 设备中同时保存了 COW 和 ROW 操作的数据。
+另外，这里的 snapshot-origin 和 snapshot 虚拟设备可以同时存在，而且二者可以共用一个快照卷 cow 设备。因此，快照卷 cow 设备中同时保存了 COW 和 ROW 操作的数据。
 
 
 
-至于 snapshot-merge，其唯一的目的就是将快照卷 (cow) 中的数据合并 (merge) 回源卷 (source)，比如以下的这些场景:
+至于 snapshot-merge，其唯一的目的就是将快照卷 cow 中的数据合并 (merge) 回源卷 source，比如以下的这些场景:
 
 - 对于 COW 操作，源卷始终保持最新数据，快照卷保存了旧数据，如果需要将源卷回滚到快照时间点的状态，就需要执行合并 (merge) 操作，将快照卷中的旧数据写回源卷。
 
@@ -342,27 +406,73 @@ snapshot-merge 承担 snapshot-origin 的角色，将快照卷 cow 中的更改�
 
 
 
-### 3.2 COW 设备的数据结构
+### 3.2 COW 设备的结构
 
 Linux 上的快照设备属于块设备，其最小的 block 单位为 sector，大小为 512 byte。
 
-各种快照操作以 chunk 的方式进行，chunk 是比 sector 大的数据块，大小在创建 snapshot 时通过 chunksize 设置，比如设置 chunksize = 8，表明一个 1 x chunk = 8 x sector = 4KB。snapshot 驱动中默认的 chunksize 为 32，对应大小为 16KB。
+各种快照操作以 chunk 数据块的方式进行，chunk 是比 sector 大的数据块，大小在创建 snapshot 时通过 chunksize 设置。比如设置 chunksize = 8，表明 1 个 chunk 由 8 个 sector 构成，因此 1 x chunk = 8 x sector = 4KB。snapshot 驱动中默认的 chunksize 为 32，对应 chunk 大小为 16KB。
 
 
 
-对于 ROW 操作，如果修改源卷某个位置的数据，则数据所在的一整个 chunk 都会被写入到快照卷中。
+从前面可以看到，通过增量快照映射出来的设备，其数据可能保存在源卷上，也可能保存在快照设备上。
 
-那 COW 设备上的数据到底长什么样呢？
-
-
-
-### 3.3 
+如何确定一块数据到底应该在源卷上，还是快照设备上呢？答案就是通过快照卷上的查找表，或者说映射表。
 
 
 
+对 Linux 的快照来说:
+
+- 如果查找表存在针对某块数据的记录，那数据在源卷和快照卷都存在，读取和写入就要进行相应选择处理。
+- 如果查找表不存在针对某块数据的记录，则数据只存在于源卷之上，读取时只需要在源卷上操作即可。
 
 
 
+总体上，一个快照卷设备大致的结构如下所示：
+
+![image-20221230105656510](images-20221221-Linux 存储快照(snapshot)原理与实践(一)/cow-device-diagram.png)
+
+**图 8.  COW 设备的结构**
+
+
+
+在一个快照卷 COW 设备中：
+
+1. 一开始的头部是 1 个 chunk 的 disk header；
+2. 接下来就是查找表本身，如果查找表很小，则占用 1 个 chunk，如果很大，可能会占用多个 chunk；
+3. 然后就是查找表对应的数据块区域，每一块数据占用 1 个 chunk；
+4. 在数据块区域结束后是空闲块；
+
+目前没有打算非常详细地描述 COW 设备的细节，后面看情况再决定是否单独用一篇文章来介绍。
+
+
+
+## 4. 其它
+
+下一篇将以实战的方式，通过 Linux 终端的命令行工具，验证 Linux 快照的各种特性，进一步加深对快照的理解，包括： 
+
+- COW 模式下多次写入数据并验证的实验
+- ROW 模式下多次写入数据并验证的实验
+- 合并 (merge) 操作中 COW 模式和 ROW 模式数据变化的验证
+
+
+
+也欢迎加我微信进一步讨论，在公众号“洛奇看世界”后台回复"wx" 即可获取个人微信号。
+
+
+
+本文参考了以下文章，对这些文章的作者一并表示感谢：
+
+- [《存储快照》](https://baike.baidu.com/item/%E5%AD%98%E5%82%A8%E5%BF%AB%E7%85%A7/5204871)
+  - https://baike.baidu.com/item/%E5%AD%98%E5%82%A8%E5%BF%AB%E7%85%A7/5204871
+- [《快照技术解析》](https://www.cnblogs.com/jing99/p/7446214.html)
+  - https://www.cnblogs.com/jing99/p/7446214.html
+- [《探究快照技术》](https://www.cnblogs.com/zhaochunhui/p/13597675.html)
+  - https://www.cnblogs.com/zhaochunhui/p/13597675.html
+- [《COW、ROW 快照技术原理》](https://support.huawei.com/enterprise/zh/doc/EDOC1100196336/)
+  - https://support.huawei.com/enterprise/zh/doc/EDOC1100196336/
+
+-  [《Git快照(snapshot)到底该如何理解？》](https://www.h5w3.com/82381.html)
+  - https://www.h5w3.com/82381.html
 
 
 
