@@ -1,6 +1,6 @@
 # Android 虚拟分区详解(五) BootControl 的变化
 
-![android_virtual_ab_4_title](/Volumes/work/guyongqiangx/draft/images-20230102-Android 虚拟分区详解(四) 编译开关/android_virtual_ab_4_title.png)
+![android_virtual_ab_4_title](images-20230102-Android 虚拟分区详解(四) 编译开关/android_virtual_ab_4_title.png)
 
 > Android Virtual A/B 系统简称 VAB，我将其称为虚拟分区。
 >
@@ -107,6 +107,8 @@ Android 系统只是定义了 BootControl 的接口，各芯片厂家的具体�
 
 在 Android 的 BootControl v1.1 的默认实现中，扩展了 BootControl 数据所在分区 "misc" 的数据，新增加了两节，新的结构一共 64K，布局如下：
 
+![bootloader_message_vab](images-20230130-Android 虚拟分区详解(五) BootControl 的变化/bootloader_message_vab.png)
+
 
 
  另外定义了两个接口用于读取
@@ -120,7 +122,15 @@ bool ReadMiscVirtualAbMessage(misc_virtual_ab_message* message, std::string* err
 bool WriteMiscVirtualAbMessage(const misc_virtual_ab_message& message, std::string* err);
 ```
 
-具体代码如下:
+具体代码涉及多个文件，包括：
+
+
+
+为了避免繁琐的贴代码，我把实现流程整理了一下，如下：
+
+![getSnapshotMergeStatus](images-20230130-Android 虚拟分区详解(五) BootControl 的变化/getSnapshotMergeStatus.png)
+
+![setSnapshotMergeStatus](images-20230130-Android 虚拟分区详解(五) BootControl 的变化/setSnapshotMergeStatus.png)
 
 ```c++
 /*
