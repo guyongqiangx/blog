@@ -42,105 +42,109 @@
 
 - [Android A/B System OTA分析（一）概览](https://blog.csdn.net/guyongqiangx/article/details/71334889)
 
-链接：https://blog.csdn.net/guyongqiangx/article/details/71334889
+  链接：https://blog.csdn.net/guyongqiangx/article/details/71334889
 
-主要介绍了:
+  主要介绍了:
 
-- 什么是 A/B 系统
-- A/B 系统的分区
-- A/B 系统的状态和
-- A/B 系统的升级切换
+  - 什么是 A/B 系统
+  - A/B 系统的分区
+  - A/B 系统的状态和
+  - A/B 系统的升级切换
 
   
 
 - [Android A/B System OTA分析（二）系统image的生成](https://blog.csdn.net/guyongqiangx/article/details/71516768)
 
-链接：https://blog.csdn.net/guyongqiangx/article/details/71516768
+  链接：https://blog.csdn.net/guyongqiangx/article/details/71516768
 
-基于 AOSP 7.1.1_r23 介绍了:
+  基于 AOSP 7.1.1_r23 介绍了:
 
-- A/B 系统镜像和传统 OTA 升级方式下镜像内容的区别
-- A/B 系统相关的 Makefile 变量
-- A/B 系统镜像文件的生成，包括 recovery.img, boot.img, system.img, userdata.img, cache.img, vendor.img
+  - A/B 系统镜像和传统 OTA 升级方式下镜像内容的区别
+  - A/B 系统相关的 Makefile 变量
+  - A/B 系统镜像文件的生成，包括 recovery.img, boot.img, system.img, userdata.img, cache.img, vendor.img
 
 
 
 - [Android A/B System OTA分析（三）主系统和bootloader的通信](https://blog.csdn.net/guyongqiangx/article/details/72480154)
 
-链接：https://blog.csdn.net/guyongqiangx/article/details/72480154
+  链接：https://blog.csdn.net/guyongqiangx/article/details/72480154
 
-主要介绍了：
+  主要介绍了：
 
-- 传统 OTA 升级时 Android 主系统是如何同 bootloder 通信的
+  - 传统 OTA 升级时 Android 主系统是如何同 bootloder 通信的
 
-- 详细分析了 A/B 系统中 Android 主系统同 bootloader 通信的 boot_control HAL 接口
+  - 详细分析了 A/B 系统中 Android 主系统同 bootloader 通信的 boot_control HAL 接口
 
-  - boot_control 的接口定义和实现
+    - boot_control 的接口定义和实现
 
-    - Google 平台 Brillo 的实现
-    - Intel 平台 edison 的实现
-    - QualComm 平台的实现
-    - Broadcom 机顶盒平台的实现
+      - Google 平台 Brillo 的实现
+      - Intel 平台 edison 的实现
+      - QualComm 平台的实现
+      - Broadcom 机顶盒平台的实现
 
-  - boot_control 的测试工具 bootctl
+    - boot_control 的测试工具 bootctl
 
-  - boot_control 的调用
+    - boot_control 的调用
 
-    - bootloader 调用 boot_control
+      - bootloader 调用 boot_control
 
-    - Android 主系统 boot_control_android 调用 boot_control
+      - Android 主系统 boot_control_android 调用 boot_control
 
-    - update_verifier 调用 boot_control
+      - update_verifier 调用 boot_control
 
-      
+        
 
-### [Android A/B System OTA分析（四）系统的启动和升级](https://blog.csdn.net/guyongqiangx/article/details/72604355)
+- [Android A/B System OTA分析（四）系统的启动和升级](https://blog.csdn.net/guyongqiangx/article/details/72604355)
 
-链接：https://blog.csdn.net/guyongqiangx/article/details/72604355
+  链接：https://blog.csdn.net/guyongqiangx/article/details/72604355
 
-主要介绍了：
+  主要介绍了：
 
-- bootloader 读取并检查 boot_control 的流程
-- linux 系统是如何启动并挂在 Android 系统分区的
-- Android 主系统和 recovery 系统是如何启动的
-- A/B 系统升级包的制作
-  - 全量包的制作
-  - 增量包/差分包的制作
-- Update Engine 的升级样本日志
-
-
-
-### [Android A/B System OTA分析（五）客户端参数](https://blog.csdn.net/guyongqiangx/article/details/122430246)
-
-链接：https://blog.csdn.net/guyongqiangx/article/details/122430246
-
-主要介绍了：
-
-- update_engine_client 客户端支持的参数
-
-- update_engine_client 客户段的参数是如何解析并传递给 update engine 服务的
-
-- 如何使用远程文件和本地文件进行升级
-
-- 如何设置升级时的 offset 和 size 参数
+  - bootloader 读取并检查 boot_control 的流程
+  - linux 系统是如何启动并挂在 Android 系统分区的
+  - Android 主系统和 recovery 系统是如何启动的
+  - A/B 系统升级包的制作
+    - 全量包的制作
+    - 增量包/差分包的制作
+  - Update Engine 的升级样本日志
 
   
 
-### [Android A/B System OTA分析（六）如何获取 payload 的 offset 和 size](https://blog.csdn.net/guyongqiangx/article/details/122498561)
+- [Android A/B System OTA分析（五）客户端参数](https://blog.csdn.net/guyongqiangx/article/details/122430246)
 
-链接：https://blog.csdn.net/guyongqiangx/article/details/122498561
+  链接：https://blog.csdn.net/guyongqiangx/article/details/122430246
 
-主要介绍了：
+  主要介绍了：
 
-- zip 文件的格式
-- 获取 A/B 系统升级包 update.zip 中 payload.bin 的 offset 和 size 的 3 种方式
-  - Android O 开始自动生成 offset 和 size 数据
-  - 使用 zipinfo 手动计算 offset 和 size 数据
-  - 使用 zip_info.py 脚本工具计算 offset 和 size 数据
+  - update_engine_client 客户端支持的参数
+
+  - update_engine_client 客户段的参数是如何解析并传递给 update engine 服务的
+
+  - 如何使用远程文件和本地文件进行升级
+
+  - 如何设置升级时的 offset 和 size 参数
+
+    
+
+- [Android A/B System OTA分析（六）如何获取 payload 的 offset 和 size](https://blog.csdn.net/guyongqiangx/article/details/122498561)
+
+  链接：https://blog.csdn.net/guyongqiangx/article/details/122498561
+
+  主要介绍了：
+
+  - zip 文件的格式
+  - 获取 A/B 系统升级包 update.zip 中 payload.bin 的 offset 和 size 的 3 种方式
+    - Android O 开始自动生成 offset 和 size 数据
+    - 使用 zipinfo 手动计算 offset 和 size 数据
+    - 使用 zip_info.py 脚本工具计算 offset 和 size 数据
+
+  
+
+## 2. 代码导读：《Android Update Engine 分析》系列
+
+专栏地址：https://blog.csdn.net/guyongqiangx/category_12140296.html
 
 
-
-## 2. 代码导读：[《Android Update Engine 分析》](https://blog.csdn.net/guyongqiangx/category_12140296.html) 系列
 
 - [Android Update Engine分析（一）Makefile](https://blog.csdn.net/guyongqiangx/article/details/77650362)
 
@@ -210,7 +214,11 @@
 
 链接：https://blog.csdn.net/guyongqiangx/article/details/122942628
 
-## 3. 动态分区：[《Android 动态分区》](https://blog.csdn.net/guyongqiangx/category_12140166.html) 系列
+## 3. 动态分区：《Android 动态分区》 系列
+
+专栏地址：https://blog.csdn.net/guyongqiangx/category_12140166.html
+
+
 
 - [Android 动态分区详解(一) 5 张图让你搞懂动态分区原理](https://blog.csdn.net/guyongqiangx/article/details/123899602)
 
@@ -240,7 +248,11 @@
 
 链接：https://blog.csdn.net/guyongqiangx/article/details/128881282
 
-## 4. 虚拟分区：[《Android 虚拟 A/B 分区》](https://blog.csdn.net/guyongqiangx/category_12121868.html) 系列
+## 4. 虚拟分区：《Android 虚拟 A/B 分区》系列
+
+专栏地址：https://blog.csdn.net/guyongqiangx/category_12121868.html
+
+
 
 - [Android 虚拟分区详解(一) 参考资料推荐](https://blog.csdn.net/guyongqiangx/article/details/128071692)
 
