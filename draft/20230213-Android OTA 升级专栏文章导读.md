@@ -150,7 +150,9 @@
 
 ### 1. 基础入门：《Android A/B 系统》系列
 
-[《Android A/B 系统》](https://blog.csdn.net/guyongqiangx/category_12140293.html) 系列作为整个 A/B 系统的入门系列，如果你以前没有接触过 Android 的 A/B 系统，建议先阅读本专栏的文章，对 A/B 系统有个大致的了解。
+[《Android A/B 系统》](https://blog.csdn.net/guyongqiangx/category_12140293.html) 系列基于 A/B 系统早期的代码 AOSP 7.1.1_r23，尽管代码版本比较老了，一部分内容在 Android 10(Q) 引入动态分区后不再适用，但大部分内容或操作在 Android 11(R) 以后仍然具有参考价值。 
+
+作为整个 A/B 系统的入门系列，如果你以前没有接触过 Android 的 A/B 系统，建议先阅读本专栏的文章，对 A/B 系统有个大致的了解。
 
 专栏地址：https://blog.csdn.net/guyongqiangx/category_12140293.html
 
@@ -173,7 +175,7 @@
 
   链接：https://blog.csdn.net/guyongqiangx/article/details/71516768
 
-  基于 AOSP 7.1.1_r23 介绍了:
+  主要介绍了:
 
   - A/B 系统镜像和传统 OTA 升级方式下镜像内容的区别
   - A/B 系统相关的 Makefile 变量
@@ -258,77 +260,266 @@
 
 ### 2. 核心模块：《Android Update Engine 分析》系列
 
+[《Android Update Engine 分析》](https://blog.csdn.net/guyongqiangx/category_12140296.html) 系列基于 A/B 系统早期的代码 AOSP 7.1.1_r23，尽管代码版本比较老了，Update Engine 分区处理部分的内容在 Android 9(P), Andrid 10(Q) 和 Android 11(R) 以及后续陆续有更新，但 Update Engine 本身的核心流程并没有什么变化，所以即使您基于动态分区或虚拟 A/B 的 Android 版本工作，但 Update Engine 核心流程仍然具有参考价值，相对于最新代码来说，A/B 系统早期的代码更简单，更易于理解。
+
+例如，整个 A/B 系统，编译打包，使用 Update Engine Client 进行更新，Update Engine Service 接收数据，解析 payload 并将数据写入分区的总体操作在 Android 10(Q) 和 Android 11(R) 上仍然一样。
+
+
+
+不同的是，Android 10(Q) 在接收完 payload 的 manifest 开始更新时，动态分区会先使用 manifest 中的数据更新 super 设备头部动态分区的分区表(lpmetadata)，分区表更新完以后，根据分区表中的数据将 super 设备的某些部分映射成另外一个槽位，然后基于这两个槽位进行和以前一样的更新。
+
+
+
+对于 Android 11(R) 开始的虚拟 A/B 系统，在接收完 payload 的 manifest 开始更新时，虚拟 A/B 分区会先使用 manifest 中的数据更新 super 设备头部动态分区的分区表(lpmetadata)，然后从 super 设备的空闲区域，或者从 data 分区中分配空间用于构建和映射另外一个槽位。
+
+因此，和动态分区不同的是，虚拟 A/B 的另外一个槽位在系统中并不存在(动态分区时是真实存在的)，是通过 super 设备的空闲空间，或 data 分区的文件映射出来的，这就是为什么被称为虚拟 A/B 的原因，因为设备上真正存在的只有一套。
+
+虚拟设备映射好以后，系统基于一个真实的槽位和一个虚拟的槽位进行和以前的 A/B 系统一样的更新。更新完成后，系统重启并从虚拟的槽位启动，如果虚拟槽位启动成功，则开始将虚拟槽位的数据合并(merge)到真实槽位中。如果虚拟槽位启动失败，则系统回退到真实槽位中。
+
+
+
+所以，除了对分区的处理不同之外(虚拟 A/B 还会有一个合并 merge 操作)，Update Engine 的流程从 Android 7(N) 到最新的版本，核心流程基本上都差不多。
+
 专栏地址：https://blog.csdn.net/guyongqiangx/category_12140296.html
 
 
 
 - [Android Update Engine分析（一）Makefile](https://blog.csdn.net/guyongqiangx/article/details/77650362)
 
-链接：https://blog.csdn.net/guyongqiangx/article/details/77650362
+  链接：https://blog.csdn.net/guyongqiangx/article/details/77650362
+
+  这篇文章主要基于 Android 7.1.1 的代码逐行分析了 Update Engine 的 Makefile 文件，从而得到整个 update engine 代码的模块结构，包括生成了哪些库和可执行文件，有哪些可以用的调试工具等。
+
+  在 Android 10(Q) 中，Update Engine 模块的 Android.mk 被 Androi.bp 取代，原来对 Android.mk 的分析不再适用，但依然建议你按照我的思路去阅读 Androi.bp 文件来了解整个 Update Engine 的模块结构。
+
+  
 
 - [Android Update Engine分析（二）Protobuf和AIDL文件](https://blog.csdn.net/guyongqiangx/article/details/80819901)
 
-链接：https://blog.csdn.net/guyongqiangx/article/details/80819901
+  链接：https://blog.csdn.net/guyongqiangx/article/details/80819901
+
+  主要介绍了：
+
+  - 描述 payload 结构的 update_metadata.proto 文件，后续在 Android 10(Q) 的动态分区引入前，这个文件有些小更新，但重点变化不大。
+  - 描述 Update Engine 服务接口的 IUpdateEngine.aidl 文件，并基于接口编译出来的文件分析了 Update Engine 的 binder 服务和接口见的层次关系。
+
+  关于 AIDL 如何编译转化，以及和 binder 服务的实现关系比较复杂了，我个人认为没有只要知道大概是如何关联即可，没有必要投入太多时间到这部分。
+
+  
 
 - [Android Update Engine分析（三）客户端进程](https://blog.csdn.net/guyongqiangx/article/details/80820399)
 
-链接：https://blog.csdn.net/guyongqiangx/article/details/80820399
+  链接：https://blog.csdn.net/guyongqiangx/article/details/80820399
+
+  主要围绕 Update Engine 的客户端进行 update_engine_client 进行分析，包括：
+
+  - update_engine_client 文件的依赖关系
+
+  - update_eingine_client 的参数处理
+
+    - 如何解析命令行参数
+
+    - 如何处理 suspend, resume, cancel, reset_status, follow, update 等操作，并进一步调用 Update Engine Service 服务
+
+      
 
 - [Android Update Engine分析（四）服务端进程](https://blog.csdn.net/guyongqiangx/article/details/82116213)
 
-链接：https://blog.csdn.net/guyongqiangx/article/details/82116213
+  链接：https://blog.csdn.net/guyongqiangx/article/details/82116213
+
+  主要围绕 Update Engine 服务端进程 update_engine 进行分析，包括：
+
+  - Update Engine 服务端文件的依赖关系
+  - 入口文件 main.cc 逐行分析
+  - update_engine_daemon 是如何初始化，并创建出 binder 服务的
+  - Update Engine 是如何实现回调通知的
+
+  
 
 - [Android Update Engine分析（五）服务端核心之Action机制](https://blog.csdn.net/guyongqiangx/article/details/82226079)
 
-链接：https://blog.csdn.net/guyongqiangx/article/details/82226079
+  链接：https://blog.csdn.net/guyongqiangx/article/details/82226079
+
+  主要介绍了：
+
+  - Action 机制的构成模块，包括 Action, Action Processor 和 Action Pipe
+  - 分析了 Action 机制的处理操作，包括开始和停止处理，暂停和恢复处理，结束的收尾工作
+  - 多个 Action 的层次关系
+    - AbstractAction, Action
+    - InstallPlanAction, DownloadAction, FilesystemVerifierAction, PostinstallRunnerAction
+  - ApplyPayload 收到升级请求后，如何构建 ActionPipe 并开始升级
+  - suspend, resume, cancel 和 resetStatus 等操作是如何创建 Action 并执行的
+
+  
 
 - [Android Update Engine分析（六）服务端核心之Action详解](https://blog.csdn.net/guyongqiangx/article/details/82390015)
 
-链接：https://blog.csdn.net/guyongqiangx/article/details/82390015
+  链接：https://blog.csdn.net/guyongqiangx/article/details/82390015
+
+  详细分析了 Update Engine 的 4 个核心 Action 的实现代码：
+
+  - InstallPlanAction
+
+  - DownloadAction
+
+  - FilesystemVerifierAction
+
+  - PostinstallRunnerAction
+
+    
 
 - [Android Update Engine分析（七） DownloadAction之FileWriter](https://blog.csdn.net/guyongqiangx/article/details/82805813)
 
-链接：https://blog.csdn.net/guyongqiangx/article/details/82805813
+  链接：https://blog.csdn.net/guyongqiangx/article/details/82805813
+
+  进一步详细分析了 DownloadAction 操作，其中的 FileWrite 是整个升级写入数据的核心：
+
+  - DownloadAction 何时写入接收到的数据？
+  - Payload 文件的详细结构
+  - 接收到的升级数据到底是如何写入的？(DeltaPerformer 的 Write 操作)
+    - 如何更新数据接收进度信息？
+    - 如何解析升级包的头部数据，得到 DeltaArchiveManifest 数据？
+    - 如何校验签名？
+    - 如从 DeltaArchiveManifest 中提取分区信息？
+    - 如何更新升级状态信息？
+    - 如何提取各分区的InstallOperation，并检查payload数据的hash？
+    - 详细执行 InstallOperation 的更新操作
+    - 如何提取升级数据的signature？
+
+  这部分的代码位于函数 `DeltaPerformer::Write()`, 对于这个函数的重要性，无论如何强调都不过分。所以这一篇是整个 Update Engine 的重中之重，值得反复阅读。
+
+  后面的动态分区和虚拟 A/B 的很多变化就位于 `Write()`的处理流程中。
+
+  到这篇为止，Android 设备上的流程分析完了。
+
+  
 
 - [Android Update Engine分析（八）升级包制作脚本分析](https://blog.csdn.net/guyongqiangx/article/details/82871409)
 
-链接：https://blog.csdn.net/guyongqiangx/article/details/82871409
+  链接：https://blog.csdn.net/guyongqiangx/article/details/82871409
+
+  主要介绍了：
+
+  - 如何制作全量和增量升级包？
+  - 逐行分析升级包制作工具 ota_from_target_files
+  - 逐行分析 payload 生成脚本 brillo_update_payload
+    - 如何生成 payload 文件
+    - 如何生成 payload 数据和 metadata 数据的哈希
+    - 如何将 payload 和 metadata 的签名写回 payload 文件
+    - 如何提取 payload 文件的 properties 数据
+
+  如果想了解详细的升级包制作过程，这一篇建议详细阅读。并在文章的最后总结了使用 delta_generator 生成 payload 的命令行步骤。
+
+  
 
 - [Android Update Engine分析（九） delta_generator 工具的 6 种操作](https://blog.csdn.net/guyongqiangx/article/details/122351084)
 
-链接：https://blog.csdn.net/guyongqiangx/article/details/122351084
+  链接：https://blog.csdn.net/guyongqiangx/article/details/122351084
+
+  主要介绍了编译时生成差分数据的 delta_generator 工具：
+
+  - 回顾使用 delta_genertor 生成 payload 文件的步骤
+  - delta_generator 的主程序源码分析
+  - delta_generator 支持的 6 种操作
+
+  
 
 - [Android Update Engine分析（十） 生成 payload 和 metadata 的哈希](https://blog.csdn.net/guyongqiangx/article/details/122393172)
 
-链接：https://blog.csdn.net/guyongqiangx/article/details/122393172
+  链接：https://blog.csdn.net/guyongqiangx/article/details/122393172
+
+  主要介绍了 delta_generator 是如何生成 payload 和 metadata 哈希的：
+
+  - 如何计算 payload 和 metadata 的哈希
+  - 如何将计算得到的哈希写回 payload 文件
+  - 如何手动在命令行计算 payload 和 metadata 的哈希
+  - 如何手动解析 payload 的头部数据
+  - 如何手动计算并验证 payload 的哈希
+
+  
 
 - [Android Update Engine分析（十一） 更新 payload 签名](https://blog.csdn.net/guyongqiangx/article/details/122597314)
 
-链接：https://blog.csdn.net/guyongqiangx/article/details/122597314
+  链接：https://blog.csdn.net/guyongqiangx/article/details/122597314
+
+  主要介绍了：
+
+  - 总结 payload 数据的生成和处理
+
+  - 如何更新 payload 文件签名
+
+    
 
 - [Android Update Engine 分析（十二） 验证 payload 签名](https://blog.csdn.net/guyongqiangx/article/details/122634221)
 
-链接：https://blog.csdn.net/guyongqiangx/article/details/122634221
+  链接：https://blog.csdn.net/guyongqiangx/article/details/122634221
+
+  主要介绍了：
+
+  - 如何生成验证使用的公钥
+
+  - 如何使用公钥验证 payload 签名
+
+  - payload 的签名验证流程
+
+  - 如何手动使用命令行工具验证签名
+
+  - 如何使用 protobuf 工具还原 metadata 签名数据
+
+    
 
 - [Android Update Engine分析（十三） 提取 payload 的 property 数据](https://blog.csdn.net/guyongqiangx/article/details/122646107)
 
-链接：https://blog.csdn.net/guyongqiangx/article/details/122646107
+  链接：https://blog.csdn.net/guyongqiangx/article/details/122646107
+
+  主要介绍了：
+
+  - delta_generator 如何从 payload 中提取 properties 数据
+  - 如何手动提取 payload 的属性数据
+
+  
 
 - [Android Update Engine分析（十四） 生成 payload 数据](https://blog.csdn.net/guyongqiangx/article/details/122753185)
 
-链接：https://blog.csdn.net/guyongqiangx/article/details/122753185
+  链接：https://blog.csdn.net/guyongqiangx/article/details/122753185
+
+  主要介绍了：
+
+  - 回顾了 payload 生成的流程
+  - delta_generator 生成 payload 的源码分析
+  - 介绍了生成 payload 数据的 payload_config 结构
+  - payload 数据最终是如何组装的？
+
+
 
 - [Android Update Engine 分析（十五） FullUpdateGenerator 策略](https://blog.csdn.net/guyongqiangx/article/details/122767273)
 
-链接：https://blog.csdn.net/guyongqiangx/article/details/122767273
+  链接：https://blog.csdn.net/guyongqiangx/article/details/122767273
+
+  主要介绍了全量包的生成策略以及整个调用流程。
+
+  
 
 - [Android Update Engine 分析（十六） ABGenerator 策略](https://blog.csdn.net/guyongqiangx/article/details/122886150)
 
-链接：https://blog.csdn.net/guyongqiangx/article/details/122886150
+  链接：https://blog.csdn.net/guyongqiangx/article/details/122886150
+
+  主要介绍了差分包的生成策略以及调用流程，想对于全量包的策略，差分包的生成流程较为复杂，建议跟着文章详细阅读源代码。
+
+  
 
 - [Android Update Engine 分析（十七）10 类 InstallOperation 数据的生成和应用](https://blog.csdn.net/guyongqiangx/article/details/122942628)
 
-链接：https://blog.csdn.net/guyongqiangx/article/details/122942628
+  链接：https://blog.csdn.net/guyongqiangx/article/details/122942628
+
+  详细分析了 payload 文件中用于升级数据生成和写入的 10 种操作：
+
+  - ZERO, REPLACE_XZ, REPLACE_BZ 和 REPLACE 操作
+  - REPLACE_XZ, REPLACE_BZ 和 REPLACE 操作
+  - ZERO 操作
+  - DISCARD 操作
+  - MOVE 和 SOURCE_COPY 操作
+  - BSDIFF 和 SOURCE_BSDIFF 操作以及 IMGDIFF 操作
 
 
 
