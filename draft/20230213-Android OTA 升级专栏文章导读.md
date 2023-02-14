@@ -1,4 +1,4 @@
-# 20230213-Android OTA 升级专栏文章导读
+# Android OTA 升级专栏文章导读
 
 [TOC]
 
@@ -21,7 +21,7 @@
 到目前为止，我写过 Android OTA 升级相关的文章包括以下几个系列：
 
 - 基础入门：[《Android A/B 系统》](https://blog.csdn.net/guyongqiangx/category_12140293.html) 系列
-- 代码导读：[《Android Update Engine 分析》](https://blog.csdn.net/guyongqiangx/category_12140296.html) 系列
+- 核心模块：[《Android Update Engine 分析》](https://blog.csdn.net/guyongqiangx/category_12140296.html) 系列
 - 动态分区：[《Android 动态分区》](https://blog.csdn.net/guyongqiangx/category_12140166.html) 系列
 - 虚拟分区：[《Android 虚拟 A/B 分区》](https://blog.csdn.net/guyongqiangx/category_12121868.html) 系列
 - 相关工具：《Android OTA 相关工具》系列
@@ -32,7 +32,123 @@
 
 本文将这几个系列的所有文章汇总到本篇，并逐一加以说明，方便选择性阅读和系统学习。
 
-## 1. 基础入门：《Android A/B 系统》系列
+本文主要分成两个部分：
+
+- 第一部分是快速入口，提供了所有文章的链接，点击直接跳转;
+
+- 第二部分对每一篇文章内容做一个简要介绍，可以根据需要，挑选感兴趣的话题进行阅读。
+
+## 1. 快速入口
+
+基础入门[《Android A/B 系统》](https://blog.csdn.net/guyongqiangx/category_12140293.html) 系列，已完结。
+
+专栏地址：https://blog.csdn.net/guyongqiangx/category_12140293.html
+
+- [Android A/B System OTA分析（一）概览](https://blog.csdn.net/guyongqiangx/article/details/71334889)
+
+- [Android A/B System OTA分析（二）系统image的生成](https://blog.csdn.net/guyongqiangx/article/details/71516768)
+
+- [Android A/B System OTA分析（三）主系统和bootloader的通信](https://blog.csdn.net/guyongqiangx/article/details/72480154)
+
+- [Android A/B System OTA分析（四）系统的启动和升级](https://blog.csdn.net/guyongqiangx/article/details/72604355)
+
+- [Android A/B System OTA分析（五）客户端参数](https://blog.csdn.net/guyongqiangx/article/details/122430246)
+
+- [Android A/B System OTA分析（六）如何获取 payload 的 offset 和 size](https://blog.csdn.net/guyongqiangx/article/details/122498561)
+
+  
+
+核心代码[《Android Update Engine 分析》](https://blog.csdn.net/guyongqiangx/category_12140296.html)系列，已完结。
+
+专栏地址：https://blog.csdn.net/guyongqiangx/category_12140296.html
+
+- [Android Update Engine分析（一）Makefile](https://blog.csdn.net/guyongqiangx/article/details/77650362)
+
+- [Android Update Engine分析（二）Protobuf和AIDL文件](https://blog.csdn.net/guyongqiangx/article/details/80819901)
+
+- [Android Update Engine分析（三）客户端进程](https://blog.csdn.net/guyongqiangx/article/details/80820399)
+
+- [Android Update Engine分析（四）服务端进程](https://blog.csdn.net/guyongqiangx/article/details/82116213)
+
+- [Android Update Engine分析（五）服务端核心之Action机制](https://blog.csdn.net/guyongqiangx/article/details/82226079)
+
+- [Android Update Engine分析（六）服务端核心之Action详解](https://blog.csdn.net/guyongqiangx/article/details/82390015)
+
+- [Android Update Engine分析（七） DownloadAction之FileWriter](https://blog.csdn.net/guyongqiangx/article/details/82805813)
+
+- [Android Update Engine分析（八）升级包制作脚本分析](https://blog.csdn.net/guyongqiangx/article/details/82871409)
+
+- [Android Update Engine分析（九） delta_generator 工具的 6 种操作](https://blog.csdn.net/guyongqiangx/article/details/122351084)
+
+- [Android Update Engine分析（十） 生成 payload 和 metadata 的哈希](https://blog.csdn.net/guyongqiangx/article/details/122393172)
+
+- [Android Update Engine分析（十一） 更新 payload 签名](https://blog.csdn.net/guyongqiangx/article/details/122597314)
+
+- [Android Update Engine 分析（十二） 验证 payload 签名](https://blog.csdn.net/guyongqiangx/article/details/122634221)
+
+- [Android Update Engine分析（十三） 提取 payload 的 property 数据](https://blog.csdn.net/guyongqiangx/article/details/122646107)
+
+- [Android Update Engine分析（十四） 生成 payload 数据](https://blog.csdn.net/guyongqiangx/article/details/122753185)
+
+- [Android Update Engine 分析（十五） FullUpdateGenerator 策略](https://blog.csdn.net/guyongqiangx/article/details/122767273)
+
+- [Android Update Engine 分析（十六） ABGenerator 策略](https://blog.csdn.net/guyongqiangx/article/details/122886150)
+
+- [Android Update Engine 分析（十七）10 类 InstallOperation 数据的生成和应用](https://blog.csdn.net/guyongqiangx/article/details/122942628)
+
+  
+
+动态分区[《Android 动态分区》](https://blog.csdn.net/guyongqiangx/category_12140166.html) 系列，更新中。
+
+专栏地址：https://blog.csdn.net/guyongqiangx/category_12140166.html
+
+- [Android 动态分区详解(一) 5 张图让你搞懂动态分区原理](https://blog.csdn.net/guyongqiangx/article/details/123899602)
+
+- [Android 动态分区详解(二) 核心模块和相关工具介绍](https://blog.csdn.net/guyongqiangx/article/details/123931356)
+
+- [Android 动态分区详解(三) 动态分区配置及super.img的生成](https://blog.csdn.net/guyongqiangx/article/details/124052932)
+
+- [Android 动态分区详解(四) OTA 中对动态分区的处理](https://blog.csdn.net/guyongqiangx/article/details/124224206)
+
+- [Android 动态分区详解(五) 为什么没有生成 super.img?](https://blog.csdn.net/guyongqiangx/article/details/128005251)
+
+- [Android 动态分区详解(六) 动态分区的底层机制](https://blog.csdn.net/guyongqiangx/article/details/128305482)
+
+- [Android 动态分区详解(七) overlayfs 与 adb remount 操作](https://blog.csdn.net/guyongqiangx/article/details/128881282)
+
+
+
+虚拟 A/B [《Android 虚拟 A/B 分区》](https://blog.csdn.net/guyongqiangx/category_12121868.html)系列，更新中。
+
+专栏地址：https://blog.csdn.net/guyongqiangx/category_12121868.html
+
+- [Android 虚拟分区详解(一) 参考资料推荐](https://blog.csdn.net/guyongqiangx/article/details/128071692)
+
+- [Android 虚拟分区详解(二) 虚拟分区布局](https://blog.csdn.net/guyongqiangx/article/details/128167054)
+
+- [Android 虚拟分区详解(三) 分区状态变化](https://blog.csdn.net/guyongqiangx/article/details/128517578)
+
+- [Android 虚拟分区详解(四) 编译开关](https://blog.csdn.net/guyongqiangx/article/details/128567582)
+
+- [Android 虚拟分区详解(五) BootControl 接口的变化](https://blog.csdn.net/guyongqiangx/article/details/128824984)
+
+
+
+升级工具《Android OTA 相关工具》系列，待更新。
+
+
+
+其它文章
+
+- [Linux 快照 (snapshot) 原理与实践(一) 快照基本原理](https://blog.csdn.net/guyongqiangx/article/details/128494795)
+
+- [Linux 快照 (snapshot) 原理与实践(二) 快照功能实践](https://blog.csdn.net/guyongqiangx/article/details/128496471)
+
+
+
+## 2. 简要介绍
+
+### 1. 基础入门：《Android A/B 系统》系列
 
 [《Android A/B 系统》](https://blog.csdn.net/guyongqiangx/category_12140293.html) 系列作为整个 A/B 系统的入门系列，如果你以前没有接触过 Android 的 A/B 系统，建议先阅读本专栏的文章，对 A/B 系统有个大致的了解。
 
@@ -140,7 +256,7 @@
 
   
 
-## 2. 代码导读：《Android Update Engine 分析》系列
+### 2. 核心模块：《Android Update Engine 分析》系列
 
 专栏地址：https://blog.csdn.net/guyongqiangx/category_12140296.html
 
@@ -214,7 +330,9 @@
 
 链接：https://blog.csdn.net/guyongqiangx/article/details/122942628
 
-## 3. 动态分区：《Android 动态分区》 系列
+
+
+### 3. 动态分区：《Android 动态分区》 系列
 
 专栏地址：https://blog.csdn.net/guyongqiangx/category_12140166.html
 
@@ -248,7 +366,9 @@
 
 链接：https://blog.csdn.net/guyongqiangx/article/details/128881282
 
-## 4. 虚拟分区：《Android 虚拟 A/B 分区》系列
+
+
+### 4. 虚拟分区：《Android 虚拟 A/B 分区》系列
 
 专栏地址：https://blog.csdn.net/guyongqiangx/category_12121868.html
 
@@ -274,9 +394,13 @@
 
 链接：https://blog.csdn.net/guyongqiangx/article/details/128824984
 
-## 5. 升级工具：《Android OTA 相关工具》系列
 
-## 6. 其它文章
+
+### 5. 升级工具：《Android OTA 相关工具》系列
+
+
+
+### 6. 其它文章
 
 - [Linux 快照 (snapshot) 原理与实践(一) 快照基本原理](https://blog.csdn.net/guyongqiangx/article/details/128494795)
 
@@ -288,7 +412,7 @@
 
 
 
-## 7. 福利
+## 3. 其它
 
 如果您已经订阅了动态分区和虚拟分区付费专栏，请务必加我微信，备注订阅账号，拉您进“动态分区 & 虚拟分区专栏 VIP 答疑群”。我会在方便的时候，回答大家关于 A/B 系统、动态分区、虚拟分区、各种 OTA 升级和签名的问题。
 
