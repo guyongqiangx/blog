@@ -1,4 +1,4 @@
-# Android OTA 升级专栏文章导读
+# Android OTA 升级系列专栏文章导读
 
 [TOC]
 
@@ -169,7 +169,8 @@
   - A/B 系统的状态和
   - A/B 系统的升级切换
 
-  
+
+
 
 - [Android A/B System OTA分析（二）系统image的生成](https://blog.csdn.net/guyongqiangx/article/details/71516768)
 
@@ -525,37 +526,142 @@
 
 ### 3. 动态分区：《Android 动态分区》 系列
 
+Android A/B 系统从 Android 10(Q) 开始引入动态分区，原来的 A/B 系统两个槽位内的各个分区都是预先分配好，大小固定大小。在支持动态分区以后，A/B 系统两个槽位包含在 super 设备上，A/B 系统的槽位分区表信息由 super 设备头部的 LpMetadata 数据表述。这样的一个好处就是槽位内分区大小可以动态调整，带来的问题就是在升级时需要处理 super 设备上的分区表信息，系统启动时也需要正确解析 super 设备上的分区并进行加载。
+
+[《Android 动态分区》](https://blog.csdn.net/guyongqiangx/category_12140166.html)系列在[《Android A/B 系统》](https://blog.csdn.net/guyongqiangx/category_12140293.html) 和 [《Android Update Engine 分析》](https://blog.csdn.net/guyongqiangx/category_12140296.html) 系列的基础上，基于 android-10.0.0_r47 代码，主要聚焦于 A/B 系统引入动态分区以后的改动。
+
 专栏地址：https://blog.csdn.net/guyongqiangx/category_12140166.html
 
 
 
 - [Android 动态分区详解(一) 5 张图让你搞懂动态分区原理](https://blog.csdn.net/guyongqiangx/article/details/123899602)
 
-链接：https://blog.csdn.net/guyongqiangx/article/details/123899602
+  链接：https://blog.csdn.net/guyongqiangx/article/details/123899602
+
+  主要介绍了：
+
+  - 动态分区的本质就是围绕分区表数据 LpMetadata 的增删改查
+  - 支持动态分区的 device mapper 机制的原理
+  - Android 动态分区和描述数据 LpMetadata 的布局
+    - 宏观：super 分区
+    - 中观：metadata 数据
+    - 微观：gemoetry 和 metadata 的数据结构
+  - 动态分区的核心数据结构 LpMetadata
+  - 提供了一个 Android 动态分区映射的示例
+  - super.img 的编译和生成
+  - super.img 的解析
+  - super.img 的映射
+
+  如果希望通过一篇大致了解动态分区组成的基本原理，那读这一篇就够了。
+
+  
 
 - [Android 动态分区详解(二) 核心模块和相关工具介绍](https://blog.csdn.net/guyongqiangx/article/details/123931356)
 
-链接：https://blog.csdn.net/guyongqiangx/article/details/123931356
+  链接：https://blog.csdn.net/guyongqiangx/article/details/123931356
+
+  主要介绍了：
+
+  - 动态分区相关的核心模块
+    - liblp (logic partition lib)
+    - libdm (device mapper lib)
+    - libfs_mgr (filesystem manager lib)
+    - libsparse (sparse image lib)
+  - 动态分区相关调试工具
+    - lpmake, lpdump, lpflash, lpunpack
+    - dmctl, dmuserd
+    - simg2img, img2simg, append2simg, simg_dump.py
+
+  如果希望在调试动态分区或查看动态分区信息，lpdump 和 dmctl 是最常用的工具。
+
+  
 
 - [Android 动态分区详解(三) 动态分区配置及super.img的生成](https://blog.csdn.net/guyongqiangx/article/details/124052932)
 
-链接：https://blog.csdn.net/guyongqiangx/article/details/124052932
+  链接：https://blog.csdn.net/guyongqiangx/article/details/124052932
+
+  主要介绍了：
+
+  - 动态分区的配置选项开关，包括原生动态分区的配置和改造 (retrofit) 动态分区的配置
+  - 动态分区的配置示例分析
+    -  crosshatch (Pixel 3 XL)
+    - bonito (Pixel 3a XL)
+    - 模拟器 cuttlefish
+  - 动态分区的参数检查
+  - Makefile 中动态分区的参数处理和追踪
+    - 动态分区相关参数最终到底设置在哪里？
+  - 原生动态分区 super.img 的编译生成分析
+    - dist 模式的 super.img
+    - debug 模式的 super.img
+    - super_empty.img
+    - build_super_image.py 脚本分析
+
+  如果不清楚动态分区要如何配置，这些配置又是如何生效的，请参考本篇的分析。
+
+  
 
 - [Android 动态分区详解(四) OTA 中对动态分区的处理](https://blog.csdn.net/guyongqiangx/article/details/124224206)
 
-链接：https://blog.csdn.net/guyongqiangx/article/details/124224206
+  链接：https://blog.csdn.net/guyongqiangx/article/details/124224206
+
+  主要介绍了：
+
+  - payload 中的动态分区数据分析
+  - 如何制作动态分区的升级包
+  - 制作升级包时
+    - 如何打包动态分区数据
+    - 动态分区数据如何输出到 payload 文件中
+    - 动态分区数据的打包流程
+  - 更新升级时
+    - 如何处理接收到的 manifest 数据
+    - 如何更新 super 设备的动态分区数据
+    - 动态分区的更新和映射流程
+
+  这一篇主要集中于制作升级包时，动态分区信息如何输出到 payload 文件；更新升级时又是如何从 payload 中解析动态分区信息并用于动态分区升级的。
+
+  
 
 - [Android 动态分区详解(五) 为什么没有生成 super.img?](https://blog.csdn.net/guyongqiangx/article/details/128005251)
 
-链接：https://blog.csdn.net/guyongqiangx/article/details/128005251
+  链接：https://blog.csdn.net/guyongqiangx/article/details/128005251
+
+  主要介绍了编译 AOSP 参考设备时，明明打开了动态分区，但为什么会没有生成 super.img
+
+  
 
 - [Android 动态分区详解(六) 动态分区的底层机制](https://blog.csdn.net/guyongqiangx/article/details/128305482)
 
-链接：https://blog.csdn.net/guyongqiangx/article/details/128305482
+  链接：https://blog.csdn.net/guyongqiangx/article/details/128305482
+
+  主要介绍了：
+
+  - 动态分区的两重含义，用户态下的动态分区
+  - device mapper 原理
+  - 作为动态分区基础的 linear 设备映射原理
+    - 手动进行分区 linear 设备映射的示例
+  - dmsetup create 参数解释
+  - 手动使用 dmsetup 工具对 super 设备进行映射
+
+  主要是通过一些 linux 命令行工具来模拟动态分区映射，加深对动态分区机制的理解。
+
+  
 
 - [Android 动态分区详解(七) overlayfs 与 adb remount 操作](https://blog.csdn.net/guyongqiangx/article/details/128881282)
 
-链接：https://blog.csdn.net/guyongqiangx/article/details/128881282
+  链接：https://blog.csdn.net/guyongqiangx/article/details/128881282
+
+  主要介绍了：
+
+  - overlayfs 的底层原理
+  - Linux 下如何编译配置 overlayfs，以及运行时如何检查 overlayfs
+  - Android 系统中为什么引入 overlayfs
+  - Andnroid 上关闭 dm-verity，执行 remount 的流程
+  - Android 上打开 dm-verity，执行 unmuount 的流程
+  - Android 中执行 remount 后引起的 OTA 升级问题
+    - adb remount之后，OTA 升级失败
+    - adb remount 分区，导致 OTA 升级 super 分区 resize fail
+
+  主要针对 OTA 讨论群中经常问到的 remount 后引起一些列问题的分析和总结。
 
 
 
@@ -567,23 +673,31 @@
 
 - [Android 虚拟分区详解(一) 参考资料推荐](https://blog.csdn.net/guyongqiangx/article/details/128071692)
 
-链接：https://blog.csdn.net/guyongqiangx/article/details/128071692
+  链接：https://blog.csdn.net/guyongqiangx/article/details/128071692
+
+  
 
 - [Android 虚拟分区详解(二) 虚拟分区布局](https://blog.csdn.net/guyongqiangx/article/details/128167054)
 
-链接：https://blog.csdn.net/guyongqiangx/article/details/128167054
+  链接：https://blog.csdn.net/guyongqiangx/article/details/128167054
+
+  
 
 - [Android 虚拟分区详解(三) 分区状态变化](https://blog.csdn.net/guyongqiangx/article/details/128517578)
 
-链接：https://blog.csdn.net/guyongqiangx/article/details/128517578
+  链接：https://blog.csdn.net/guyongqiangx/article/details/128517578
+
+  
 
 - [Android 虚拟分区详解(四) 编译开关](https://blog.csdn.net/guyongqiangx/article/details/128567582)
 
-链接：https://blog.csdn.net/guyongqiangx/article/details/128567582
+  链接：https://blog.csdn.net/guyongqiangx/article/details/128567582
+
+  
 
 - [Android 虚拟分区详解(五) BootControl 接口的变化](https://blog.csdn.net/guyongqiangx/article/details/128824984)
 
-链接：https://blog.csdn.net/guyongqiangx/article/details/128824984
+  链接：https://blog.csdn.net/guyongqiangx/article/details/128824984
 
 
 
@@ -595,11 +709,13 @@
 
 - [Linux 快照 (snapshot) 原理与实践(一) 快照基本原理](https://blog.csdn.net/guyongqiangx/article/details/128494795)
 
-链接：https://blog.csdn.net/guyongqiangx/article/details/128494795
+  链接：https://blog.csdn.net/guyongqiangx/article/details/128494795
+
+  
 
 - [Linux 快照 (snapshot) 原理与实践(二) 快照功能实践](https://blog.csdn.net/guyongqiangx/article/details/128496471)
 
-链接：https://blog.csdn.net/guyongqiangx/article/details/128496471
+  链接：https://blog.csdn.net/guyongqiangx/article/details/128496471
 
 
 
