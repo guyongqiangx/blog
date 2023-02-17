@@ -166,6 +166,8 @@ message SnapshotMergeReport {
 }
 ```
 
+这个 snapshot.proto 文件在编译后会生成相应的 protobuf 数据类 SnapshotStatus, SnapshotUpdateStatus 和 SnapshotMergeReport。
+
 
 
 在很长一段时间内，我都没搞懂这个文件定义的数据结构到底是干嘛用的~
@@ -193,7 +195,9 @@ message SnapshotMergeReport {
 
 后面依次讲述这两三个 message 结构的用途
 
-##2. SnapshotUpdateStatus 结构
+
+
+## 2. SnapshotUpdateStatus 结构
 
 SnapshotUpdateStatus 表示当前系统的升级状态，相关的状态数据存储在设备的 state 文件 (`/metadata/ota/state`)中。
 
@@ -205,6 +209,24 @@ state 文件的读写操作通过以下两个函数来完成：
 - `SnapshotManager::WriteUpdateState(state)`
 
 所以代码中如果调用这两个函数，那就是在读写 state 文件。
+
+
+
+以下是我的某个设备上的 state 文件及其内容:
+
+```bash
+# 查看 state 文件
+console:/ # ls -lh /metadata/ota/state                                         
+-rw------- 1 root root 77 2022-10-11 00:00 /metadata/ota/state
+
+# 查看 state 文件的内容
+console:/ # xxd -g 1 /metadata/ota/state                                       
+00000000: 08 01 42 49 67 6f 6f 67 6c 65 2f 69 6e 75 76 69  ..BIgoogle/inuvi
+00000010: 6b 2f 69 6e 75 76 69 6b 3a 31 31 2f 52 56 43 2f  k/inuvik:11/RVC/
+00000020: 65 6e 67 2e 72 67 39 33 35 37 2e 32 30 32 32 31  eng.rg9357.20221
+00000030: 30 31 30 2e 32 31 30 36 31 36 3a 75 73 65 72 64  010.210616:userd
+00000040: 65 62 75 67 2f 64 65 76 2d 6b 65 79 73           ebug/dev-keys
+```
 
 
 
@@ -587,8 +609,6 @@ void CleanupPreviousUpdateAction::ReportMergeStats() {
 
 到这里，SnapshotMergeStats 的所有操作都跟踪完了。
 
-
-
 ## 4. SnapshotStatus 结构
 
 ### 1. 快照设备状态文件
@@ -606,9 +626,25 @@ SnapshotStatus 表示系统中某个虚拟分区设备的状态，相关的状�
 
 
 
-以下是我的某个设备上的状态：
+以下是我的某个设备上的快照设备状态文件及其内容：
 
 ```bash
+# 查看 /metadata/ota/snapshots/ 目录下的文件
+console:/ # ls -lh /metadata/ota/snapshots/                                    
+total 8.0K
+-rw------- 1 root root 47 2022-10-11 00:00 system_b
+-rw------- 1 root root 37 2022-10-11 00:00 vendor_b
+
+# 查看 /metadata/ota/snapshots/{system_b,vendor_b} 的文件内容
+console:/ # xxd -g 1 /metadata/ota/snapshots/system_b                          
+00000000: 0a 08 73 79 73 74 65 6d 5f 62 10 01 18 80 a0 a4  ..system_b......
+00000010: da 04 20 80 a0 a4 da 04 28 80 80 ea 38 30 80 a0  .. .....(...80..
+00000020: f7 c4 03 50 80 80 a3 da 04 5a 04 6e 6f 6e 65     ...P.....Z.none
+console:/ # xxd -g 1 /metadata/ota/snapshots/vendor_b                          
+00000000: 0a 08 76 65 6e 64 6f 72 5f 62 10 01 18 80 e0 b1  ..vendor_b......
+00000010: 26 20 80 e0 b1 26 30 80 e0 3b 50 80 e0 b1 26 5a  & ...&0..;P...&Z
+00000020: 04 6e 6f 6e 65                                   .none
+console:/ # 
 ```
 
 
@@ -824,9 +860,26 @@ UpdateState SnapshotManager::CheckTargetMergeState(LockedFile* lock, const std::
 - MapPartitionWithSnapshot
 - Dump
 
-具体的调用操作函数这里不再详细跟踪，可以自行试着去了解各个地方去读取快照设备状态的作用。
+具体的调用操作函数这里不再详细跟踪，总体上，凡是要对分区快照设备进行操作的地方，都可以调用 ReadSnapshotStatus 查询分区快照设备的状态，可以自行试着去了解各个地方去读取快照设备状态的具体用途。
 
 ## 5. 总结
+
+上面啰啰嗦嗦说了一大堆，大致就是说 snapshot.proto 文件
+
+> 位置: system/core/fs_mgr/libsnapshot/android/snapshot/snapshot.proto
+
+在编译时会生成 3 个类:
+
+- SnapshotStatus 类
+- SnapshotUpdateStatus 类
+- SnapshotMergeReport 类
+
+和 2 个枚举类型数据：
+
+- SnapshotState 枚举
+- UpdateState 枚举
+
+
 
 ## 6. 思考题汇总
 
@@ -834,5 +887,5 @@ UpdateState SnapshotManager::CheckTargetMergeState(LockedFile* lock, const std::
 
 
 
-### 
+
 
