@@ -1,4 +1,24 @@
-# Android 虚拟 A/B 分区详解(六) SnapshotManager 之 状态数据
+# Android 虚拟 A/B 分区详解(六) SnapshotManager 之状态数据
+
+> 本文为洛奇看世界(guyongqiangx)原创，转载请注明出处。
+>
+> 原文链接：https://blog.csdn.net/guyongqiangx/article/details/129094203
+
+
+
+> Android 虚拟 A/B 分区[《AAndroid 虚拟 A/B 分区》](https://blog.csdn.net/guyongqiangx/category_12121868.html)系列，更新中，文章列表：
+>
+> - [Android 虚拟分区详解(一) 参考资料推荐](https://blog.csdn.net/guyongqiangx/article/details/128071692)
+> - [Android 虚拟分区详解(二) 虚拟分区布局](https://blog.csdn.net/guyongqiangx/article/details/128167054)
+> - [Android 虚拟分区详解(三) 分区状态变化](https://blog.csdn.net/guyongqiangx/article/details/128517578)
+> - [Android 虚拟分区详解(四) 编译开关](https://blog.csdn.net/guyongqiangx/article/details/128567582)
+> - [Android 虚拟分区详解(五) BootControl 接口的变化](https://blog.csdn.net/guyongqiangx/article/details/128824984)
+>
+> 对 linux 快照(snapshot) 的了解可以增加对虚拟 A/B 分区的理解：
+> - [Linux 快照 (snapshot) 原理与实践(一) 快照基本原理](https://blog.csdn.net/guyongqiangx/article/details/128494795)
+> - [Linux 快照 (snapshot) 原理与实践(二) 快照功能实践](https://blog.csdn.net/guyongqiangx/article/details/128496471)
+
+>  如果您已经订阅了本专栏，请务必加我微信，拉你进“动态分区 & 虚拟分区专栏 VIP 答疑群”。
 
 
 
@@ -11,6 +31,8 @@
 正确的表述应该是：
 
 > 记录系统 merge 状态的 merge status 数据不仅存储在 misc 分区上，更详细的数据在 metadata 分区内，这一切和 Virtual A/B 的升级变化有关。
+
+升级状态的转换比较繁琐，一篇恐怕很难讲完，后面会拆分成多篇讨论。
 
 
 
@@ -191,7 +213,7 @@ message SnapshotMergeReport {
 
 为了直观一点，我把这里定义的数据用框图表示:
 
-![MergeStatus](images-20230216-Android 虚拟分区详解(六) SnapshotManager 之 UpdateState/MergeStatus.png)
+![MergeStatus](images-20230216-Android 虚拟分区详解(六)/MergeStatus.png)
 
 后面依次讲述这两三个 message 结构的用途
 
@@ -205,7 +227,7 @@ SnapshotUpdateStatus 表示当前系统的升级状态，相关的状态数据�
 
 state 文件的读写操作通过以下两个函数来完成：
 
-- `SnapshotManager::ReadUpdateState()`
+- `SnapshotManager::/metadata/ota/snapshots/system_b`
 - `SnapshotManager::WriteUpdateState(state)`
 
 所以代码中如果调用这两个函数，那就是在读写 state 文件。
@@ -452,7 +474,7 @@ SnapshotMergeStats  在 `system/core/fs_mgr/libsnapshot/snapshot_stats.cpp`文�
 
 >  思考题 3：
 >
-> 这里再 DeleteState 时会删除 merge state 文件，那又是什么时候创建的 merge state 文件的呢？
+> 这里在 DeleteState 时会删除 merge state 文件，那又是什么时候创建的 merge state 文件的呢？
 
 那什么时候会去调用 SnapshotMergeStats 的这些统计操作呢？不妨去代码中找找看。
 
@@ -870,22 +892,77 @@ UpdateState SnapshotManager::CheckTargetMergeState(LockedFile* lock, const std::
 
 在编译时会生成 3 个类:
 
-- SnapshotStatus 类
 - SnapshotUpdateStatus 类
+  - 表示当前系统的升级状态及数据
+  - 相关数据写入 state 文件 `/metadata/ota/state`
 - SnapshotMergeReport 类
+  - 用于统计当前 Start() 调用开始，到 Finish() 调用结束的 merge 状态统计
+  - 相关数据写入 merge state 文件 `/metadata/ota/merge_state`
+- SnapshotStatus 类
+  - 表示系统升级中某个虚拟分区的快照设备状态及数据
+  - 相关数据写入快照设备状态文件，每一个虚拟分区对应一个快照设备文件
+    - `/metadata/ota/snapshots/system_b`
+    - `/metadata/ota/snapshots/vendor_b`
 
 和 2 个枚举类型数据：
 
-- SnapshotState 枚举
-- UpdateState 枚举
+- UpdateState 枚举，表示系统的升级状态
+  - None
+  - Initiated
+  - Unverified
+  - Merging
+  - MergeNeedsReboot
+  - MergeCompleted
+  - MergeFailed
+  - Cancelled
+
+- SnapshotState 枚举，表示快照设备的状态
+  - NONE
+  - CREATED
+  - MERGING
+  - MERGE_COMPLETED
+
+
+
+
+用一个表来汇总就是：
+
+| 数据对象             | 存储文件                                                     | 用途         | 操作函数                                                     |
+| -------------------- | ------------------------------------------------------------ | ------------ | ------------------------------------------------------------ |
+| SnapshotUpdateStatus | `/metadata/ota/state`                                        | 系统升级状态 | `ReadUpdateState`<br />`WriteUpdateState`                    |
+| SnapshotMergeReport  | `/metadata/ota/merge_state`                                  | 系统合并状态 | `ReadState`<br />`WriteState`<br />`DeleteState`<br />`Start`<br />`Finish`<br />`set_state`<br />`set_cow_file_size` |
+| SnapshotStatus       | ``/metadata/ota/snapshots/system_b``<br />`/metadata/ota/snapshots/vendor_b` | 快照设备状态 | `ReadSnapshotStatus`<br />`WriteSnapshotStatus`              |
 
 
 
 ## 6. 思考题汇总
 
+思考题1：函数 ReadUpdateState 和 WriteUpdateState 分别用于 state 文件的读写，那 state 文件是什么时候创建？又是什么时候删除的呢？
+
+思考题 2：什么情况下会调用 UpdateState 相关的 BeginUpdate(), RemoveAllUpdate(), FinishedSnapshotWrites(), InitateMerge(), CheckMergeState() 和 AcknowledgeMergeSuccess() 函数？
+
+思考题 3：在 DeleteState 时会删除 merge state 文件，什么时候创建的 merge state 文件的呢？
+
+思考题 4：到底是在哪里创建的快照设备状态文件呢？例如：/metadata/ota/snapshots/system_b
 
 
 
+## 7. 其它
+
+到目前为止，我写过 Android OTA 升级相关的话题包括：
+- 基础入门：《Android A/B 系统》系列
+- 核心模块：《Android Update Engine 分析》 系列
+- 动态分区：《Android 动态分区》 系列
+- 虚拟 A/B：《Android 虚拟 A/B 分区》系列
+- 升级工具：《Android OTA 相关工具》系列
+
+更多这些关于 Android OTA 升级相关文章的内容，请参考[《Android OTA 升级系列专栏文章导读》](https://blog.csdn.net/guyongqiangx/article/details/129019303)。
+
+如果您已经订阅了动态分区和虚拟分区付费专栏，请务必加我微信，备注订阅账号，拉您进“动态分区 & 虚拟分区专栏 VIP 答疑群”。我会在方便的时候，回答大家关于 A/B 系统、动态分区、虚拟分区、各种 OTA 升级和签名的问题。
+
+除此之外，我有一个 Android OTA 升级讨论群，里面现在有 400+ 朋友，主要讨论手机，车机，电视，机顶盒，平板等各种设备的 OTA 升级话题，如果您从事 OTA 升级工作，欢迎加群一起交流，请在加我微信时注明“Android OTA 讨论组”。此群仅限 Android OTA 开发者参与~
+
+> 公众号“洛奇看世界”后台回复“wx”获取个人微信。
 
 
 
