@@ -6,7 +6,7 @@
 
 
 
-> Android 虚拟 A/B 分区[《AAndroid 虚拟 A/B 分区》](https://blog.csdn.net/guyongqiangx/category_12121868.html)系列，更新中，文章列表：
+> Android 虚拟 A/B 分区[《Android 虚拟 A/B 分区》](https://blog.csdn.net/guyongqiangx/category_12121868.html)系列，更新中，文章列表：
 >
 > - [Android 虚拟分区详解(一) 参考资料推荐](https://blog.csdn.net/guyongqiangx/article/details/128071692)
 > - [Android 虚拟分区详解(二) 虚拟分区布局](https://blog.csdn.net/guyongqiangx/article/details/128167054)
