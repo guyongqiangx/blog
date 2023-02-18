@@ -22,9 +22,9 @@
 
 
 
-我在《Android 虚拟 A/B 详解(五) BootControl 的变化》中提到，打算分两篇来介绍系统升级过程中 merge 状态数据的存放和各种状态转换的问题。
+我在[《Android 虚拟 A/B 详解(五) BootControl 的变化》](https://blog.csdn.net/guyongqiangx/article/details/128824984)中提到，打算分两篇来介绍系统升级过程中 merge 状态数据的存放和各种状态转换的问题。
 
-上一篇详细分析了 merge 状态数据的的存放。按理说这一篇应该分析 merge 状态的转换，我甚至把状态转换的图都画好了，但不巧的是，随着我对代码阅读的深入，发现我在上一篇的一开始的表述是错误的：
+[上一篇](https://blog.csdn.net/guyongqiangx/article/details/128824984)详细分析了 merge 状态数据的的存放。按理说这一篇应该分析 merge 状态的转换，我甚至把状态转换的图都画好了，但不巧的是，随着我对代码阅读的深入，发现我在上一篇的一开始的表述是错误的：
 
 > 实际上，记录系统 merge 状态的 merge status 数据不在 metadata 分区，而是在 misc 分区，这一切和 BootControl 为支持 Virtual A/B 的升级变化有关。
 
