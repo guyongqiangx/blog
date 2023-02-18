@@ -1,8 +1,8 @@
-# 20230217-Android 虚拟 A/B 详解(七) 一些标识文件
+# Android 虚拟 A/B 详解(七) SnapshotManager 之标识文件
 
 > 本文为洛奇看世界(guyongqiangx)原创，转载请注明出处。
 >
-> 原文链接：https://blog.csdn.net/guyongqiangx/article/details/129094203
+> 原文链接：https://blog.csdn.net/guyongqiangx/article/details/129098176
 
 
 
@@ -24,13 +24,15 @@
 
 
 
+## 0. 导读
+
 上一篇[《Android 虚拟 A/B 详解(六) SnapshotManager 之状态数据》](https://blog.csdn.net/guyongqiangx/article/details/129094203)中有提到多个状态文件，包括：
 
 - 系统升级状态的 state 文件: `/metadata/ota/state`
 - 系统合并状态的 merge state 文件: `/metadata/ota/merge_state`
 - 虚拟分区的快照设备状态文件：`/metadata/ota/snapshots/system_b`
 
-> 这里要补一个汇总的图
+
 
 除了这些状态文件外，SnapshotManager 在管理虚拟分区时，还有一些其它的标识文件，例如：
 
@@ -38,11 +40,21 @@
 - RollbackIndicator: `/metadata/ota/rollback-indicator`
 - ForwardMergeIndicator: `/metadata/ota/allow-forward-merge`
 
-你都知道这些标识(indicator)文件中写了什么内容，是做什么用的吗？你知道这些文件是何时创建，何时更新，何时销毁的吗？
+如果你在分析某个问题是，碰巧遇到了这些标识文件，你都知道这些标识(indicator)文件中写了什么内容，是做什么用的吗？你知道这些文件是何时创建，何时更新，何时销毁的吗？
 
 
 
 本文带这这些疑问，阅读 SnapshotManager 代码，向你介绍这些文件的各种操作和用途。
+
+本文的前面 3 节分别详细分析这些标识文件的增删改查操作来理解标识文件的用途，由于是代码分析，因此篇幅很长，比较啰嗦。
+
+如果你只关心这 3 个标识文件的用途和结论，请直接跳转到第 4 节。
+
+
+
+> 本文基于 Android 11.0.0_r21 版本的代码进行分析。
+>
+> 在线地址：http://aospxref.com/android-11.0.0_r21/
 
 ## 1. BootIndicator 文件
 
@@ -129,6 +141,61 @@ bool SnapshotManager::FinishedSnapshotWrites(bool wipe) {
 
 
 
+那在什么时候调用 FinishedSnapshotWrites 呢？答案是 FinishUpdate:
+
+```c++
+bool DynamicPartitionControlAndroid::FinishUpdate(bool powerwash_required) {
+  // 如果 metadata 分区有挂载
+  if (ExpectMetadataMounted()) {
+    // 如果当前系统状态为 Initiated，调用 FinishedSnapshotWrites
+    if (snapshot_->GetUpdateState() == UpdateState::Initiated) {
+      LOG(INFO) << "Snapshot writes are done.";
+      return snapshot_->FinishedSnapshotWrites(powerwash_required);
+    }
+  } else {
+    LOG(INFO) << "Skip FinishedSnapshotWrites() because /metadata is not "
+              << "mounted";
+  }
+  return true;
+}
+```
+
+
+
+那又什么时候调用 FinishUpdate 呢？答案是 
+
+```c++
+void PostinstallRunnerAction::CompletePostinstall(ErrorCode error_code) {
+  // We only attempt to mark the new slot as active if all the postinstall
+  // steps succeeded.
+  if (error_code == ErrorCode::kSuccess) {
+    if (install_plan_.switch_slot_on_reboot) {
+      // 执行 FinishUpdate 操作，并且将 target_slot 设置为 Active
+      if (!boot_control_->GetDynamicPartitionControl()->FinishUpdate(
+              install_plan_.powerwash_required) ||
+          !boot_control_->SetActiveBootSlot(install_plan_.target_slot)) {
+        error_code = ErrorCode::kPostinstallRunnerError;
+      } else {
+        // Schedules warm reset on next reboot, ignores the error.
+        hardware_->SetWarmReset(true);
+      }
+    } else {
+      error_code = ErrorCode::kUpdatedButNotActive;
+    }
+  }
+
+  //...
+}
+```
+
+
+
+因此，在 PostinstallRunnerAction 执行时，在快照设备上的更新已经完成。
+
+此时通过 FinishedSnapshotWrites 函数，确保所有快照设备没有溢出，可以正常工作，因为重启后需要从快照设备上的系统启动；另外，更新标识文件 ForwardMergeIndicator, RollbackIndicator, BootIndicator 为合适的状态，为系统重启切换到快照设备上的系统做好准备。
+
+
+
 ### 3. ReadUpdateSourceSlotSuffix 函数
 
 ReadUpdateSourceSlotSuffix 函数读取 BootIndicator 文件，并返回其内容
@@ -207,7 +274,7 @@ bool SnapshotManager::RemoveAllUpdateState(LockedFile* lock, const std::function
 }
 ```
 
-RemoveAllUpdateState 函数主要做了 3 件事：
+RemoveAllUpdateState 的功能是复位系统的状态，该函数主要做了 3 件事：
 
 1. 移除所有设备快照；
 2. 删除所有的标识文件，包括 BootIndicator, RollbackIndicator 和 ForwardMergeIndicator；
@@ -225,7 +292,7 @@ RemoveAllUpdateState 函数主要做了 3 件事：
 
 - 创建
 
-  升级过程中，在完成对快照设备的写入后，在函数 FinishedSnapshotWrites 中创建 BootIndicator 文件，并将升级源分区的后缀写入到文件中；
+  升级过程中，在完成对快照设备的写入后，在 Postinstall 阶段，函数 FinishedSnapshotWrites 中创建 BootIndicator 文件，并将升级源分区的后缀写入到文件中；
 
 - 访问
 
@@ -462,5 +529,224 @@ std::string SnapshotManager::GetForwardMergeIndicatorPath() {
 
 ### 
 
-### 2. 
+### 2. UpdateForwardMergeIndicator 函数
+
+```c++
+bool SnapshotManager::UpdateForwardMergeIndicator(bool wipe) {
+    auto path = GetForwardMergeIndicatorPath();
+
+    // 如果不执行 user data 分区的清除工作，则删除 ForwardMergeIndicator 文件
+    if (!wipe) {
+        LOG(INFO) << "Wipe is not scheduled. Deleting forward merge indicator.";
+        return RemoveFileIfExists(path);
+    }
+
+    // TODO(b/152094219): Don't forward merge if no CoW file is allocated.
+
+    // 如果要执行 user data 分区的清除工作，则在这里创建 ForwardMergeIndicator 文件
+    LOG(INFO) << "Wipe will be scheduled. Allowing forward merge of snapshots.";
+    if (!android::base::WriteStringToFile("1", path)) {
+        PLOG(ERROR) << "Unable to write forward merge indicator: " << path;
+        return false;
+    }
+
+    return true;
+}
+```
+
+如果制作 OTA 包时，指定了 '--wipe_user_data' 选项，要求 Install 时擦除数据分区，则这里的 wipe 参数为 true，否则为 false。
+
+有意思的是，如果不执行 wipe 操作，则这里需要删除 ForwardMergeIndicator 文件；
+
+否则，如果要执行 wipe 操作，这里需要通过往 ForwardMergeIndicator 文件写入 1 来创建该文件；
+
+
+
+因此，在 Postinstall 阶段，调用函数 FinishedSnapshotWrites，如果不需要清除 user data 分区，就删除 ForwardMergeIndicator 文件，否则就通过往文件写入 1 来创建。
+
+
+
+按照目前我的理解是，清除 user data 分区的操作，需要进入 recovery 系统，所以需要创建 ForwardMergeIndicator  给 recovery 系统使用。
+
+
+
+### 3. ProcessUpdateStateOnDataWipe 函数
+
+在 recovery 环境下执行 Data Wipe 操作时调用 ProcessUpdateStateOnDataWipe 函数:
+
+```c++
+bool SnapshotManager::ProcessUpdateStateOnDataWipe(bool allow_forward_merge,
+                                                   const std::function<bool()>& callback) {
+    // 获取当前系统的 Slot Number
+    auto slot_number = SlotNumberForSlotSuffix(device_->GetSlotSuffix());
+    UpdateState state = ProcessUpdateState(callback);
+    LOG(INFO) << "Update state in recovery: " << state;
+    switch (state) {
+        case UpdateState::MergeFailed:
+            LOG(ERROR) << "Unrecoverable merge failure detected.";
+            return false;
+        case UpdateState::Unverified: {
+            // If an OTA was just applied but has not yet started merging:
+            //
+            // - if forward merge is allowed, initiate merge and call
+            // ProcessUpdateState again.
+            //
+            // - if forward merge is not allowed, we
+            // have no choice but to revert slots, because the current slot will
+            // immediately become unbootable. Rather than wait for the device
+            // to reboot N times until a rollback, we proactively disable the
+            // new slot instead.
+            //
+            // Since the rollback is inevitable, we don't treat a HAL failure
+            // as an error here.
+            // 在 recovery 环境中，如果当前是 Target 分区
+            auto slot = GetCurrentSlot();
+            if (slot == Slot::Target) {
+                if (allow_forward_merge &&
+                    access(GetForwardMergeIndicatorPath().c_str(), F_OK) == 0) {
+                    LOG(INFO) << "Forward merge allowed, initiating merge now.";
+                    // 开始 merge 操作，并且结束时通过传入 allow_forward_merge = false，将当前分区设置为不可启动
+                    return InitiateMerge() &&
+                           ProcessUpdateStateOnDataWipe(false /* allow_forward_merge */, callback);
+                }
+
+                // 当 allow_forward_merge = false 时，将当前的 Target 设置为不可启动(Unbootable)
+                LOG(ERROR) << "Reverting to old slot since update will be deleted.";
+                device_->SetSlotAsUnbootable(slot_number);
+            } else {
+                LOG(INFO) << "Booting from " << slot << " slot, no action is taken.";
+            }
+            break;
+        }
+        case UpdateState::MergeNeedsReboot:
+            // We shouldn't get here, because nothing is depending on
+            // logical partitions.
+            LOG(ERROR) << "Unexpected merge-needs-reboot state in recovery.";
+            break;
+        default:
+            break;
+    }
+    return true;
+}
+```
+
+
+
+所以，在 recovery 环境下，调用 wipe data 时会检查 ForwardMergeIndicator 文件，如果存在，则开始执行 merge 操作，并在完成后将当前槽位(Target)设置为不能启动。
+
+
+
+### 4. RemoveAllUpdateState 函数
+
+前面 1.4 节详细分析过 RemoveAllUpdateState 函数，其作用是复位系统状态，因此在此时会删除 ForwardMergeIndicator 文件。
+
+
+
+### 5. ForwardMergeIndicator 文件总结
+
+对于 ForwardMergeIndicator 文件，总结起来就是：
+
+- 作用
+
+  ForwardMergeIndicator 文件用于指示当前系统是否支持 allow_forward_merge
+
+- 创建
+
+  在更新的 Postinstall 阶段，调用函数 FinishedSnapshotWrites，如果不需要清除 user data 分区，就删除 ForwardMergeIndicator 文件，否则就通过往文件写入 1 来创建。
+
+- 访问
+
+  在 recovery 环境下，调用 wipe data 时会检查 ForwardMergeIndicator 文件，如果存在，则开始执行 merge 操作，并在完成后将当前槽位(Target)设置为不能启动。
+
+- 删除
+
+   调用 RemoveAllUpdateState 函数时，复位系统状态，会删除 ForwardMergeIndicator 文件。
+
+
+
+> 目前我对 allow_forward_merge 的具体使用场景还不是十分确定。
+>
+> 根据现在的代码理解是这样的，在虚拟分区写入数据完成后的 Postinstall 阶段，FinishedSnapshotWrites 函数根据是否需要清除用户分区执行不同的操作。
+>
+> 如果不需要清除 userdata 分区，而当前 ForwardMergeIndicator  文件又存在的话，就删除它。
+>
+> 如果需要清除 userdata 分区，就创建 ForwardMergeIndicator，然后再 recovery 环境下执行 userdata 分区的 wipe 操作时，会检查 ForwardMergeIndicator 文件。
+>
+> 如果此时 ForwardMergeIndicator 存在，就在 recovery 下开始 merge 操作，成功后将虚拟分区设置为不可启动(Unbootable)。
+
+
+
+## 4. 标识文件总结
+
+### 1. BootIndicator 文件
+
+BootIndicator 文件位于 `/metadata/ota/snapshot-boot`，保存了 Source 槽位的后缀，用来指示当前升级的 Source 槽位。
+
+在升级的 Postinstall 阶段，完成快照设备的数据更新后，函数 FinishedSnapshotWrites 中创建 BootIndicator 文件，并将升级源分区 Source 槽位的后缀写入到文件中。
+
+后面的各种操作中，不管是在哪个系统，不管是在 Source(真实) 还是 Target(虚拟) 槽位，通过读取 BootIndicator 就能知道升级到的 Source 槽位。
+
+在升级完成或错误处理中，调用 RemoveAllUpdateState 复位系统状态时，销毁 BootIndicator 文件；
+
+
+
+### 2. RollbackIndicator 文件
+
+RollbackIndicator 文件位于 /metadata/ota/rollback-indicator，其内容为 1，用于指示当前系统在升级过程中是否处于可以回滚的，只有在升级过程中这个文件才有可能存在；
+
+在系统启动的早期，通过 NeedSnapshotsInFirstStageMount 判断是否需要挂载快照设备，如果当前是 Source 槽位，就会通过写入"1"的方式来创建 RollbackIndicator 文件，表示系统处于可以回滚的状态；
+
+在调用 HandleCancelledUpdate  取消升级时，如果查询 RollbackIndicator 文件，如果文件不存在，说明当前升级已经无法回滚了，因此 Cancel Update 不做任何操作；
+
+有两个地方可能会执行 RollbackIndicator 文件的删除操作：
+
+- 在升级过程中，往虚拟分区写入升级数据完成后的重启前，FinishedSnapshotWrites  会删除 RollbackIndicator 文件，确保只有在升级重启后才会创建 RollbackIndicator 文件；
+
+- 在调用 RemoveAllUpdateState 复位系统状态时，删除所有快照以及相关的标识文件，包括 RollbackIndicator；
+
+
+
+### 5. ForwardMergeIndicator 文件
+
+ForwardMergeIndicator 文件位于 `/metadata/ota/allow-forward-merge`，用于指示当前系统是否支持 allow_forward_merge 操作。
+
+在更新的 Postinstall 阶段，调用函数 FinishedSnapshotWrites，如果不需要清除 user data 分区，就删除 ForwardMergeIndicator 文件，否则就通过往文件写入 1 来创建。
+
+在 recovery 环境下，调用 wipe data 时会检查 ForwardMergeIndicator 文件，如果存在，则开始执行 merge 操作，并在完成后将当前槽位(Target)设置为不能启动。
+
+调用 RemoveAllUpdateState 函数时，复位系统状态，会删除 ForwardMergeIndicator 文件。
+
+
+
+> 目前我对 allow_forward_merge 的具体使用场景还不是十分确定。
+>
+> 根据现在的代码理解是这样的，在虚拟分区写入数据完成后的 Postinstall 阶段，FinishedSnapshotWrites 函数根据是否需要清除用户分区执行不同的操作。
+>
+> 如果不需要清除 userdata 分区，而当前 ForwardMergeIndicator  文件又存在的话，就删除它。
+>
+> 如果需要清除 userdata 分区，就创建 ForwardMergeIndicator，然后再 recovery 环境下执行 userdata 分区的 wipe 操作时，会检查 ForwardMergeIndicator 文件。
+>
+> 如果此时 ForwardMergeIndicator 存在，就在 recovery 下开始 merge 操作，成功后将虚拟分区设置为不可启动(Unbootable)。
+
+
+
+## 5. 其它
+
+到目前为止，我写过 Android OTA 升级相关的话题包括：
+
+- 基础入门：《Android A/B 系统》系列
+- 核心模块：《Android Update Engine 分析》 系列
+- 动态分区：《Android 动态分区》 系列
+- 虚拟 A/B：《Android 虚拟 A/B 分区》系列
+- 升级工具：《Android OTA 相关工具》系列
+
+更多这些关于 Android OTA 升级相关文章的内容，请参考[《Android OTA 升级系列专栏文章导读》](https://blog.csdn.net/guyongqiangx/article/details/129019303)。
+
+如果您已经订阅了动态分区和虚拟分区付费专栏，请务必加我微信，备注订阅账号，拉您进“动态分区 & 虚拟分区专栏 VIP 答疑群”。我会在方便的时候，回答大家关于 A/B 系统、动态分区、虚拟分区、各种 OTA 升级和签名的问题。
+
+除此之外，我有一个 Android OTA 升级讨论群，里面现在有 400+ 朋友，主要讨论手机，车机，电视，机顶盒，平板等各种设备的 OTA 升级话题，如果您从事 OTA 升级工作，欢迎加群一起交流，请在加我微信时注明“Android OTA 讨论组”。此群仅限 Android OTA 开发者参与~
+
+> 公众号“洛奇看世界”后台回复“wx”获取个人微信。
+
+
 
