@@ -1,5 +1,9 @@
 # 20230226-Android OTA 相关工具(四)  查看 payload 文件信息
 
+> 本文为洛奇看世界(guyongqiangx)原创，转载请注明出处。
+>
+> 文章链接：https://blog.csdn.net/guyongqiangx/article/details/129228856
+
 一直以来，很多人都表达过很想去研究一下 Android OTA 的 payload 文件，看看里面到底有什么，想对其进行一番研究操作，但又觉得 payload 文件很复杂，最终望而却步。
 
 
