@@ -10,7 +10,7 @@
 
 在很久很久的以前上古时代，确切说是 Android 7.1 刚引进 A/B 系统的时候，基本没有什么用于分析 A/B 系统和 payload 的工具，我根据 update_metadata.proto 文件画过一张 payload.bin 的文件结构图，如下(可以点击图片看大图)：
 
-![payload.bin 文件结构图](https://img-blog.csdn.net/20180921185230638)
+![payload.bin 文件结构图](images-20230226-Android OTA 相关工具(四)/payload-file-structure.png)
 
 图 1. Android 7.1 的 payload.bin 文件结构图
 
