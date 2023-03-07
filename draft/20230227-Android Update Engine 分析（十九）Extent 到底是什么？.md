@@ -1,4 +1,4 @@
-# 20230227-Android Update Engine 分析（十八）Extent 到底是什么？
+# 20230227-Android Update Engine 分析（十九）Extent 到底是什么？
 
 
 
@@ -36,7 +36,7 @@
 
 为了严谨起见，我们还是看看维基百科上是怎么表述 extent 的。
 
-![image-20230227224235779](images-20230227-Android Update Engine 分析（十八）/image-20230227224235779.png)
+![image-20230227224235779](images-20230227-Android Update Engine 分析（十九）/image-20230227224235779.png)
 
 图 1. Wikipedia 中对 Extent 的描述
 
@@ -54,7 +54,7 @@
 
 再来看看 Ext4 文件系统中，对 extent 的解释：
 
-![image-20230227224400697](images-20230227-Android Update Engine 分析（十八）/image-20230227224400697.png)
+![image-20230227224400697](images-20230227-Android Update Engine 分析（十九）/image-20230227224400697.png)
 
 图 2. Wikipedia 中对 Ext4 文件系统 Extents 特性的描述
 
@@ -286,7 +286,7 @@ bool FullUpdateGenerator::GenerateOperations(
    > delta_generator 默认的 hard_chunk_size 为 200MB，soft_chunk_size 为 2MB
 
 2. 打印输出对应分区操作的 chunk_blocks 和 block_size 信息，以及并发的线程数(按 CPU 的核数计算)。
-   
+  
    可以通过检查做包的 log 信息可以看到相应的 chunk_blocks 和 block_size 参数。例如: 
    
    > "Compressing partition system from /tmp/system.img.i9qtlm splitting in chunks of 512 blocks (4096 bytes each) using 24 threads"
