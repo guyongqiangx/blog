@@ -169,6 +169,24 @@ DeltaPerformer 类的 Write 函数是整个升级的核心，了解了 Write 函
 
 
 
+### 1. payload 数据结构
+
+Write 函数操作的对象是 payload 数据，所以，这里对照 payload 数据的结构进行理解会更佳，我这里附上很早以前画的基于 Android 7.1 的 payload 数据结构框图:
+
+![img](images-20230308-Android Update Engine 分析（十八）/70.png)
+
+图 1. payload 数据结构框图
+
+
+
+更多关于 payload 数据结构定义的细节，请参考 update_engine 中 payload 数据的 protobuf 定义：
+
+`system/update_engine/update_metadata.proto`
+
+
+
+### 2. DeltaPerformer 类的 Write 函数注释
+
 我在[《Android Update Engine分析（七） DownloadAction之FileWriter》](https://guyongqiangx.blog.csdn.net/article/details/82805813)分析过这个 Write 函数，我在这里再把 Write 函数简单注释总结一下：
 
 ```c++
@@ -182,18 +200,35 @@ bool DeltaPerformer::Write(const void* bytes, size_t count, ErrorCode *error) {
 
   const char* c_bytes = reinterpret_cast<const char*>(bytes);
 
+  /*
+   * 1. 根据当前要处理的字节数 count，更新接收进度，
+   *    输出进度日志: "Completed 23/377 operations (6%), 40302425/282164983 bytes downloaded (14%), overall progress 10%""
+   */
   // Update the total byte downloaded count and the progress logs.
   total_bytes_received_ += count;
   UpdateOverallProgress(false, "Completed ");
 
+  /*
+   * 2. 解析 manifest 数据，提取 partitions 和 InstallOperations 信息
+   */
+  /*
+   * 当 manifest 数据没有完成解析时: manifest_valid_=false
+   * 执行这里的 while 循环，用于处理 manifest 数据
+   */
   while (!manifest_valid_) {
     // Read data up to the needed limit; this is either maximium payload header
     // size, or the full metadata size (once it becomes known).
+    /*
+     * 2.1 复制 payload 头部的 Payload Header 数据到缓冲区
+     */
     const bool do_read_header = !IsHeaderParsed();
     CopyDataToBuffer(&c_bytes, &count,
                      (do_read_header ? kMaxPayloadHeaderSize :
                       metadata_size_ + metadata_signature_size_));
 
+    /*
+     * 2.2 解析 payload 的 Header 数据，得到 manifest 和 metadata signature 的 size，方便后续操作
+     */
     MetadataParseResult result = ParsePayloadMetadata(buffer_, error);
     if (result == kMetadataParseError)
       return false;
@@ -205,6 +240,14 @@ bool DeltaPerformer::Write(const void* bytes, size_t count, ErrorCode *error) {
       return true;
     }
 
+    /*
+     * 2.3 检查验证 manifest 数据
+     *     具体包括：
+     *     1). 是否包含 old kernel 和 old rootfs 信息，如果是，则说明是差分升级;
+     *     2). 检查差分升级和整包升级的各种版本信息;
+     *     3). 输出类似日志: "Detected a 'full' payload."
+     *     4). 检查 manifest 中的时间戳和当前运行系统的编译时间信息
+     */
     // Checks the integrity of the payload manifest.
     if ((*error = ValidateManifest()) != ErrorCode::kSuccess)
       return false;
