@@ -23,8 +23,8 @@
 - 基础入门：[《Android A/B 系统》](https://blog.csdn.net/guyongqiangx/category_12140293.html) 系列
 - 核心模块：[《Android Update Engine 分析》](https://blog.csdn.net/guyongqiangx/category_12140296.html) 系列
 - 动态分区：[《Android 动态分区》](https://blog.csdn.net/guyongqiangx/category_12140166.html) 系列
-- 虚拟分区：[《Android 虚拟 A/B 分区》](https://blog.csdn.net/guyongqiangx/category_12121868.html) 系列
-- 相关工具：《Android OTA 相关工具》系列
+- 虚拟分区：[《Android 虚拟 A/B 分区》](https://blog.csdn.net/guyongqiangx/category_12121868.html)系列
+- 相关工具：[《Android OTA 相关工具》](https://blog.csdn.net/guyongqiangx/category_12211864.html)系列
 
 > 注：工具系列还在筹划中，后面会陆续更新，主要包括已有 Android OTA 相关工具的分析讨论，以及发布一些我自己写的 OTA 工具。
 
@@ -62,39 +62,41 @@
 
 专栏地址：https://blog.csdn.net/guyongqiangx/category_12140296.html
 
-- [Android Update Engine分析（一）Makefile](https://blog.csdn.net/guyongqiangx/article/details/77650362)
+- [Android Update Engine 分析（一）Makefile](https://blog.csdn.net/guyongqiangx/article/details/77650362)
 
-- [Android Update Engine分析（二）Protobuf和AIDL文件](https://blog.csdn.net/guyongqiangx/article/details/80819901)
+- [Android Update Engine 分析（二）Protobuf和AIDL文件](https://blog.csdn.net/guyongqiangx/article/details/80819901)
 
-- [Android Update Engine分析（三）客户端进程](https://blog.csdn.net/guyongqiangx/article/details/80820399)
+- [Android Update Engine 分析（三）客户端进程](https://blog.csdn.net/guyongqiangx/article/details/80820399)
 
-- [Android Update Engine分析（四）服务端进程](https://blog.csdn.net/guyongqiangx/article/details/82116213)
+- [Android Update Engine 分析（四）服务端进程](https://blog.csdn.net/guyongqiangx/article/details/82116213)
 
-- [Android Update Engine分析（五）服务端核心之Action机制](https://blog.csdn.net/guyongqiangx/article/details/82226079)
+- [Android Update Engine 分析（五）服务端核心之Action机制](https://blog.csdn.net/guyongqiangx/article/details/82226079)
 
-- [Android Update Engine分析（六）服务端核心之Action详解](https://blog.csdn.net/guyongqiangx/article/details/82390015)
+- [Android Update Engine 分析（六）服务端核心之Action详解](https://blog.csdn.net/guyongqiangx/article/details/82390015)
 
-- [Android Update Engine分析（七） DownloadAction之FileWriter](https://blog.csdn.net/guyongqiangx/article/details/82805813)
+- [Android Update Engine 分析（七） DownloadAction之FileWriter](https://blog.csdn.net/guyongqiangx/article/details/82805813)
 
-- [Android Update Engine分析（八）升级包制作脚本分析](https://blog.csdn.net/guyongqiangx/article/details/82871409)
+- [Android Update Engine 分析（八）升级包制作脚本分析](https://blog.csdn.net/guyongqiangx/article/details/82871409)
 
-- [Android Update Engine分析（九） delta_generator 工具的 6 种操作](https://blog.csdn.net/guyongqiangx/article/details/122351084)
+- [Android Update Engine 分析（九） delta_generator 工具的 6 种操作](https://blog.csdn.net/guyongqiangx/article/details/122351084)
 
-- [Android Update Engine分析（十） 生成 payload 和 metadata 的哈希](https://blog.csdn.net/guyongqiangx/article/details/122393172)
+- [Android Update Engine 分析（十） 生成 payload 和 metadata 的哈希](https://blog.csdn.net/guyongqiangx/article/details/122393172)
 
-- [Android Update Engine分析（十一） 更新 payload 签名](https://blog.csdn.net/guyongqiangx/article/details/122597314)
+- [Android Update Engine 分析（十一） 更新 payload 签名](https://blog.csdn.net/guyongqiangx/article/details/122597314)
 
 - [Android Update Engine 分析（十二） 验证 payload 签名](https://blog.csdn.net/guyongqiangx/article/details/122634221)
 
-- [Android Update Engine分析（十三） 提取 payload 的 property 数据](https://blog.csdn.net/guyongqiangx/article/details/122646107)
+- [Android Update Engine 分析（十三） 提取 payload 的 property 数据](https://blog.csdn.net/guyongqiangx/article/details/122646107)
 
-- [Android Update Engine分析（十四） 生成 payload 数据](https://blog.csdn.net/guyongqiangx/article/details/122753185)
+- [Android Update Engine 分析（十四） 生成 payload 数据](https://blog.csdn.net/guyongqiangx/article/details/122753185)
 
 - [Android Update Engine 分析（十五） FullUpdateGenerator 策略](https://blog.csdn.net/guyongqiangx/article/details/122767273)
 
 - [Android Update Engine 分析（十六） ABGenerator 策略](https://blog.csdn.net/guyongqiangx/article/details/122886150)
 
 - [Android Update Engine 分析（十七）10 类 InstallOperation 数据的生成和应用](https://blog.csdn.net/guyongqiangx/article/details/122942628)
+
+- [Android Update Engine 分析（十八）差分数据到底是如何更新的？](https://guyongqiangx.blog.csdn.net/article/details/129464805)
 
   
 
@@ -122,19 +124,30 @@
 
 专栏地址：https://blog.csdn.net/guyongqiangx/category_12121868.html
 
-- [Android 虚拟分区详解(一) 参考资料推荐](https://blog.csdn.net/guyongqiangx/article/details/128071692)
+- [Android 虚拟 A/B 详解(一) 参考资料推荐](https://blog.csdn.net/guyongqiangx/article/details/128071692)
 
-- [Android 虚拟分区详解(二) 虚拟分区布局](https://blog.csdn.net/guyongqiangx/article/details/128167054)
+- [Android 虚拟 A/B 详解(二) 虚拟分区布局](https://blog.csdn.net/guyongqiangx/article/details/128167054)
 
-- [Android 虚拟分区详解(三) 分区状态变化](https://blog.csdn.net/guyongqiangx/article/details/128517578)
+- [Android 虚拟 A/B 详解(三) 分区状态变化](https://blog.csdn.net/guyongqiangx/article/details/128517578)
 
-- [Android 虚拟分区详解(四) 编译开关](https://blog.csdn.net/guyongqiangx/article/details/128567582)
+- [Android 虚拟 A/B 详解(四) 编译开关](https://blog.csdn.net/guyongqiangx/article/details/128567582)
 
-- [Android 虚拟分区详解(五) BootControl 接口的变化](https://blog.csdn.net/guyongqiangx/article/details/128824984)
+- [Android 虚拟 A/B 详解(五) BootControl 接口的变化](https://blog.csdn.net/guyongqiangx/article/details/128824984)
+
+- [Android 虚拟 A/B 详解(六) 升级中的状态数据保存在哪里？](https://blog.csdn.net/guyongqiangx/article/details/129094203)
+
+- [Android 虚拟 A/B 详解(七) 升级中用到了哪些标识文件？](https://guyongqiangx.blog.csdn.net/article/details/129098176)
+
+- [Android 虚拟 A/B 详解(八) cow 的大小是如何计算的？](https://guyongqiangx.blog.csdn.net/article/details/129470881)
 
 
 
-升级工具《Android OTA 相关工具》系列，待更新。
+升级工具《Android OTA 相关工具》系列，更新中。
+
+- [Android OTA 相关工具(一) 虚拟 A/B 之 snapshotctl](https://guyongqiangx.blog.csdn.net/article/details/129122159)
+- [Android OTA 相关工具(二) 动态分区之 dmctl](https://guyongqiangx.blog.csdn.net/article/details/129229115)
+- [Android OTA 相关工具(三) A/B 系统之 bootctl 工具](https://guyongqiangx.blog.csdn.net/article/details/129310109)
+- [Android OTA 相关工具(四) 查看 payload 文件信息](https://guyongqiangx.blog.csdn.net/article/details/129228856)
 
 
 
