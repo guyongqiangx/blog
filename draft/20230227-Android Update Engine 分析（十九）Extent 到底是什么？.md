@@ -88,7 +88,7 @@ ext4 中的单个 extent 最多可以映射 128 MiB 的连续空间，其块(blo
 >
 > 下图比较了 block 和 extent 的区别：采用 extent 的 btrfs 和采用 bitmap 的 ext2/3
 >
-> ![文件系统索引extent 和 bitmap区别_extent ](images-20230227-Android Update Engine 分析（十八）/ext2-3-vs-btrfs.png)
+> ![文件系统索引extent 和 bitmap区别_extent ](images-20230227-Android Update Engine 分析（十九）/ext2-3-vs-btrfs.png)
 >
 > 图 3. 采用 extent 的 btrfs 和采用 bitmap 的 ext2/3
 >
@@ -127,8 +127,6 @@ extent 方式索引空间占用小，连续读写有优势，缺点是算法复�
 
 
 ## 2. Android 中的 Extent
-
-
 
 ### 1. Payload 文件中的 extent
 
