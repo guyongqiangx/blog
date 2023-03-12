@@ -14,8 +14,8 @@
 > - [Android 虚拟 A/B 详解(四) 编译开关](https://blog.csdn.net/guyongqiangx/article/details/128567582)
 > - [Android 虚拟 A/B 详解(五) BootControl 接口的变化](https://blog.csdn.net/guyongqiangx/article/details/128824984)
 > - [Android 虚拟 A/B 详解(六) 升级中的状态数据保存在哪里？](https://blog.csdn.net/guyongqiangx/article/details/129094203)
-> - [Android 虚拟 A/B 详解(七) 升级中用到了哪些标识文件？](https://guyongqiangx.blog.csdn.net/article/details/129098176)
-> - [Android 虚拟 A/B 详解(八) cow 的大小是如何计算的？](https://guyongqiangx.blog.csdn.net/article/details/129470881)
+> - [Android 虚拟 A/B 详解(七) 升级中用到了哪些标识文件？](https://blog.csdn.net/guyongqiangx/article/details/129098176)
+> - [Android 虚拟 A/B 详解(八) cow 的大小是如何计算的？](https://blog.csdn.net/guyongqiangx/article/details/129470881)
 >
 > 对 linux 快照(snapshot) 的了解可以增加对虚拟 A/B 分区的理解：
 >
