@@ -1,4 +1,4 @@
-# 20230312-Android 虚拟 A/B 详解(九) cow 的存储位置是如何确定的？
+# 20230312-Android 虚拟 A/B 详解(九) cow 的存储是如何分配的？
 
 > 本文为洛奇看世界(guyongqiangx)原创，转载请注明出处。
 >
@@ -30,7 +30,7 @@
 
 上一篇[《Android 虚拟 A/B 详解(八) cow 的大小是如何计算的？》](https://blog.csdn.net/guyongqiangx/article/details/129470881)详细分析了快照(snapshot)设备的后端 COW 空间所需大小是如何计算的。
 
-文档 Android_VirtualAB_Design_Performance_Caveats.pdf 中有提到，VAB 在升级更新分区时，对于 COW 设备，可能由 super 设备上的空闲块，以及 `/data` 分区中的文件构成，如下：
+文档 Android_VirtualAB_Design_Performance_Caveats.pdf 中有提到，虚拟 A/B 在升级更新分区时，对于 COW 设备，可能由 super 设备上的空闲块，以及 `/data` 分区中的文件构成，原文如下：
 
 ![snapshot of system_b partition](images-20230312-Android 虚拟分区详解(九)/snapshot-of-system_b.png)
 
@@ -114,7 +114,7 @@ DeltaPerformer::Write()
 
 `CreateUpdateSnapshots` 函数内部主要分成两部分：
 
-- CreateUpdateSnapshotsInternal，主要用于虚拟分区快照相关 COW 文件的分配和创建
+- CreateUpdateSnapshotsInternal，主要用于虚拟分区快照相关 COW 文件的计算和创建
 - InitializeUpdateSnapshots，主要基于上一步创建好的 COW 文件，最终映射出虚拟分区
 
 
@@ -123,17 +123,81 @@ DeltaPerformer::Write()
 
 
 
-## 2.
+## 2. 快照 COW 文件的创建
+
+上一节说了，CreateUpdateSnapshotsInternal() 函数主要用于虚拟分区快照相关 COW 文件的计算和创建。
+
+虚拟 A/B 在创建快照分区时，其 COW 空间对应的 cow 文件，先从 super 设备上的空闲块分配，不够的部分再从 `/data` 文件夹( userdata 分区)分配。
+
+如果 super 设备上的空闲块足够分配 COW 所需空间，比如从 Android 10 动态分区系统升级上来的设备，此时直接从 super 上分配空间，不再需要额外从 `/data` 下分配文件。
 
 
 
-如图 1 所说，创建虚拟虚拟分区快照，需要 COW 文件的参与。
+### 1. CreateUpdateSnapshotsInternal 是如何被调用的？
+
+在开始详细注释 `CreateUpdateSnapshotsInternal()` 代码之前，先看下这个函数在 `CreateUpdateSnapshots()`中是如何被调用的:
+
+```c++
+Return SnapshotManager::CreateUpdateSnapshots(const DeltaArchiveManifest& manifest) {
+    // ...
+
+    /*
+     * 1. 准备 all_snapshot_status，用于保存创建 cow 的所有快照的状态
+     */
+    std::map<std::string, SnapshotStatus> all_snapshot_status;
+
+    // In case of error, automatically delete devices that are created along the way.
+    // Note that "lock" is destroyed after "created_devices", so it is safe to use |lock| for
+    // these devices.
+    /*
+     * 2. 准备 created_devices 用于保存所有创建快照分区的名字构建的 AutoDeleteSnapshot, 失败时会自动删除相应 snapshot
+     */
+    AutoDeviceList created_devices;
+
+    /*
+     * 3. 准备 cow_creator, 用于计算各种空间需求
+     */
+    PartitionCowCreator cow_creator{
+            .target_metadata = target_metadata.get(),
+            .target_suffix = target_suffix,
+            .target_partition = nullptr,
+            .current_metadata = current_metadata.get(),
+            .current_suffix = current_suffix,
+            .operations = nullptr,
+            .extra_extents = {},
+    };
+
+    /*
+     * 4. 传入 manifest 数据，根据内部的分区，计算并分配快照需要的 cow 文件
+     */
+    auto ret = CreateUpdateSnapshotsInternal(lock.get(), manifest, &cow_creator, &created_devices, &all_snapshot_status);
+    if (!ret.is_ok()) return ret;
+
+    //...
+
+    return Return::Ok();
+}
+```
 
 
 
-整个虚拟快照创建的核心流程在 CreateUpdateSnapshotsInternal 函数。
+这里提取的只是 CreateUpdateSnapshots 中调用 CreateUpdateSnapshotsInternal  函数的关键代码点而已，
+
+事实上，整个 CreateUpdateSnapshots 基本上都是在为调用 CreateUpdateSnapshotsInternal 做准备。
+
+主要的准备包括：
+
+- all_snapshot_status 用于返回所有创建的快照分区的状态信息，供后面操作使用
+- created_devices 用于保存所有创建快照分区的名字构建的 AutoDeleteSnapshot, 失败时自动删除相应 snapshot
+- cow_creator 用于计算创建 snapshot 的各种空间需求
+
+然后将 manifest 数据传递给 CreateUpdateSnapshotsInternal 函数，借助 cow_creator  计算并分配虚拟分区的 cow 文件。
 
 
+
+## 2. CreateUpdateSnapshotsInternal  详细注释
+
+整个虚拟快照创建的核心流程在 CreateUpdateSnapshotsInternal 函数，以下是函数的详细注释：
 
 ```c++
 /* system/core/fs_mgr/libsnapshot/snapshot.cpp */
@@ -146,15 +210,25 @@ Return SnapshotManager::CreateUpdateSnapshotsInternal(
     auto* target_metadata = cow_creator->target_metadata;
     const auto& target_suffix = cow_creator->target_suffix;
 
+    /*
+     * 1. 在目标槽位对应的动态分区 metadata 中添加名为 cow 的 group, 参数 0 表示 group 大小没有限制。
+     *    动态分区的 metadata 默认有 3 个 group，以 google 参考设备为例，默认包含了：
+     *    default, google_dynamic_partitions_a, google_dynamic_partitions_b
+     */
     if (!target_metadata->AddGroup(kCowGroupName, 0)) {
         LOG(ERROR) << "Cannot add group " << kCowGroupName;
         return Return::Error();
     }
 
+    /*
+     * 2. 遍历 manifest 中的所有分区，提取每个分区的 operations，以及其 hash tree 和 fec 的 extents
+     */
     std::map<std::string, const RepeatedPtrField<InstallOperation>*> install_operation_map;
     std::map<std::string, std::vector<Extent>> extra_extents_map;
     for (const auto& partition_update : manifest.partitions()) {
+        // 获取带有后缀的目标分区名字，例如 system_b, vendor_b
         auto suffixed_name = partition_update.partition_name() + target_suffix;
+        // 获取所有目标分区的 operation，保存到 install_operation_map 中
         auto&& [it, inserted] =
                 install_operation_map.emplace(suffixed_name, &partition_update.operations());
         if (!inserted) {
@@ -163,6 +237,7 @@ Return SnapshotManager::CreateUpdateSnapshotsInternal(
             return Return::Error();
         }
 
+        // 检查所有目标分区是否存在 hash tree 和 fec 相关的区段，并将其数据保存到 extra_extents 中
         auto& extra_extents = extra_extents_map[suffixed_name];
         if (partition_update.has_hash_tree_extent()) {
             extra_extents.push_back(partition_update.hash_tree_extent());
