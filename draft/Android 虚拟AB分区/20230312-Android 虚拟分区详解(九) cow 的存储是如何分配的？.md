@@ -142,7 +142,7 @@ DeltaPerformer::Write()
 
 
 
-### CreateUpdateSnapshotsInternal 是如何被调用的？
+### 1. CreateUpdateSnapshotsInternal 是如何被调用的？
 
 在开始详细注释 `CreateUpdateSnapshotsInternal()` 代码之前，先看下这个函数在 `CreateUpdateSnapshots()`中是如何被调用的:
 
@@ -204,7 +204,7 @@ Return SnapshotManager::CreateUpdateSnapshots(const DeltaArchiveManifest& manife
 
 
 
-## 3. CreateUpdateSnapshotsInternal  详细注释
+### 2. CreateUpdateSnapshotsInternal  详细注释
 
 整个虚拟快照创建的核心流程在 CreateUpdateSnapshotsInternal 函数，以下是函数的详细注释：
 
@@ -455,7 +455,7 @@ Return SnapshotManager::CreateUpdateSnapshotsInternal(
   00000010: 2e 69 6d 67 2e 30 30 30 30 0a                    .img.0000.
   ```
 
-## 4. `PartitionCowCreator::Run()` 函数
+### 3. PartitionCowCreator::Run() 函数
 
 在上一节注释 CreateUpdateSnapshotsInternal  函数时，步骤 3.3 只做了简单说明，这里将这个函数展开详细分析。
 
@@ -587,7 +587,231 @@ std::optional<PartitionCowCreator::Return> PartitionCowCreator::Run() {
 
 
 
-## 5. 总结和思考
+## 3. 快照 COW 文件的存储
+
+在前一节中提到，PartitionCowCreator::Run() 函数会根据 manifest 中的 InstallOperation, 以及 hash tree 和 fec 数据，计算快照分区 COW 所需空间。
+
+如果 super 设备上还有空闲空间，则 `cow_partition_size` 表示 super 分区上分配用于 COW 的空间大小；剩余不足的部分从 userdata 分区(/data 目录)分配，这部分大小由 `cow_file_size` 表示。
+
+这一节我们详细分析 super 设备和 `/data` 目录下的 COW 到底是如何存储的。
+
+### 1. super 设备上的 COW
+
+在 CreateUpdateSnapshotsInternal()  函数中是这样处理 `cow_partition_size > 0` 的情况的：
+
+> 假设当前系统运行在 system_a 上，以升级虚拟的 system_b 为例。
+
+```c++
+// Create the COW partition. That is, use any remaining free space in super partition before
+// creating the COW images.
+if (cow_creator_ret->snapshot_status.cow_partition_size() > 0) {
+    CHECK(cow_creator_ret->snapshot_status.cow_partition_size() % kSectorSize == 0)
+            << "cow_partition_size == "
+            << cow_creator_ret->snapshot_status.cow_partition_size()
+            << " is not a multiple of sector size " << kSectorSize;
+    /*
+     * 1. 在 super 设备名为 cow 的 group 上创建名为 system_b-cow 的分区
+     */
+    auto cow_partition = target_metadata->AddPartition(GetCowName(target_partition->name()),
+                                                       kCowGroupName, 0 /* flags */);
+    if (cow_partition == nullptr) {
+        return Return::Error();
+    }
+
+    /*
+     * 2. 根据 cow_partition_size 和 super 设备上可用的区域调整 system_b-cow 分区大小
+     */
+    if (!target_metadata->ResizePartition(
+                cow_partition, cow_creator_ret->snapshot_status.cow_partition_size(),
+                cow_creator_ret->cow_partition_usable_regions)) {
+        LOG(ERROR) << "Cannot create COW partition on metadata with size "
+                   << cow_creator_ret->snapshot_status.cow_partition_size();
+        return Return::Error();
+    }
+    // Only the in-memory target_metadata is modified; nothing to clean up if there is an
+    // error in the future.
+}
+```
+
+
+
+在 super 设备上分配 COW 主要有以下两个操作：
+
+1. 在 super 设备名为 "cow" 的 group 上创建名为 `system_b-cow` 的分区；
+2. 根据 `cow_partition_size` 调整 super 设备上 `system_b-cow` 分区大小(主要是对齐调整)
+
+
+
+### 2. /data 目录中的 COW
+
+在 CreateUpdateSnapshotsInternal()  函数中是这样处理 `cow_file_size > 0` 的情况的：
+
+```c++
+LOG(INFO) << "Allocating CoW images.";
+
+/* 遍历所有虚拟分区的 snapshot_status */
+for (auto&& [name, snapshot_status] : *all_snapshot_status) {
+    // Create the backing COW image if necessary.
+    if (snapshot_status.cow_file_size() > 0) {
+        /* 根据 name，在 /data 下分配相应分区的 cow 文件 */
+        auto ret = CreateCowImage(lock, name);
+        /* 分配 cow 文件失败，计算并打印所需空间信息 */
+        if (!ret.is_ok()) return AddRequiredSpace(ret, *all_snapshot_status);
+    }
+
+    LOG(INFO) << "Successfully created snapshot for " << name;
+}
+```
+
+这里从 /data 下分配 cow 比较简单，直接传入分区名字，然后一个调用 `CreateCowImage(lock, name)` 搞定。
+
+
+
+####CreateCowImage 函数 
+
+具体是怎么做的呢？让我们深入一层往下看看 `CreateCowImage()` 函数的实现：
+
+```c++
+/* file: system/core/fs_mgr/libsnapshot/snapshot.cpp */
+Return SnapshotManager::CreateCowImage(LockedFile* lock, const std::string& name) {
+    CHECK(lock);
+    CHECK(lock->lock_mode() == LOCK_EX);
+    /*
+     * 1. 基于 ota 目录创建 IImageManager 对象，该对象的 metadata 位于 /metadata/gsi/ota 目录，data 位于 /data/gsi/ota 目录
+     */
+    if (!EnsureImageManager()) return Return::Error();
+
+    /*
+     * 2. 根据分区名读取快照状态文件，
+     *    例如: /metadata/ota/snapshots/system_b
+     */
+    SnapshotStatus status;
+    if (!ReadSnapshotStatus(lock, name, &status)) {
+        return Return::Error();
+    }
+
+    // The COW file size should have been rounded up to the nearest sector in CreateSnapshot.
+    // Sanity check this.
+    if (status.cow_file_size() % kSectorSize != 0) {
+        LOG(ERROR) << "Snapshot " << name << " COW file size is not a multiple of the sector size: "
+                   << status.cow_file_size();
+        return Return::Error();
+    }
+
+    /*
+     * 3. 调用 ImageManager::CreateBackingImage() 分配 cow 文件
+     */
+    std::string cow_image_name = GetCowImageDeviceName(name);
+    int cow_flags = IImageManager::CREATE_IMAGE_DEFAULT;
+    return Return(images_->CreateBackingImage(cow_image_name, status.cow_file_size(), cow_flags));
+}
+```
+
+说来说去，CreateCowImage() 函数并不是真正干活的那位，它干的事情主要有：
+
+1. 确保基于 ota 目录创建的 IImageManager 对象被正确初始化。
+
+   该对象的 metadata 位于 /metadata/gsi/ota 目录，data 位于 /data/gsi/ota 目录
+
+2. 根据分区名读取快照状态文件(例如: /metadata/ota/snapshots/system_b)，提取快照的 `cow_file_size`数据
+
+3. 把 name 和 `cow_file_size`作为参数传递给 `CreateBackingImage()`，让它真正去干文件分配的活。
+
+
+
+所以，最后真正干活的是 `ImageManager::CreateBackingImage()` 函数。
+
+
+
+#### CreateBackingImage 函数
+
+```c++
+/* file: system/core/fs_mgr/libfiemap/image_manager.cpp */
+FiemapStatus ImageManager::CreateBackingImage(
+        const std::string& name, uint64_t size, int flags,
+        std::function<bool(uint64_t, uint64_t)>&& on_progress) {
+    /*
+     * 1. 获取 cow image 在 ota data 目录下的路径名称(例如: /data/gsi/ota/system_b-cow-img.img)
+     *    对于 IImageManager 对象，其 data 目录在 EnsureImageManager()已经初始化为 /data/gsi/ota
+     *    所以如果这里要创建 system_b 的 cow 文件，则相应的路径为:
+     *    /data/gsi/ota/system_b-cow-img.img
+     */
+    auto data_path = GetImageHeaderPath(name);
+    std::unique_ptr<SplitFiemap> fw;
+    auto status = SplitFiemap::Create(data_path, size, 0, &fw, on_progress);
+    if (!status.is_ok()) {
+        return status;
+    }
+
+    bool reliable_pinning;
+    if (!FilesystemHasReliablePinning(data_path, &reliable_pinning)) {
+        return FiemapStatus::Error();
+    }
+    if (!reliable_pinning && !IsUnreliablePinningAllowed(data_path)) {
+        // For historical reasons, we allow unreliable pinning for certain use
+        // cases (DSUs, testing) because the ultimate use case is either
+        // developer-oriented or ephemeral (the intent is to boot immediately
+        // into DSUs). For everything else - such as snapshots/OTAs or adb
+        // remount, we have a higher bar, and require the filesystem to support
+        // proper pinning.
+        LOG(ERROR) << "File system does not have reliable block pinning";
+        SplitFiemap::RemoveSplitFiles(data_path);
+        return FiemapStatus::Error();
+    }
+
+    // Except for testing, we do not allow persisting metadata that references
+    // device-mapper devices. It just doesn't make sense, because the device
+    // numbering may change on reboot. We allow it for testing since the images
+    // are not meant to survive reboot. Outside of tests, this can only happen
+    // if device-mapper is stacked in some complex way not supported by
+    // FiemapWriter.
+    auto device_path = GetDevicePathForFile(fw.get());
+    if (android::base::StartsWith(device_path, "/dev/block/dm-") && !IsTestDir(metadata_dir_)) {
+        LOG(ERROR) << "Cannot persist images against device-mapper device: " << device_path;
+
+        fw = {};
+        SplitFiemap::RemoveSplitFiles(data_path);
+        return FiemapStatus::Error();
+    }
+
+    bool readonly = !!(flags & CREATE_IMAGE_READONLY);
+    if (!UpdateMetadata(metadata_dir_, name, fw.get(), size, readonly)) {
+        return FiemapStatus::Error();
+    }
+
+    if (flags & CREATE_IMAGE_ZERO_FILL) {
+        auto res = ZeroFillNewImage(name, 0);
+        if (!res.is_ok()) {
+            DeleteBackingImage(name);
+            return res;
+        }
+    }
+    return FiemapStatus::Ok();
+}
+```
+
+
+
+所以，这里 cow 文件的创建路径如下：
+
+```
+SnapshotManager::CreateCowImage(name)
+   --> EnsureImageManager()
+   --> ReadSnapshotStatus(name, &status)
+   --> ImageManagerBinder::CreateBackingImage(cow_image_name, cow_file_size, flags)
+      --> ImageService::createBackingImage(name, size, flags)
+         --> ImageManager::CreateBackingImage(name, size, flags)
+            --> SplitFiemap::Create(data_path, size, 0)
+               --> SplitFiemap::RemoveSplitFiles(file_path)
+               --> FiemapWriter::Open(chunk_path, chunk_size)
+               --> WriteFully(file_path, line.data(), line.size())
+            --> UpdateMetadata(metadata_dir_, name, fw, size, readonly)
+            --> ImageManager::ZeroFillNewImage(name, 0)
+```
+
+
+
+## 4. 总结和思考
 
 虚拟 A/B 分区的重点就是升级过程中对虚拟分区的处理，包括虚拟分区的创建，管理和删除。
 
@@ -664,7 +888,7 @@ std::optional<PartitionCowCreator::Return> PartitionCowCreator::Run() {
 
 
 
-## 6. 其它
+## 5. 其它
 
 到目前为止，我写过 Android OTA 升级相关的话题包括：
 
