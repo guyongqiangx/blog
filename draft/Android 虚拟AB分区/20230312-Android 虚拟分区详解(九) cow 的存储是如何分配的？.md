@@ -577,7 +577,7 @@ std::optional<PartitionCowCreator::Return> PartitionCowCreator::Run() {
 
 
 
-特别需要说明的是，snapshot.proto 文件中 SnapshotStatus 消息结构有两个成员 `cow_partition_size` 和 `cow_file_size`，分别用于表示快照从 super 设备分配空间用于 cow 的大小，和从 `/data` 目录下分配we你按用于 cow 的大小。二者之和，就是整个快照设备 cow 的大小，即：
+特别需要说明的是，snapshot.proto 文件中 SnapshotStatus 消息结构有两个成员 `cow_partition_size` 和 `cow_file_size`，分别用于表示快照从 super 设备分配空间用于 cow 的大小，和从 `/data` 目录下分配 cow 文件的大小。二者之和，就是整个快照设备 cow 的大小，即：
 
 `cow_size = cow_partition_size + cow_file_size`
 
@@ -589,7 +589,7 @@ std::optional<PartitionCowCreator::Return> PartitionCowCreator::Run() {
 
 ## 3. 快照 COW 文件的存储
 
-在前一节中提到，PartitionCowCreator::Run() 函数会根据 manifest 中的 InstallOperation, 以及 hash tree 和 fec 数据，计算快照分区 COW 所需空间。
+在前一节中提到，`PartitionCowCreator::Run()` 函数会根据 manifest 中的 InstallOperation, 以及 hash tree 和 fec 数据，计算快照分区 COW 所需空间。
 
 如果 super 设备上还有空闲空间，则 `cow_partition_size` 表示 super 分区上分配用于 COW 的空间大小；剩余不足的部分从 userdata 分区(/data 目录)分配，这部分大小由 `cow_file_size` 表示。
 
@@ -683,7 +683,7 @@ Return SnapshotManager::CreateCowImage(LockedFile* lock, const std::string& name
 
     /*
      * 2. 根据分区名读取快照状态文件，
-     *    例如: /metadata/ota/snapshots/system_b
+     *    例如 system_b 的快照状态文件位于: /metadata/ota/snapshots/system_b
      */
     SnapshotStatus status;
     if (!ReadSnapshotStatus(lock, name, &status)) {
@@ -790,9 +790,9 @@ FiemapStatus ImageManager::CreateBackingImage(
 }
 ```
 
+CreateBackingImage 的中调用创建 cow 文件的操作也比较复杂，这里不再详细分析，后面专门用一篇单独说明 FieMAP 文件的分配原理。
 
-
-所以，这里 cow 文件的创建路径如下：
+总体来说，这里 cow 文件的创建路径如下：
 
 ```
 SnapshotManager::CreateCowImage(name)
@@ -809,9 +809,20 @@ SnapshotManager::CreateCowImage(name)
             --> ImageManager::ZeroFillNewImage(name, 0)
 ```
 
+COW 文件创建完成后，将会在以下两个目录中生成文件：
 
+1. 在 ota data 目录下(/data/gsi/ota) 得到：(以 system_b 为例)
+   - 分区 cow 的文件列表: /data/gsi/ota/system_b-cow-img.img
+   - 分区 cow 的分块数据文件，/data/gsi/ota/system_b-cow-img.img.0000
+
+2. 在 ota metadata 目录下(/metadata/gsi/ota) 得到:
+   - 所有 cow 文件的 metadata 描述数据: /metadata/gsi/ota/lp_metadata
+
+系统在更新完成准备 merge 的 first init 阶段，通过读取 /metadata/gsi/ota/lp_metadata 得到所有分区在 /data 下的 cow 文件信息，在加上分区在 super 设备上分配的 COW 空间一起，构成了分区完整的 COW 设备，再这基础上得到更新时的快照设备。
 
 ## 4. 总结和思考
+
+### 1. 分区的总体准备流程
 
 虚拟 A/B 分区的重点就是升级过程中对虚拟分区的处理，包括虚拟分区的创建，管理和删除。
 
@@ -844,6 +855,8 @@ SnapshotManager::CreateCowImage(name)
 - InitializeUpdateSnapshots，主要基于上一步创建好的 COW 文件，最终映射出虚拟分区
 
 
+
+### 2. COW 的分配流程
 
 虚拟 A/B 在创建快照分区时，其 COW 空间对应的 cow 文件，先从 super 设备上的空闲块分配，不够的部分再从 `/data` 文件夹( userdata 分区)分配。
 
@@ -881,10 +894,39 @@ SnapshotManager::CreateCowImage(name)
 
 
 
+### 3. Super 设备上的 COW
+
+如果 super 设备上还有空闲空间，则 `cow_partition_size` 表示 super 分区上分配用于 COW 的空间大小；
+
+先在 super 设备的 metadata 中名为 "cow" 的 group 上创建名为 `system_b-cow` 的分区；
+
+然后根据 `cow_partition_size` 调整 super 设备上 `system_b-cow` 分区大小(主要是对齐调整)
+
+
+
+### 4. /data 目录中的 COW
+
+`cow_file_size` 表示从 /data 目录中分配的 COW 空间的大小。
+
+/data 目录下的 COW 文件创建完成后，将会在以下两个目录中生成文件 COW 相关文件：
+
+1. 在 ota data 目录下(/data/gsi/ota) 得到：(以 system_b 为例)
+   - 分区 cow 的文件列表: /data/gsi/ota/system_b-cow-img.img
+   - 分区 cow 的分块数据文件，/data/gsi/ota/system_b-cow-img.img.0000
+
+2. 在 ota metadata 目录下(/metadata/gsi/ota) 得到:
+   - 所有 cow 文件的 metadata 描述数据: /metadata/gsi/ota/lp_metadata
+
+系统在更新完成准备 merge 的 first init 阶段，通过读取 /metadata/gsi/ota/lp_metadata 得到所有分区在 /data 下的 cow 文件信息，在加上分区在 super 设备上分配的 COW 空间一起，构成了分区完整的 COW 设备，再这基础上得到更新时的快照设备。
+
+
+
 > 思考题：
 >
 > 1. 为什么通过统计 manifest 中分区的 InstallOperations 以及 hash tree 和 fec 等数据就能得到 COW 的大小？
 > 2. super 设备上的空闲空间到底是如何计算出来的？
+> 3. 分区完整的 COW 设备到底是如何构成的？
+> 4. 在分配 COW 的过程中，一共修改或创建了哪些文件？
 
 
 
