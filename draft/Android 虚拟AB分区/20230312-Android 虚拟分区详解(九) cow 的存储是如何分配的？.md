@@ -415,8 +415,8 @@ Return SnapshotManager::CreateUpdateSnapshotsInternal(
 汇总一下 CreateUpdateSnapshotsInternal 函数所做的事情：
 
 1. 在目标槽位对应的动态分区 metadata 中添加名为 cow 的 group。
-  对于动态分区，默认有 3 个 group，以 google 参考设备为例，分别是 `default`, `google_dynamic_partitions_a` 和 `google_dynamic_partitions_b`。
-  对于虚拟分区，由于 super 设备上只有一个槽位数据，所以 A/B 槽位的 slot 只有一个。
+    对于动态分区，默认有 3 个 group，以 google 参考设备为例，分别是 `default`, `google_dynamic_partitions_a` 和 `google_dynamic_partitions_b`。
+    对于虚拟分区，由于 super 设备上只有一个槽位数据，所以 A/B 槽位的 slot 只有一个。
 
 2. 遍历 manifest 中的所有分区，提取每个分区的 operations，以及其 hash tree 和 fec 的 extents 用于后面计算各分区需要的 cow 大小。
 
@@ -424,6 +424,7 @@ Return SnapshotManager::CreateUpdateSnapshotsInternal(
   1. 保存从 manifest 中提取的分区 operations，用于计算 cow
   2. 保存从 manifest 中提取的分区 extra extents，用于计算 cow
   3. 调用 `PartitionCowCreator::Run()` 函数，计算快照的 cow 所需空间，设置 cow_partition_size 和 cow_file_size
+
     1). 计算 super 设备的空闲块，
     2). 通过分区 operations 和 extra extents 计算 COW 所需空间的大小，
     3). 设置从 super 分配 cow 的大小(`cow_partition_size`)，
@@ -432,6 +433,7 @@ Return SnapshotManager::CreateUpdateSnapshotsInternal(
   4. 输出 cow 状态信息 log："`For partition system_b, device size = 1263079424, snapshot size = 1263079424, cow partition size = 119177216, cow file size = 1148841984`"
   5. 如果目标分区存在快照设备，则删除目标分区现有的快照设备
   6. 检查当前分区是否需要进行快照
+
     1). `snapshot_size` 表示分区快照设备的大小， snapshot_size > 0 说明需要对设备做快照
     2). `cow_partition_size` 表示从 super 设备上分批用于 cow 的空间大小
     3). `cow_file_size` 表示从 /data 分区分配用于 cow 文件的大小
@@ -738,6 +740,13 @@ FiemapStatus ImageManager::CreateBackingImage(
      */
     auto data_path = GetImageHeaderPath(name);
     std::unique_ptr<SplitFiemap> fw;
+
+    /*
+     * 2. 使用 SplitFiemap 的方式在 /data/gsi/ota 下创建文件，如果申请一个超大文件，将会被分成多个子文件存放，每个 2GB 大小，编号分别是 0000, 0001...
+     *    以分配 system_b-cow 分区的文件为例，将生成以下文件:
+     *    1). 列表文件: /data/gsi/ota/system_b-cow-img.img
+     *    2). COW 文件: /data/gsi/ota/system_b-cow-img.img.0000
+     */
     auto status = SplitFiemap::Create(data_path, size, 0, &fw, on_progress);
     if (!status.is_ok()) {
         return status;
@@ -790,7 +799,7 @@ FiemapStatus ImageManager::CreateBackingImage(
 }
 ```
 
-CreateBackingImage 的中调用创建 cow 文件的操作也比较复杂，这里不再详细分析，后面专门用一篇单独说明 FieMAP 文件的分配原理。
+CreateBackingImage 中调用创建 cow 文件的操作也比较复杂，这里不再详细分析，后面专门用一篇单独说明 Fiemap 文件的分配原理。
 
 总体来说，这里 cow 文件的创建路径如下：
 
