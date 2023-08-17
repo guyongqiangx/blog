@@ -6,8 +6,9 @@
 
 - 20230227-Android Update Engine 分析（十九）Extent 到底是什么？
 - 20230816-Android Update Engine 分析（二十）为什么差分包比全量包小，但升级时间却更长？
+- 20230816-Android Update Engine 分析（二十一）全量和增量 Payload 简单总结
 - 升级后如何自动清除用户数据(userdata)? `--wipe-data`
-- update.zip 是如何生成的？
+- update.zip 是如何打包生成的？
 - 升级后如何同步两个槽位？
 - 如何使用 lldb 调试 host 应用?
 - 如何使用 lldb 调试 update engine?
