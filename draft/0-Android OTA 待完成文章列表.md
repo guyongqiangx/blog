@@ -4,15 +4,16 @@
 
 ## A/B 系统
 
-- 20230227-Android Update Engine 分析（十九）Extent 到底是什么？
+- 20230227-Android Update Engine 分析（十九）Extent 到底是个什么鬼？
 - 20230816-Android Update Engine 分析（二十）为什么差分包比全量包小，但升级时间却更长？
-- 20230816-Android Update Engine 分析（二十一）全量和增量 Payload 简单总结
+- 20230816-Android Update Engine 分析（二十一）Payload 科普
 - 升级后如何自动清除用户数据(userdata)? `--wipe-data`
 - update.zip 是如何打包生成的？
 - 升级后如何同步两个槽位？
 - 如何使用 lldb 调试 host 应用?
 - 如何使用 lldb 调试 update engine?
 - 升级中有哪些检查校验哈希的地方？
+- 升级过程中到底做了哪些 IO?
 
 ## 动态分区
 
@@ -22,6 +23,13 @@
 
 
 ## 虚拟分区
+
+
+
+## OTA 相关工具
+
+- 关于 google.protobuf 错误
+- 
 
 
 
