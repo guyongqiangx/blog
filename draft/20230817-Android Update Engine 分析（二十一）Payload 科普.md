@@ -46,9 +46,9 @@
 
 ## 1. Chrome OS 的更新过程
 
-> 之所以提到 Chrome OS，是因为 Android A/B 系统最初时在 Chrome OS 上开发使用的，后来引入到 Android 中，并逐渐以 Android 为重心。到目前为止， Update Engine 在 Chrome OS 和 Android 上共用同一个源码库。
+> 注: 之所以提到 Chrome OS，是因为 Android A/B 系统最初是在 Chrome OS 上开发使用的，后来引入到 Android 中，并逐渐以 Android 为重心。到目前为止， Update Engine 在 Chrome OS 和 Android 上共用同一个源码库。
 
-在现今的操作系统(如 Chrome OS 和 Android )中， 系统更新被称为 A/B 更新、无线(OTA)更新、无缝(seamless)更新或简单的自动更新。Windows 和 macOS 这些系统的更新比较原始(Android A/B 更新之前的系统也是如此)，系统更新时需要启动到特殊模式来重写系统分区，并且需要花费几分钟到几小时来完成更新。相比之下，A/B 更新有几个优点， 包括但不限于:
+在现今的操作系统(如 Chrome OS 和 Android )中， 系统更新被称为 A/B 更新、无线(OTA)更新、无缝(seamless)更新或简单的自动更新。Windows 和 macOS 这些系统的更新方式比较原始(Android A/B 更新之前的系统也是如此)，系统更新时需要启动到特殊模式来重写系统分区，并且需要花费几分钟到几小时来完成更新。相比之下，A/B 更新有几个优点， 包括但不限于:
 
 - 在更新时和更新后，系统保留了一套可正常工作的系统。因此，减少了设备变砖的可能性。也减少了维修和质保时需要手动刷新设备的需求。
 
@@ -62,13 +62,13 @@
 
 - 用户不需要为更新预留足够的空间。系统已经为两个分区副本(A 和 B)预留了足够的空间。系统甚至不需要任何磁盘缓存(通常是 cache 分区)，一切无缝无感地从网络传输到内存，再更新到非活动分区。
 
-  > Android 在 A/B 更新之前的系统(Recovery)，需要下载升级文件到 cache 分区，并重启到 Recovery 模式完成升级。
+  > 注: Android 在 A/B 更新之前的系统(Recovery)，需要下载升级文件到 cache 分区，并重启到 Recovery 模式完成升级。
 
-### 1. A/B 更新的生命周期
+### 1.1 A/B 更新的生命周期
 
 在支持 A/B 更新的系统中，每个分区(如 kernel 或 root)都有两个副本。我们将这两个副本称为活动(A)分区和非活动(B)分区。系统启动到活动分区(根据哪个副本在启动时具有更高优先级)，当有新的更新可用时，它将被写入非活动分区。更新成功重启后，之前的非活动分区变成活动分区，旧的活动分区变成非活动分区。
 
-> 简单来说就是系统有 A/B 两套分区，当前使用的那套分区称为活动分区(A)，另外一套为非活动分区(B)。升级时更新非活动分区(B)，重启后系统从分区 B 启动，此时活动分区(B)和非活动分区(A)发生转换。
+> 注: 简单来说就是系统有 A/B 两套分区，当前使用的那套分区称为活动分区(A)，另外一套为非活动分区(B)。升级时更新非活动分区(B)，重启后系统从分区 B 启动，此时活动分区(B)和非活动分区(A)发生转换。
 
 
 
@@ -76,33 +76,33 @@
 
 而**安装(Installation)**实际上又可以分为**下载安装(Download & Install)**，**哈希校验(Hash Verification & Verity Computation)**，**后安装(Postinstall)** 和**最后调整(Finishing Touchese)** 这几个子阶段。
 
-> 我不太习惯这里提到的各阶段描述的术语。
+> 注: 我自己其实不太习惯这里提到的各阶段描述的术语。
 >
-> 任何系统的更新，核心就是升级数据。所有的操作都围绕升级数据展开，涉及的阶段包括：
+> 任何系统的更新，核心就是升级数据。所有的操作都围绕升级数据展开，一般涉及的阶段包括：
 >
 > 1. 制作升级包：服务端使用系统镜像制作升级包数据
-> 2. 传输升级包：服务端把升级包数据传送到客户端
+> 2. 传输升级包：服务端制作的升级包数据通过各种方式传输到客户端
 > 3. 使用升级包：客户端使用接收到的升级包数据进行升级
 
 
 
-#### 生成(Generation)
+#### 1.1.1 生成(Generation)
 
-一切都始于为每个新系统镜像在(谷歌)服务器上生成 OTA 软件包。这是通过调用工具脚本 `ota_from_target_files`，使用源构建(source build)和目标构建(destination build)作为参数。此脚本需要target_file.zip 才能工作，普通的系统镜像(.img)文件是不够的。
+升级流程始于为每个新系统镜像在(谷歌)服务器上生成 OTA 软件包。这是通过调用工具脚本 `ota_from_target_files`，使用源构建(source build)和目标构建(destination build)作为参数。此脚本需要target_file.zip 才能工作，普通的系统镜像(.img)文件是不够的。
 
-> 在 Android 上编译时，使用 "`make dist`" 命令会生成相应的 target_file.zip 文件和各个分区镜像。
+> 注: 在 Android 上编译时，使用 "`make dist`" 命令会生成相应的 target_file.zip 文件和各个分区镜像。
 
 
 
-#### 分发/配置(Distribution/Configuration)
+#### 1.1.2 分发/配置(Distribution/Configuration)
 
 生成OTA包后，使用特定密钥对其进行签名并存储在更新服务器(GOTA)已知的位置。然后，GOTA将通过公共 URL 使该 OTA 更新可用。可选地，运营商可以选择仅针对特定子集的设备提供此 OTA 更新。
 
-> OTA 包制作好以后，使用特定的秘钥签名，并上传到升级服务器上，通过公开的 URL 访问。如果系统带有 GMS 服务，就需要上传到 GOTA  服务器上。国内一般各厂家都有自己的升级服务器，不使用谷歌的 GOTA 服务器。
+> 注: OTA 包制作好以后，使用特定的秘钥签名，并上传到升级服务器上，通过公开的 URL 访问。如果系统带有 GMS 服务，就需要上传到 GOTA  服务器上。国内一般各厂家都有自己的升级服务器，不使用谷歌的 GOTA 服务器。
 
 
 
-#### 安装(Installation)
+#### 1.1.3 安装(Installation)
 
 当设备上的升级应用发起升级后(周期性地或用户启动)，它首先会查询不同的设备策略以查看是否允许更新检查。例如，设备策略可以在一天中的某些时间防止更新检查，或者要求随机分散更新检查时间等。
 
@@ -114,7 +114,9 @@
 
 然后，设备将实际安装处理 OTA 更新。这大致分为3个步骤。
 
-##### **下载和安装(Download & Install)**
+
+
+##### 1. **下载和安装(Download & Install)**
 
 每个 Payload 由两个主要部分组成：元数据(metadata)和额外数据。元数据包含要执行的操作列表。额外数据包含某些或所有这些操作所需的数据块  blob。升级应用首先下载元数据，并使用更新服务器响应中提供的签名对其进行加密验证。一旦验证元数据有效，则可以轻松通过密码学手段(主要通过 SHA256 哈希)验证 Payload 的其余部分。
 
@@ -124,21 +126,27 @@
 
 在下载期间，升级应用会对计算所下载字节的哈希值，当下载完成时，它会检查 Payload 签名(位于 Payload 末尾)。如果无法验证签名，则拒绝更新。
 
-> 密码学上， 哈希值可以累积计算，所以 payload 下载时可以一边下载，一般计算所下载数据的 hash 值。当所有数据都下载完成后就得到了整个 payload 的哈希值。这个哈希值将用来校验整个升级数据的签名。 
+> 注: 密码学上， 哈希值可以累积计算，所以 payload 下载时可以一边下载，一般计算所下载数据的 hash 值。当所有数据都下载完成后就得到了整个 payload 的哈希值。这个哈希值将用来校验整个升级数据的签名。 
 
-##### **哈希验证和校验计算(Hash Verification & Verity Computation)**
+
+
+##### 2. **哈希验证和校验计算(Hash Verification & Verity Computation)**
 
 在非活动分区更新后，升级应用将为每个分区计算前向错误校正码(也称为FEC码、校验)，并将计算的校验数据写入非活动分区。在某些更新中，校验数据包含在额外数据中，所以此步骤将被跳过。 
 
 然后，重新读取整个分区、计算哈希并与元数据中传递的分区哈希值进行比较，以确保更新已成功写入分区。此步骤中计算的哈希值包括上一步中写入的 FEC 校验码。
 
-##### **后安装步骤(Postintall)**
 
-> 我其实不知道该如何翻译 Postinstall 这个词，意思就是在 install 之后还要执行一些操作。参考各种后 xx 时代的叫法，这里暂且叫做后安装吧或者保持原样叫 postinstall。
+
+##### 3. **后安装步骤(Postintall)**
+
+> 注: 我其实不知道该如何翻译 Postinstall 这个词，意思就是在 install 之后还要执行一些操作。参考各种后 xx 时代的叫法，这里暂且叫做后安装吧或者保持原样叫 postinstall。
 
 在下一步中，如果有的话，调用 Postinstall 脚本。从 OTA 的角度来看，这些 Postinstall 脚本就是黑盒。通常Postinstall 脚本将优化存在的应用程序和运行文件系统垃圾回收，以便设备可以在 OTA 后快速启动。但这些是由其他团队管理的。
 
-##### **最后调整(Finishing Touches)**
+
+
+##### 4. **最后调整(Finishing Touches)**
 
 然后，升级应用进入一种状态，指示更新已完成，用户需要重新启动系统。在这一点上，在用户重新启动(或注销)之前，升级应用不会执行任何更多的系统更新，哪怕又存在新的更新。但是，它确实会继续执行定期的更新检查，以便我们获得现实环境中活跃设备的统计数据。
 
@@ -146,9 +154,11 @@
 
 此时 A/B 更新就被认为已完成。虚拟 A/B 更新在这之后还有一个称为“合并”(merging)的步骤。合并通常需要几分钟，之后虚拟 A/B 更新才被认为完成了。
 
-### 2. 更新引擎守护进程
 
-A/B 更新的核心叫做 Update Engine，对应于一个叫做 `update_engine` 的单线程守护进程，始终运行。这个进程是自动更新的核心。它在后台以较低优先级运行，是系统启动后最后启动的进程之一。不同的客户端(如GMS Core或其他服务)可以向 Update Engine 发送更新检查请求。关于如何将请求传递给更新引擎的详情因系统而异，但在Chrome OS 中是 D-Bus。查看 D-Bus 接口以获取所有可用方法的列表。在 Android 上是 binder。
+
+### 1.2 更新引擎守护进程(update engine daemon)
+
+A/B 更新的核心叫做 Update Engine，程序上对应于一个叫做 `update_engine` 的单线程守护进程，始终运行。这个进程是自动更新的核心。它在后台以较低优先级运行，是系统启动后最后启动的进程之一。不同的客户端(如GMS Core 或其他服务)可以向 Update Engine 发送更新检查请求。关于如何将请求传递给更新引擎的详情因系统而异，但在Chrome OS 中是 D-Bus。查看 D-Bus 接口以获取所有可用方法的列表。在 Android 上是 binder。
 
 更新引擎中嵌入了许多弹性功能，使自动更新强大，包括但不限于:
 
@@ -162,92 +172,139 @@ A/B 更新的核心叫做 Update Engine，对应于一个叫做 `update_engine` 
 
 升级应用会将其活动设置和数据写入 `/data/misc/update_engine/prefs`。这些数据有助于跟踪升级应用生命周期中的更改，并允许在失败尝试或崩溃后正确继续更新过程。
 
-#### 交互式 vs 非交互式 vs 强制更新
 
-非交互式更新是更新引擎定期计划的更新，在后台进行。另一方面，交互式更新发生在用户明确请求更新检查时(例如，通过点击 Chrome OS “关于” 页面上的 “检查更新” 按钮)。
+
+#### 1.2.1 交互式 vs 非交互式 vs 强制更新
+
+非交互式更新由 update engine 在后台定期计划执行。
+
+交互式更新发生在用户明确请求更新检查时(例如，通过点击 Chrome OS “关于” 页面上的 “检查更新” 按钮)。
+
+
 
 根据更新服务器的策略，交互式更新比非交互式更新具有更高的优先级(通过携带标记提示)。当服务器负载繁忙时等，它们可以决定不提供更新。这两种类型的更新之间也存在其他内部差异。例如，交互式更新试图更快地安装更新。
+
+> 注: 
+>
+> 非交互式更新在后台静默执行，无感，所以优先级较低。
+>
+> 交互式更新通常发生在用户升级界面上，在前台执行，用户在界面操作更新时，自然希望尽快完成，拥有较高优先级。
 
 强制更新类似于交互式更新(由某种用户操作启动)，但它们也可以配置为像非交互式一样运行。由于非交互式更新定期发生，强制非交互式更新会在请求时立即触发非交互式更新，而不是在稍后时间。我们可以使用以下命令调用强制非交互式更新:
 
 ```update_engine_client --interactive=false --check_for_update```
 
-#### 网络
 
-根据设备连接的网络，升级应用可以通过以太网、WiFi或蜂窝网络下载Payload。通过蜂窝网络下载会需要用户许可，因为它可能会消耗大量数据。
 
-#### 日志
+#### 1.2.2 网络
 
-在Chrome OS中，update_engine日志位于/var/log/update_engine目录中。每当update_engine启动时，它都会使用当前日期时间格式启动一个新的日志文件，日志文件名中包含日期时间(update_engine.log-DATE-TIME)。在更新引擎重新启动或系统重新启动几次后，/var/log/update_engine中会出现许多日志文件。最新的活动日志通过符号链接/var/log/update_engine.log链接。
+根据设备连接的网络，升级应用可以通过以太网、WiFi或蜂窝网络下载Payload。通过蜂窝网络下载可能会消耗大量数据流量，所以会需要用户许可。
 
-在Android中，update_engine日志位于/data/misc/update_engine_log中。
+#### 1.2.3 日志
 
-### 3. 更新Payload生成
+在Chrome OS中，`update_engine` 日志位于`/var/log/update_engine` 目录中。每当 `update_engine` 启动时，它都会使用当前日期时间格式启动一个新的日志文件，日志文件名中包含日期时间(`update_engine.log-DATE-TIME`)。在更新引擎重新启动或系统重新启动几次后，`/var/log/update_engine` 中会出现许多日志文件。最新的活动日志通过符号链接到 `/var/log/update_engine.log`  文件。
 
-更新Payload生成是将一组分区/文件转换为既能被升级应用(特别是较旧版本)理解，也能安全验证的格式的过程。这个过程涉及将输入分区分解成较小的组件并压缩以帮助下载Payload时的网络带宽。
+在Android中，`update_engine` 日志位于 `/data/misc/update_engine_log` 中。
 
-delta_generator是一个具有广泛选项的工具，用于生成不同类型的更新Payload。其代码位于update_engine/payload_generator中。这个目录包含生成更新Payload的所有相关源代码。这个目录中的文件不应包含或用于delta_generator之外的任何其他库/可执行文件中，这意味着这个目录没有编译到更新引擎的其他工具中。
+### 1.3 更新 Payload 的生成
 
-但是，不推荐直接使用delta_generator，因为它有太多的标志。应该使用像ota_from_target_files或OTA Generator这样的包装器。
+更新 Payload 生成是将一组分区/文件转换为既能被升级应用(特别是较旧版本)理解，也能安全验证的格式的过程。这个过程涉及将输入分区分解成较小的模块并压缩以帮助节省下载 Payload 时的网络带宽。
 
-#### 更新Payload文件规范
+`delta_generator` 是一个具有许多选项的工具，用于生成不同类型的更新 Payload。其代码位于 `update_engine/payload_generator` 目录中。这个目录包含生成更新 Payload 的所有相关源代码。这个目录中的文件不应包含或用于 `delta_generator` 之外的任何其他库/可执行文件中，这意味着这个目录没有编译到 updage engine 的其他工具中。
 
-每个更新Payload文件都有下表中定义的特定结构:
+但是，不推荐直接使用 `delta_generator`，因为它有太多的标志。应该使用像 `ota_from_target_files` 或 `OTA Generator` 这样的包装器。
 
-字段	大小(字节)	类型	描述
-Magic Number	4	char[4]	魔数"CrAU"，标识这是一个更新Payload
-Major Version	8	uint64	Payload主版本号  
-Manifest Size	8	uint64	清单大小，以字节为单位
-Manifest Signature Size	4	uint32	清单签名blob大小(字节)，仅在主版本2中存在
-Manifest	变化	DeltaArchiveManifest	要执行的操作列表  
-Manifest Signature	变化	Signatures	前五个字段的签名。如果密钥发生变化，可以有多个签名。
-Payload Data	变化	List of raw or compressed data blobs	元数据中操作使用的二进制blob列表
-Payload Signature Size	变化	uint64	Payload签名的大小
-Payload Signature	变化	Signatures	整个Payload的签名，不包括元数据签名。如果密钥发生变化，可以有多个签名。
+> 关于 `delta_generator`, 相关内容非常多，具体细节可参考我的多篇博客:
+>
+> - [Android Update Engine 分析（九） delta_generator 工具的 6 种操作](https://blog.csdn.net/guyongqiangx/article/details/122351084)
+>
+> - [Android Update Engine 分析（十） 生成 payload 和 metadata 的哈希](https://blog.csdn.net/guyongqiangx/article/details/122393172)
+>
+> - [Android Update Engine 分析（十一） 更新 payload 签名](https://blog.csdn.net/guyongqiangx/article/details/122597314)
+>
+> - [Android Update Engine 分析（十二） 验证 payload 签名](https://blog.csdn.net/guyongqiangx/article/details/122634221)
+>
+> - [Android Update Engine 分析（十三） 提取 payload 的 property 数据](https://blog.csdn.net/guyongqiangx/article/details/122646107)
+>
+> - [Android Update Engine 分析（十四） 生成 payload 数据](https://blog.csdn.net/guyongqiangx/article/details/122753185)
+>
+> - [Android Update Engine 分析（十五） FullUpdateGenerator 策略](https://blog.csdn.net/guyongqiangx/article/details/122767273)
+>
+> - [Android Update Engine 分析（十六） ABGenerator 策略](https://blog.csdn.net/guyongqiangx/article/details/122886150)
 
-#### 增量 vs 完整更新Payload
+> [OTA Generator: https://github.com/google/ota-generator](https://github.com/google/ota-generator)
+>
+> 是当前 update engine 的维护者 Kevin Zhang 开源的一个工具。
 
-有两种类型的Payload:完整和增量。完整Payload仅从目标镜像(我们要更新到的镜像)生成，包含更新非活动分区所需的所有数据。因此，完整Payload的大小可能非常大。另一方面，增量Payload是通过比较源镜像(活动分区)和目标镜像并生成这两者之间的差异而生成的差异更新。它基本上是一个类似于diff或bsdiff等应用程序的差异更新。因此，使用增量Payload更新系统需要系统读取活动分区的部分内容，以便更新非活动分区(或重构目标分区)。增量Payload明显小于完整Payload。两种类型的Payload结构相同。
 
-Payload生成非常耗费资源，其工具实现了高度的并行化。 
 
-##### 生成完整Payload
+#### 1.3.1 Payload 文件规范
 
-完整Payload是通过将分区划分为2MiB(可配置)的块，然后使用bzip2或XZ算法对其进行压缩，或者根据哪种可以生成更小的数据而保持为原始数据来生成的。与增量Payload相比，完整Payload要大得多，因此如果网络带宽受限，它们需要更长的下载时间。另一方面，应用完整Payload稍快一些，因为系统不需要从源分区读取数据。
+每一个 Payload 文件都是一个按照下表格式定义的结构体文件:
 
-##### 生成增量Payload
+![截屏2023-08-27 13.39.02](images-20230817-Android Update Engine 分析（二十一）Payload 科普/截屏2023-08-27 13.39.02.png)
 
-增量Payload是通过在文件和元数据级别(更精确地说是每个适当分区上的文件系统级别)查看源镜像数据和目标镜像数据来生成的。我们可以生成增量Payload的原因是Chrome OS分区是只读的。所以我们可以非常确定客户设备上活动分区的位比特与图像生成/签名阶段中生成的原始分区完全相同。生成增量Payload的过程大致如下: 
+#### 1.3.2 增量 vs 全量 Payload
 
-1. 在目标分区上找到所有填充零的值块，并为它们生成“ZERO”操作。“ZERO”操作基本上会丢弃相关的块(取决于具体实现)。
+有两种类型的 Payload，全量和增量。
+
+全量 Payload 仅从目标镜像(我们要更新到的镜像)生成，包含更新非活动分区所需的所有数据。因此，全量 Payload 可能非常大。另一方面，增量 Payload 是通过比较源镜像(活动分区)和目标镜像并生成这两者之间的差异而生成的差异更新。它基本上是一个类似于 diff 或 bsdiff 等应用程序的差异更新。因此，使用增量 Payload 更新需要系统读取活动分区的部分内容，以便更新非活动分区(或重构目标分区)。增量 Payload 明显小于完整 Payload。两种类型的 Payload 结构相同。
+
+Payload 生成非常耗费资源，其工具实现了高度的并行化。 
+
+> 注: 关于全量包和增量包大小，在[《Android Update Engine 分析（二十）为什么差分包比全量包小，但升级时间却更长？》](https://blog.csdn.net/guyongqiangx/article/details/132343017) 有详细对比的例子。
+
+
+
+##### 1. 生成完整 Payload
+
+全量 Payload 是通过将分区划分为 2MiB(可配置)的块，然后使用 bzip2 或 XZ 算法对其进行压缩，或者根据哪种可以生成更小的数据而保持为原始数据来生成的。与增量 Payload 相比，全量 Payload 要大得多，因此如果网络带宽受限，它们需要更长的下载时间。另一方面，应用全量 Payload 稍快一些，因为系统不需要从源分区读取数据。
+
+> 注：关于全量包生成的细节，请参考[《Android Update Engine 分析（十五） FullUpdateGenerator 策略》](https://blog.csdn.net/guyongqiangx/article/details/122767273)
+>
+> 具体每一个数据块的生成操作可以参考下图:
+>
+> ![](images-20230817-Android Update Engine 分析（二十一）Payload 科普/watermark,type_d3F5LXplbmhlaQ,shadow_50,text_Q1NETiBAZ3V5b25ncWlhbmd4,size_20,color_FFFFFF,t_70,g_se,x_16.png)
+
+
+
+##### 2. 生成增量 Payload
+
+增量 Payload 是通过在文件和元数据级别(更精确地说，是每个分区上的文件系统级别)查看比较源镜像数据和目标镜像数据来生成的。我们可以生成增量 Payload 的原因是 Chrome OS 分区是只读的(Android 分区类似)。所以我们可以非常确定客户设备上活动分区的每一个 bit 和 image 生成和签名阶段生成的原始分区镜像完全相同。生成增量 Payload 的过程大致如下: 
+
+1. 在目标分区上找到所有全零("0")的数据块，并为它们生成“ZERO”操作。“ZERO”操作基本上会丢弃相关的块(取决于具体实现)。
 
 2. 通过直接逐块比较源分区和目标分区，找到在源和目标分区之间未发生更改的所有块，并生成“SOURCE_COPY”操作。
 
-3. 列出源分区和目标分区中的所有文件(及其相关块)，并删除我们在最后两步中已经生成了操作的块(和文件)。将每个分区的剩余元数据(inode等)分配为一个文件。
+3. 列出源分区和目标分区中的所有文件(及其相关块)，并删除我们在最后两步中已经生成了操作的块(和文件)。将每个分区的剩余元数据(inode 等)分配为一个文件。
 
 4. 如果文件是新文件，根据哪个可以生成更小的数据块来为其数据块生成“REPLACE”、“REPLACE_XZ”或“REPLACE_BZ”操作。 
 
-5. 对于每个其他文件，比较源块和目标块，并根据哪个可以生成更小的数据块来生成“SOURCE_BSDIFF”或“PUFFDIFF”操作。这两个操作在源数据块和目标数据块之间生成二进制差异。(有关此类二进制差异程序的详细信息，请参阅bsdiff和puffin!)
+5. 对于每个其他文件，比较源块和目标块，并根据哪个可以生成更小的数据块来生成“SOURCE_BSDIFF”或“PUFFDIFF”操作。这两个操作在源数据块和目标数据块之间生成二进制差异。(有关此类二进制差异程序的详细信息，请参阅 bsdiff 和 puffin 程序的细节)
 
-6. 根据目标分区的块偏移量对操作进行排序。 
+6. 最后根据目标分区的块偏移量对操作进行排序。 
 
-7. 可选地将相邻的相同或
+7. 可选地将相邻的相同或类似操作合并为较大的操作，以提高效率和潜在的生成较小的 Payload。
 
-类似操作合并为较大的操作，以提高效率和潜在的生成较小的Payload。
+> 注: 关于全量包生成的细节，请参考: [Android Update Engine 分析（十五） FullUpdateGenerator 策略](https://blog.csdn.net/guyongqiangx/article/details/122767273)
 
-完整Payload只能包含“REPLACE”、“REPLACE_BZ”和“REPLACE_XZ”操作。增量Payload可以包含任何操作。
 
-#### 主要和次要版本号
 
-主版本号和次版本号分别指定更新Payload文件的格式以及升级应用接受某些类型更新Payload的能力。这些数字在升级应用中是硬编码的。
+全量 Payload 只能包含“REPLACE”、“REPLACE_BZ”和“REPLACE_XZ”操作。增量 Payload 可以包含任何操作。
+
+
+
+#### 1.3.3 主版本号(major)和次本号(minor)
+
+主版本号和次版本号分别指定更新 Payload 文件的格式以及升级应用接受某些类型更新 Payload 的能力。这些数字在升级应用中是硬编码的。
 
 主版本号基本上就是上述更新Payload文件规范中的更新Payload文件版本(第二个字段)。每个升级应用支持一系列主版本号。目前只有两个主版本:1和2。Chrome OS和Android目前都在主版本2上(主版本1正在被弃用)。每当有新添加的不能装入Manifest protobuf的内容时，我们需要提升主版本号。提升主版本号需要非常谨慎，因为旧客户端不知道如何处理新的版本。在Chrome OS中任何主版本号提升都应该与GoldenEye步进石相关联。
 
 次版本号定义了升级应用接受某些操作或执行某些操作的能力。每个升级应用支持一系列次版本号。例如，次版本号为4(或更低)的升级应用不知道如何处理“PUFFDIFF”操作。所以在为次版本号为4(或更低)的镜像生成增量Payload时，我们不能为它生成PUFFDIFF操作。Payload生成过程会查看源镜像的次版本号以决定它支持的操作类型，并只生成符合那些限制的Payload。类似地，如果某个特定次版本号的客户端存在bug，提升次版本号有助于避免生成会导致该bug出现的Payload。但是，提升次版本号在可维护性方面代价也很高，并且可能容易出错。所以进行这种更改时也需要谨慎。  
 
-次版本号在完整Payload中无关紧要。完整Payload应该总是能够应用于非常旧的客户端。原因是升级应用可能不会发送它们当前的版本，所以如果我们有不同类型的完整Payload，我们就不会知道为客户端提供哪个版本。
+次版本号在全量 Payload 中无关紧要。全量 Payload 应该总是能够应用于非常旧的客户端。原因是升级应用可能不会发送它们当前的版本，所以如果我们有不同类型的全量 Payload ，我们就不会知道为客户端提供哪个版本。
 
-#### 签名 vs 未签名Payload
+#### 1.3.4 签名 vs 未签名Payload
 
 更新Payload可以使用公钥/私钥对进行签名以用于生产环境，或者保持未签名状态以用于测试。像delta_generator这样的工具可以帮助生成元数据和Payload哈希或者使用给定的私钥对Payload进行签名。
 
@@ -259,15 +316,17 @@ Payload生成非常耗费资源，其工具实现了高度的并行化。
 
 总之，签名Payload用于生产以防止恶意修改。未签名Payload用于测试以加速开发。两者在使用场景上有明确区分。
 
-### 4. update_payload脚本
+
+
+### 1.4 update_payload脚本
 
 update_payload包含一组python脚本，主要用于验证Payload生成和应用。我们通常使用实际设备(实时测试)来测试更新Payload。brillo_update_payload脚本可用于在主机设备上生成和测试应用payload。这些测试可以看作是没有实际设备的动态测试。其他update_payload脚本(如check_update_payload)可用于静态检查payload是否处于正确状态以及其应用是否正常工作。这些脚本实际上是静态应用payload，而不运行payload_consumer中的代码。
 
-### 5. 安装后步骤 
+### 1.5 安装后步骤 
 
 Postinstall是在升级应用将新镜像构件写入非活动分区后调用的过程。Postinstall的主要职责之一是在根分区末尾重新创建dm-verity树哈希。除此之外，它还会安装新的固件更新或任何特定的板卡流程。Postinstall在新安装的分区内的一个单独的chroot中运行。所以它与活动运行的系统是完全分离的。在更新之后和设备重启之前需要完成的任何事情都应该在postinstall中实现。
 
-### 6. 构建更新引擎
+### 1.6 构建更新引擎
 
 你可以像构建其他平台应用程序一样构建update_engine:
 
@@ -306,7 +365,7 @@ atest update_engine_host_unittests 在主机上运行一部分测试，不需要
 
 在每个发布周期，我们都应该能够生成完整和增量Payload，可以正确应用于运行旧版本更新引擎客户端的旧设备。例如，在元数据proto文件中删除、不传递参数可能会损坏旧客户端。或者传递旧客户端不理解的操作也会损坏它们。无论何时更改Payload生成过程中的任何内容，都要问自己这个问题:它能在旧客户端上工作吗?如果不行，我需要用次要版本或任何其他方式来控制它吗。
 
-特别是关于企业回滚，新的升级应用应该能够接受较旧的更新Payload。通常这是通过完整Payload完成的，但应该注意不要破坏这种兼容性。
+特别是关于企业回滚，新的升级应用应该能够接受较旧的更新Payload。通常这是通过全量 Payload 完成的，但应该注意不要破坏这种兼容性。
 
 #### 考虑未来
 
@@ -380,19 +439,19 @@ Payload Signature	变化	Signatures	整个Payload的签名，不包括元数据�
 
 ###  完整更新Payload vs 增量更新Payload
 
-有两种类型的Payload:完整和增量。完整Payload仅从目标镜像(我们要更新到的镜像)生成，包含更新非活动分区所需的所有数据。因此，完整Payload的大小可能非常大。另一方面，增量Payload是通过比较源镜像(活动分区)和目标镜像并生成这两者之间的差异而生成的差异更新。它基本上是一个类似于`diff`或`bsdiff`等应用程序的差异更新。因此，使用增量Payload更新系统需要系统读取活动分区的部分内容，以便更新非活动分区(或重构目标分区)。增量Payload明显小于完整Payload。两种类型的Payload结构相同。
+有两种类型的Payload:完整和增量。全量 Payload 仅从目标镜像(我们要更新到的镜像)生成，包含更新非活动分区所需的所有数据。因此，全量 Payload 的大小可能非常大。另一方面，增量Payload是通过比较源镜像(活动分区)和目标镜像并生成这两者之间的差异而生成的差异更新。它基本上是一个类似于`diff`或`bsdiff`等应用程序的差异更新。因此，使用增量Payload更新系统需要系统读取活动分区的部分内容，以便更新非活动分区(或重构目标分区)。增量Payload明显小于全量 Payload 。两种类型的Payload结构相同。
 
 Payload生成非常耗费资源，其工具实现了高度的并行化。
 
 
 
-#### 生成完整Payload
+#### 生成全量 Payload 
 
-完整Payload是通过将分区划分为2MiB(可配置)的块，然后使用bzip2或XZ算法对其进行压缩，或者根据哪种可以生成更小的数据而保持为原始数据来生成的。与增量Payload相比，完整Payload要大得多，因此如果网络带宽受限，它们需要更长的下载时间。另一方面，应用完整Payload稍快一些，因为系统不需要从源分区读取数据。
+全量 Payload 是通过将分区划分为2MiB(可配置)的块，然后使用bzip2或XZ算法对其进行压缩，或者根据哪种可以生成更小的数据而保持为原始数据来生成的。与增量Payload相比，全量 Payload 要大得多，因此如果网络带宽受限，它们需要更长的下载时间。另一方面，应用全量 Payload 稍快一些，因为系统不需要从源分区读取数据。
 
 
 
-#### 生成增量Payload
+#### 生成增量 Payload
 
 增量Payload是通过在文件和元数据级别(更精确地说是每个适当分区上的文件系统级别)查看源镜像数据和目标镜像数据来生成的。我们可以生成增量Payload的原因是Chrome OS分区是只读的。所以我们可以非常确定客户设备上活动分区的位比特与图像生成/签名阶段中生成的原始分区完全相同。生成增量Payload的过程大致如下:
 
@@ -404,7 +463,7 @@ Payload生成非常耗费资源，其工具实现了高度的并行化。
 6. 根据目标分区的块偏移量对操作进行排序。
 7. 可选地将相邻的相同或相似操作合并为较大的操作，以提高效率和潜在的生成较小的Payload。
 
-完整Payload只能包含“REPLACE”、“REPLACE_BZ”和“REPLACE_XZ”操作。增量Payload可以包含任何操作。
+全量 Payload 只能包含“REPLACE”、“REPLACE_BZ”和“REPLACE_XZ”操作。增量Payload可以包含任何操作。
 
 
 
@@ -416,7 +475,7 @@ Payload生成非常耗费资源，其工具实现了高度的并行化。
 
 次版本号定义了升级应用接受某些操作或执行某些操作的能力。每个升级应用支持一系列次版本号。例如，次版本号为4(或更低)的升级应用不知道如何处理“PUFFDIFF”操作。因此，在为次版本号为4(或更低)的镜像生成增量Payload时，我们不能为它生成PUFFDIFF操作。Payload生成过程会查看源镜像的次版本号以决定它支持的操作类型，并只生成符合那些限制的Payload。类似地，如果某个特定次版本号的客户端存在bug，提升次版本号有助于避免生成会导致该bug出现的Payload。但是，提升次版本号在可维护性方面代价也很高，并且可能容易出错。所以进行这种更改时也需要谨慎。
 
-次版本号在完整Payload中无关紧要。完整Payload应该总是能够应用于非常旧的客户端。原因是升级应用可能不会发送它们当前的版本，所以如果我们有不同类型的完整Payload，我们就不会知道为客户端提供哪个版本。
+次版本号在全量 Payload 中无关紧要。全量 Payload 应该总是能够应用于非常旧的客户端。原因是升级应用可能不会发送它们当前的版本，所以如果我们有不同类型的全量 Payload ，我们就不会知道为客户端提供哪个版本。
 
 
 
@@ -613,7 +672,7 @@ update_engine是一个单线程守护进程，始终运行。这个进程是自�
 
 - 它会重试失败的网络通信。
 
-- 如果由于活动分区上的位变化导致增量Payload应用失败几次，它会切换到完整Payload。
+- 如果由于活动分区上的位变化导致增量Payload应用失败几次，它会切换到全量 Payload 。
 
 升级应用会将其活动首选项写入/data/misc/update_engine/prefs。这些首选项有助于跟踪升级应用生命周期中的更改，并允许在失败尝试或崩溃后正确继续更新过程。
 
@@ -662,13 +721,13 @@ Payload Signature	变化	Signatures	整个Payload的签名，不包括元数据�
 
 增量 vs 完整更新Payload
 
-有两种类型的Payload:完整和增量。完整Payload仅从目标镜像(我们要更新到的镜像)生成，包含更新非活动分区所需的所有数据。因此，完整Payload的大小可能非常大。另一方面，增量Payload是通过比较源镜像(活动分区)和目标镜像并生成这两者之间的差异而生成的差异更新。它基本上是一个类似于diff或bsdiff等应用程序的差异更新。因此，使用增量Payload更新系统需要系统读取活动分区的部分内容，以便更新非活动分区(或重构目标分区)。增量Payload明显小于完整Payload。两种类型的Payload结构相同。
+有两种类型的Payload:完整和增量。全量 Payload 仅从目标镜像(我们要更新到的镜像)生成，包含更新非活动分区所需的所有数据。因此，全量 Payload 的大小可能非常大。另一方面，增量Payload是通过比较源镜像(活动分区)和目标镜像并生成这两者之间的差异而生成的差异更新。它基本上是一个类似于diff或bsdiff等应用程序的差异更新。因此，使用增量Payload更新系统需要系统读取活动分区的部分内容，以便更新非活动分区(或重构目标分区)。增量Payload明显小于全量 Payload 。两种类型的Payload结构相同。
 
 Payload生成非常耗费资源，其工具实现了高度的并行化。 
 
-生成完整Payload
+生成全量 Payload 
 
-完整Payload是通过将分区划分为2MiB(可配置)的块，然后使用bzip2或XZ算法对其进行压缩，或者根据哪种可以生成更小的数据而保持为原始数据来生成的。与增量Payload相比，完整Payload要大得多，因此如果网络带宽受限，它们需要更长的下载时间。另一方面，应用完整Payload稍快一些，因为系统不需要从源分区读取数据。
+全量 Payload 是通过将分区划分为2MiB(可配置)的块，然后使用bzip2或XZ算法对其进行压缩，或者根据哪种可以生成更小的数据而保持为原始数据来生成的。与增量Payload相比，全量 Payload 要大得多，因此如果网络带宽受限，它们需要更长的下载时间。另一方面，应用全量 Payload 稍快一些，因为系统不需要从源分区读取数据。
 
 生成增量Payload
 
@@ -690,7 +749,7 @@ Payload生成非常耗费资源，其工具实现了高度的并行化。
 
 类似操作合并为较大的操作，以提高效率和潜在的生成较小的Payload。
 
-完整Payload只能包含“REPLACE”、“REPLACE_BZ”和“REPLACE_XZ”操作。增量Payload可以包含任何操作。
+全量 Payload 只能包含“REPLACE”、“REPLACE_BZ”和“REPLACE_XZ”操作。增量Payload可以包含任何操作。
 
 主要和次要版本号
 
@@ -700,7 +759,7 @@ Payload生成非常耗费资源，其工具实现了高度的并行化。
 
 次版本号定义了升级应用接受某些操作或执行某些操作的能力。每个升级应用支持一系列次版本号。例如，次版本号为4(或更低)的升级应用不知道如何处理“PUFFDIFF”操作。所以在为次版本号为4(或更低)的镜像生成增量Payload时，我们不能为它生成PUFFDIFF操作。Payload生成过程会查看源镜像的次版本号以决定它支持的操作类型，并只生成符合那些限制的Payload。类似地，如果某个特定次版本号的客户端存在bug，提升次版本号有助于避免生成会导致该bug出现的Payload。但是，提升次版本号在可维护性方面代价也很高，并且可能容易出错。所以进行这种更改时也需要谨慎。  
 
-次版本号在完整Payload中无关紧要。完整Payload应该总是能够应用于非常旧的客户端。原因是升级应用可能不会发送它们当前的版本，所以如果我们有不同类型的完整Payload，我们就不会知道为客户端提供哪个版本。
+次版本号在全量 Payload 中无关紧要。全量 Payload 应该总是能够应用于非常旧的客户端。原因是升级应用可能不会发送它们当前的版本，所以如果我们有不同类型的全量 Payload ，我们就不会知道为客户端提供哪个版本。
 
 签名 vs 未签名Payload
 
@@ -761,7 +820,7 @@ atest update_engine_host_unittests 在主机上运行一部分测试，不需要
 
 在每个发布周期，我们都应该能够生成完整和增量Payload，可以正确应用于运行旧版本更新引擎客户端的旧设备。例如，在元数据proto文件中删除、不传递参数可能会损坏旧客户端。或者传递旧客户端不理解的操作也会损坏它们。无论何时更改Payload生成过程中的任何内容，都要问自己这个问题:它能在旧客户端上工作吗?如果不行，我需要用次要版本或任何其他方式来控制它吗。
 
-特别是关于企业回滚，新的升级应用应该能够接受较旧的更新Payload。通常这是通过完整Payload完成的，但应该注意不要破坏这种兼容性。
+特别是关于企业回滚，新的升级应用应该能够接受较旧的更新Payload。通常这是通过全量 Payload 完成的，但应该注意不要破坏这种兼容性。
 
 考虑未来
 
