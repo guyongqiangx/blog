@@ -1,4 +1,4 @@
-# 20230817-Android Update Engine 分析（二十一）Android A/B 的更新过程
+# 20230817-Android Update Engine 分析（二十一）Android A/B 更新过程
 
 ## 0. 背景
 
@@ -16,7 +16,7 @@
 
 幸运的是，Android 官方对系统升级这一块越来越重视，A/B 系统相关文章越来越多。从 2019 年的某个时候开始，update engine 目录下添加了 README.md 文档，专门用于描述 A/B 系统升级。
 
-![image-20230820170843634](images-20230817-Android Update Engine 分析（二十一）Payload 科普/image-20230820170843634.png)
+![README file history](images-20230817-Android Update Engine 分析（二十一）Android AB 更新过程/doc_history.png)
 
 ---
 
@@ -285,7 +285,7 @@ A/B 更新的核心叫做 Update Engine，程序上对应于一个叫做 `update
 
 每一个 Payload 文件都是一个按照下表格式定义的结构体文件:
 
-![截屏2023-08-27 13.39.02](images-20230817-Android Update Engine 分析（二十一）Payload 科普/截屏2023-08-27 13.39.02.png)
+![payload file structure](images-20230817-Android Update Engine 分析（二十一）Android AB 更新过程/payload_file_structure.png)
 
 #### 1.3.2 增量 vs 全量 Payload
 
@@ -307,7 +307,7 @@ Payload 生成非常耗费资源，其工具实现了高度的并行化。
 >
 > 具体每一个数据块的生成操作可以参考下图:
 >
-> ![](images-20230817-Android Update Engine 分析（二十一）Payload 科普/watermark,type_d3F5LXplbmhlaQ,shadow_50,text_Q1NETiBAZ3V5b25ncWlhbmd4,size_20,color_FFFFFF,t_70,g_se,x_16.png)
+> ![full payload operations](images-20230817-Android Update Engine 分析（二十一）Android AB 更新过程/FullUpdateGenerator-InstallOperation.png)
 
 
 
@@ -349,7 +349,7 @@ Chrome OS 和 Android 目前都在主版本 2 上(主版本 1 已经被弃用, d
 
 > 注: 这里最后一句的原话是 'Any major version uprev in Chrome OS should be associated with a GoldenEye stepping stone.'，关于 Golden Eye stepping stone，claude 是这么解释的：
 >
-> ![1693189761(1)](images-20230817-Android Update Engine 分析（二十一）Payload 科普/1693189761(1).png)
+> ![chrome os golden eye stepping stone](images-20230817-Android Update Engine 分析（二十一）Android AB 更新过程/golden_eye_stepping_stone.png)
 
 
 
