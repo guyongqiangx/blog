@@ -1,4 +1,4 @@
-# 20230817-Android Update Engine 分析（二十一）一篇了解 Android A/B 系统升级
+# 20230817-Android Update Engine 分析（二十一）Android A/B 的更新过程
 
 ## 0. 背景
 
@@ -22,7 +22,9 @@
 
 这个文档后来几经更新，目前已经比较全面。
 
-不少朋友(其实是说我自己)的习惯是喜欢在网上找文档，往往忽略了代码自带的文档。所以我这里把 Android A/B 系统自带的 README.md 文档翻译成中文，再加上我的一些注释，全面介绍下 Android A/B 系统升级。
+不少朋友(其实是说我自己)的习惯是喜欢在网上找文档，往往忽略了代码自带的文档。所以我这里把 Android A/B 系统自带的 README.md 文档翻译成中文，再加上我的一些注释，用于全面介绍 Android A/B 系统升级。
+
+原文档的标题为 《Chrome OS Update Process》，直译过来应该是 "Chrome 系统更新过程"，这里为了贴近我们的主题，将其改为《Android A/B 更新过程》
 
 
 
@@ -41,6 +43,56 @@
 > - http://aospxref.com/android-13.0.0_r3/xref/system/update_engine/
 
 更多关于 Android A/B 系统的文章，欢迎访问我的 CSDN 博客，洛奇看世界。
+
+
+
+本文是对于 Android 7.1 以后引入的带有 A/B 更新特性的综合描述，适用于所有 Android 7.1 ~ Android 14 的所有版本。
+
+> 核心代码[《Android Update Engine 分析》](https://blog.csdn.net/guyongqiangx/category_12140296.html)系列，文章列表：
+>
+> - [Android Update Engine分析（一）Makefile](https://blog.csdn.net/guyongqiangx/article/details/77650362)
+>
+> - [Android Update Engine分析（二）Protobuf和AIDL文件](https://blog.csdn.net/guyongqiangx/article/details/80819901)
+>
+> - [Android Update Engine分析（三）客户端进程](https://blog.csdn.net/guyongqiangx/article/details/80820399)
+>
+> - [Android Update Engine分析（四）服务端进程](https://blog.csdn.net/guyongqiangx/article/details/82116213)
+>
+> - [Android Update Engine分析（五）服务端核心之Action机制](https://blog.csdn.net/guyongqiangx/article/details/82226079)
+>
+> - [Android Update Engine分析（六）服务端核心之Action详解](https://blog.csdn.net/guyongqiangx/article/details/82390015)
+>
+> - [Android Update Engine分析（七） DownloadAction之FileWriter](https://blog.csdn.net/guyongqiangx/article/details/82805813)
+>
+> - [Android Update Engine分析（八）升级包制作脚本分析](https://blog.csdn.net/guyongqiangx/article/details/82871409)
+>
+> - [Android Update Engine分析（九） delta_generator 工具的 6 种操作](https://blog.csdn.net/guyongqiangx/article/details/122351084)
+>
+> - [Android Update Engine分析（十） 生成 payload 和 metadata 的哈希](https://blog.csdn.net/guyongqiangx/article/details/122393172)
+>
+> - [Android Update Engine分析（十一） 更新 payload 签名](https://blog.csdn.net/guyongqiangx/article/details/122597314)
+>
+> - [Android Update Engine分析（十二） 验证 payload 签名](https://blog.csdn.net/guyongqiangx/article/details/122634221)
+>
+> - [Android Update Engine分析（十三） 提取 payload 的 property 数据](https://blog.csdn.net/guyongqiangx/article/details/122646107)
+>
+> - [Android Update Engine分析（十四） 生成 payload 数据](https://blog.csdn.net/guyongqiangx/article/details/122753185)
+>
+> - [Android Update Engine分析（十五） FullUpdateGenerator 策略](https://blog.csdn.net/guyongqiangx/article/details/122767273)
+>
+> - [Android Update Engine分析（十六） ABGenerator 策略](https://blog.csdn.net/guyongqiangx/article/details/122886150)
+>
+> - [Android Update Engine分析（十七）10 类 InstallOperation 数据的生成和应用](https://blog.csdn.net/guyongqiangx/article/details/122942628)
+>
+> - [Android Update Engine分析（十八）差分数据到底是如何更新的？](https://blog.csdn.net/guyongqiangx/article/details/129464805)
+>
+> - [Android Update Engine分析（十九）Extent 到底是个什么鬼？](https://blog.csdn.net/guyongqiangx/article/details/132389438)
+>
+> - [Android Update Engine分析（二十）为什么差分包比全量包小，但升级时间却更长？](https://blog.csdn.net/guyongqiangx/article/details/132343017)
+>
+> - [Android Update Engine分析（二十一）Android A/B 的更新过程]()
+
+> 如果您已经订阅了本专栏，请务必加我微信，拉你进“动态分区 & 虚拟分区专栏 VIP 答疑群”。
 
 
 
@@ -184,9 +236,7 @@ A/B 更新的核心叫做 Update Engine，程序上对应于一个叫做 `update
 
 根据更新服务器的策略，交互式更新比非交互式更新具有更高的优先级(通过携带标记提示)。当服务器负载繁忙时等，它们可以决定不提供更新。这两种类型的更新之间也存在其他内部差异。例如，交互式更新试图更快地安装更新。
 
-> 注: 
->
-> 非交互式更新在后台静默执行，无感，所以优先级较低。
+> 注: 非交互式更新在后台静默执行，无感，所以优先级较低。
 >
 > 交互式更新通常发生在用户升级界面上，在前台执行，用户在界面操作更新时，自然希望尽快完成，拥有较高优先级。
 
@@ -214,27 +264,20 @@ A/B 更新的核心叫做 Update Engine，程序上对应于一个叫做 `update
 
 但是，不推荐直接使用 `delta_generator`，因为它有太多的标志。应该使用像 `ota_from_target_files` 或 `OTA Generator` 这样的包装器。
 
-> 关于 `delta_generator`, 相关内容非常多，具体细节可参考我的多篇博客:
+> 注: 关于 `delta_generator`, 相关内容非常多，具体细节可参考我的多篇博客:
 >
 > - [Android Update Engine 分析（九） delta_generator 工具的 6 种操作](https://blog.csdn.net/guyongqiangx/article/details/122351084)
->
 > - [Android Update Engine 分析（十） 生成 payload 和 metadata 的哈希](https://blog.csdn.net/guyongqiangx/article/details/122393172)
->
 > - [Android Update Engine 分析（十一） 更新 payload 签名](https://blog.csdn.net/guyongqiangx/article/details/122597314)
->
 > - [Android Update Engine 分析（十二） 验证 payload 签名](https://blog.csdn.net/guyongqiangx/article/details/122634221)
->
 > - [Android Update Engine 分析（十三） 提取 payload 的 property 数据](https://blog.csdn.net/guyongqiangx/article/details/122646107)
->
 > - [Android Update Engine 分析（十四） 生成 payload 数据](https://blog.csdn.net/guyongqiangx/article/details/122753185)
->
 > - [Android Update Engine 分析（十五） FullUpdateGenerator 策略](https://blog.csdn.net/guyongqiangx/article/details/122767273)
->
 > - [Android Update Engine 分析（十六） ABGenerator 策略](https://blog.csdn.net/guyongqiangx/article/details/122886150)
-
-> [OTA Generator: https://github.com/google/ota-generator](https://github.com/google/ota-generator)
 >
-> 是当前 update engine 的维护者 Kevin Zhang 开源的一个工具。
+> 
+>
+> [OTA Generator: https://github.com/google/ota-generator](https://github.com/google/ota-generator), 是当前 update engine 的维护者 Kevin Zhang 开源的一个工具。
 
 
 
@@ -298,76 +341,143 @@ Payload 生成非常耗费资源，其工具实现了高度的并行化。
 
 主版本号和次版本号分别指定更新 Payload 文件的格式以及升级应用接受某些类型更新 Payload 的能力。这些数字在升级应用中是硬编码的。
 
-主版本号基本上就是上述更新Payload文件规范中的更新Payload文件版本(第二个字段)。每个升级应用支持一系列主版本号。目前只有两个主版本:1和2。Chrome OS和Android目前都在主版本2上(主版本1正在被弃用)。每当有新添加的不能装入Manifest protobuf的内容时，我们需要提升主版本号。提升主版本号需要非常谨慎，因为旧客户端不知道如何处理新的版本。在Chrome OS中任何主版本号提升都应该与GoldenEye步进石相关联。
 
-次版本号定义了升级应用接受某些操作或执行某些操作的能力。每个升级应用支持一系列次版本号。例如，次版本号为4(或更低)的升级应用不知道如何处理“PUFFDIFF”操作。所以在为次版本号为4(或更低)的镜像生成增量Payload时，我们不能为它生成PUFFDIFF操作。Payload生成过程会查看源镜像的次版本号以决定它支持的操作类型，并只生成符合那些限制的Payload。类似地，如果某个特定次版本号的客户端存在bug，提升次版本号有助于避免生成会导致该bug出现的Payload。但是，提升次版本号在可维护性方面代价也很高，并且可能容易出错。所以进行这种更改时也需要谨慎。  
+
+**主版本号**就是前面提到的 payload 文件格式中的的第二个字段(Major version)。每个升级应用支持一系列主版本号。目前只有两个主版本号：1 和 2。
+
+Chrome OS 和 Android 目前都在主版本 2 上(主版本 1 已经被弃用, decprecated)。每当有新添加的不能装入 Manifest protobuf 的内容时，我们需要提升主版本号。提升主版本号需要非常谨慎，因为旧客户端不知道如何处理新的版本。在 Chrome OS 中任何主版本号提升都应该与 GoldenEye stepping stone 相关联。
+
+> 注: 这里最后一句的原话是 'Any major version uprev in Chrome OS should be associated with a GoldenEye stepping stone.'，关于 Golden Eye stepping stone，claude 是这么解释的：
+>
+> ![1693189761(1)](images-20230817-Android Update Engine 分析（二十一）Payload 科普/1693189761(1).png)
+
+
+
+**次版本号**定义了升级应用支持某些操作(operations)或执行某些动作(actions)的能力。每个升级应用支持一系列次版本号。例如，次版本号为 4 (或更低)的升级应用不知道如何处理“PUFFDIFF”操作。所以在为次版本号为 4 (或更低)的镜像生成增量 Payload 时，我们不能为它生成 PUFFDIFF 操作。Payload 生成过程会查看源镜像的次版本号以决定它支持的操作类型，并只生成符合那些限制的 Payload。类似地，如果某个特定次版本号的客户端存在 bug，提升次版本号有助于避免生成会导致该 bug 出现的 Payload。但是，提升次版本号在可维护性方面代价也很高，并且可能容易出错。所以进行次版本号升级时也需要谨慎。  
 
 次版本号在全量 Payload 中无关紧要。全量 Payload 应该总是能够应用于非常旧的客户端。原因是升级应用可能不会发送它们当前的版本，所以如果我们有不同类型的全量 Payload ，我们就不会知道为客户端提供哪个版本。
 
+> 注：次版本号在全量 Payload 中无关紧要，这种说法大概率上是没有问题的。
+>
+> 升级时，服务端传送 payloade 数据到设备，由当前运行的版本对 payload 文件进行解包并执行全量更新操作。
+>
+> 到目前为止，全量包中包括的操作有：ZERO, REPLACE, REPLACE_BZ, REPLACE_XZ。这些操作从 Android 7.1.2 到最新的 Android 14 一直保持稳定。但如果在某一个新版本中添加了新的全量包的算法，比如 LZ4 算法压缩的操作 REPLACE_LZ4，那升级时就可能面临和增量包升级一样的操作(operation)支持问题。
+>
+> 所幸的是目前这种情况还没有发生。
+
+
+
 #### 1.3.4 签名 vs 未签名Payload
 
-更新Payload可以使用公钥/私钥对进行签名以用于生产环境，或者保持未签名状态以用于测试。像delta_generator这样的工具可以帮助生成元数据和Payload哈希或者使用给定的私钥对Payload进行签名。
-
-对于生产环境，必须使用签名的Payload以确保安全性。未签名的Payload只应在测试环境中使用。
-
-签名Payload需要额外的签名数据和验证过程，会增加Payload的大小。但这是确保更新过程安全所必需的。
-
-生成签名Payload需要私钥。而验证签名需要对应的公钥。Key管理对于保证更新系统的安全至关重要。
-
-总之，签名Payload用于生产以防止恶意修改。未签名Payload用于测试以加速开发。两者在使用场景上有明确区分。
+Payload 可以使用公钥/私钥对进行签名以用于生产环境，或者保持未签名状态以用于测试。像 `delta_generator` 这样的工具可以帮助生成元数据和 Payload 哈希或者使用给定的私钥对 Payload 进行签名。
 
 
 
-### 1.4 update_payload脚本
+**对于生产环境，必须使用签名的Payload以确保安全性。未签名的Payload只应在测试环境中使用。**
 
-update_payload包含一组python脚本，主要用于验证Payload生成和应用。我们通常使用实际设备(实时测试)来测试更新Payload。brillo_update_payload脚本可用于在主机设备上生成和测试应用payload。这些测试可以看作是没有实际设备的动态测试。其他update_payload脚本(如check_update_payload)可用于静态检查payload是否处于正确状态以及其应用是否正常工作。这些脚本实际上是静态应用payload，而不运行payload_consumer中的代码。
+签名 Payload 需要额外的签名数据和验证过程，会增加 Payload 的大小。但这是确保更新过程安全所必需的。
 
-### 1.5 安装后步骤 
+生成签名 Payload 需要私钥。而验证签名需要对应的公钥。Key 管理对于保证更新系统的安全至关重要。
 
-Postinstall是在升级应用将新镜像构件写入非活动分区后调用的过程。Postinstall的主要职责之一是在根分区末尾重新创建dm-verity树哈希。除此之外，它还会安装新的固件更新或任何特定的板卡流程。Postinstall在新安装的分区内的一个单独的chroot中运行。所以它与活动运行的系统是完全分离的。在更新之后和设备重启之前需要完成的任何事情都应该在postinstall中实现。
+总之，签名 Payload 用于生产以防止恶意修改。未签名 Payload 用于测试以加速开发。两者在使用场景上有明确区分。
 
-### 1.6 构建更新引擎
+> 注：签名使用非对称秘钥，具体上服务端使用非公开的私钥签名，客户端使用公开的公钥进行验证。
 
-你可以像构建其他平台应用程序一样构建update_engine:
 
-#### 设置
 
-在构建任何内容之前，请在Android存储库顶部运行这些命令。每个shell只需要执行一次。
+### 1.4 update_payload 脚本
 
+`update_payload` 包含一组 python 脚本，主要用于验证 Payload 生成和应用。我们通常使用实际设备(实时测试)来测试 Payload。`brillo_update_payload` 脚本可用于在主机设备上生成和测试应用 payload。这些测试可以看作是没有实际设备的动态测试。其他 `update_payload` 脚本(如 `check_update_payload` )可用于静态检查payload 是否处于正确状态以及其应用是否正常工作。这些脚本实际上是静态应用 payload，而不运行`payload_consumer` 中的代码。
+
+> 注: 这里提到的 update_payload 脚本位于 Android 源码目录 `system/update_engine/scripts/update_payload`
+>
+> 关于 Android Update Engine 的一些工具使用，请参考我的专栏：[Android OTA 工具](https://blog.csdn.net/guyongqiangx/category_12211864.html)
+
+
+
+### 1.5 后安装步骤 (Postinstall)
+
+Postinstall 是在升级应用将新镜像写入非活动分区后调用的处理过程。Postinstall 的主要职责之一是在根分区末尾重新创建 dm-verity 树哈希。除此之外，它还会安装新的固件更新或任何特定的板卡流程。Postinstall 在新安装的分区内的一个单独的 chroot 中运行。所以它与活动运行的系统是完全分离的。在更新之后和设备重启之前需要完成的任何事情都应该在 postinstall 中实现。
+
+
+
+### 1.6 编译更新引擎
+
+你可以像编译其他平台应用程序一样编译 `update_engine`:
+
+#### 1.6.1 设置
+
+在编译任何内容之前，请在Android存储库顶部运行这些命令。每个shell只需要执行一次。
+
+```bash
 source build/envsetup.sh
-lunch aosp_cf_x86_64_only_phone-userdebug(或用自己的目标替换aosp_cf_x86_64_only_phone-userdebug)
+lunch aosp_cf_x86_64_only_phone-userdebug(或用自己的目标替换 aosp_cf_x86_64_only_phone-userdebug)
+```
 
-#### 构建
 
+
+#### 1.6.2 编译
+
+```bash
 m update_engine update_engine_client delta_generator
+```
 
-### 7. 运行单元测试
+
+
+> 注：更多关于如何编译 Android 的内容，请参考文章 [《如何下载和编译 Android 源码？》](https://blog.csdn.net/guyongqiangx/article/details/132125431)
+
+
+
+### 1.7 运行单元测试
+
+
 
 运行单元测试类似于其他平台:
 
-atest update_engine_unittests 你需要一个连接到笔记本电脑并通过ADB可访问的设备来执行此操作。Cuttlefish也可以使用。
+- atest update_engine_unittests 
 
-atest update_engine_host_unittests 在主机上运行一部分测试，不需要设备。
+  你需要一个连接到笔记本电脑并通过ADB可访问的设备来执行此操作。Cuttlefish也可以使用。
 
-### 8. 启动配置的更新
+- atest update_engine_host_unittests 
+
+  在主机上运行一部分测试，不需要设备。
+
+> 注：在 update engine 下有很多文件名以 `*_unittest.cc`结尾的文件，这些都是关于 update engine 某个模块进行单元测试的代码文件，如果你对 update engine 进行了旧改，建议参考这些单元测试文件添加自己的单元测试函数。并在每次改动后运行相关的单元测试进行检查。
+
+
+
+### 1.8 启动更新
 
 有几种方法可以启动更新:
 
 - 单击“设置”的“关于”页面上的“检查更新”按钮。无法配置此更新检查方式。
 
-- 使用 [scripts/update_device.py] 程序并传递OTA zip文件的路径。
+- 使用 [scripts/update_device.py] 程序并传递 OTA zip 文件的路径。
 
-### 8. 开发者和维护者须知
 
-更改update engine源代码时要特别小心这些事项:
+> 注：除了上述两种更新方式外，另外一种常用的方式是使用 Android 自带的 C++ demo 应用程序 `update_engine_client` 进行升级测试。
+>
+> 更多关于使用 `update_engine_client` 进行升级测试的信息，请参考博客 [《Android A/B System OTA分析（四）系统的启动和升级》](https://blog.csdn.net/guyongqiangx/article/details/72604355)
 
-#### 不要破坏向后兼容性
 
-在每个发布周期，我们都应该能够生成完整和增量Payload，可以正确应用于运行旧版本更新引擎客户端的旧设备。例如，在元数据proto文件中删除、不传递参数可能会损坏旧客户端。或者传递旧客户端不理解的操作也会损坏它们。无论何时更改Payload生成过程中的任何内容，都要问自己这个问题:它能在旧客户端上工作吗?如果不行，我需要用次要版本或任何其他方式来控制它吗。
 
-特别是关于企业回滚，新的升级应用应该能够接受较旧的更新Payload。通常这是通过全量 Payload 完成的，但应该注意不要破坏这种兼容性。
+### 1.9 开发者和维护者须知
 
-#### 考虑未来
+
+
+更改 `update engine` 源代码时要特别小心这些事项:
+
+
+
+#### 1.9.1 不要破坏向后兼容性
+
+在每个发布周期，我们都应该能够生成全量和增量 Payload，并可以正确应用于运行旧版本更新引擎客户端的旧设备。例如，在元数据 proto 文件中移除、不传递参数可能会损坏旧客户端。或者传递旧客户端不理解的操作也会损坏它们。无论何时更改 Payload 生成过程中的任何内容，都要问自己这个问题：它能在旧客户端上工作吗？如果不行，我需要用次要版本或任何其他方式来控制它吗。
+
+特别是关于企业回滚，新的升级应用应该能够接受较旧的更新 Payload。通常这是通过全量 Payload 完成的，但应该注意不要破坏这种兼容性。
+
+
+
+#### 1.9.2 考虑未来
 
 在update engine中进行更改时，要考虑5年后的情况:
 
@@ -377,183 +487,81 @@ atest update_engine_host_unittests 在主机上运行一部分测试，不需要
 
 - 如何进行更改以方便未来的更改而不破坏旧客户端或增加沉重的维护成本?
 
-#### 优先不要在升级应用实现您的功能
 
-如果一个功能可以通过服务器端实现，请不要在客户端更新程序中实现它。因为客户端更新程序在某些点上可能脆弱，小错误可能会造成灾难性后果。例如，如果在升级应用中引入一个导致其在检查更新之前崩溃的bug，并且我们无法及早在发布过程中捕捉到此bug，那么已经升级到新bug系统的生产设备就可能不再接收自动更新了。因此，总是要考虑是否可以通过服务器端实现要实现的功能(可能对客户端更新程序进行最小更改)?或者该功能是否可以移至与升级应用接口最小的其他服务中?回答这些问题在未来会有很大回报。
 
-#### 尊重其他代码库
 
-~~当前的update engine代码库在许多项目(如Android)中使用。~~
+#### 1.9.3 优先不要在升级应用实现您的功能
 
-Android和ChromeOS代码库已正式分支。
+如果一个功能可以通过服务端实现，请不要在客户端更新程序中实现它。因为客户端更新程序在某些点上可能脆弱，小错误可能会造成灾难性后果。例如，如果在升级应用中引入一个导致其在检查更新之前崩溃的 bug，并且我们无法及早在发布过程中捕捉到此 bug，那么已经升级到新 bug 系统的生产设备就可能不再接收自动更新了。因此，总是要考虑是否可以通过服务端实现要实现的功能(可能对客户端更新程序进行最小更改)?或者该功能是否可以移至与升级应用接口最小的其他服务中?回答这些问题在未来会有很大回报。
 
-我们经常在这两个项目之间同步代码库。请注意不要破坏Android或其他共享update engine代码的系统。每当提交更改时，务必考虑Android是否需要该更改:
+> 注: 这里的服务端和客户端应该对应于 update engine daemon 和 update engine client。而不是我们理解的后端服务器 server 和客户端设备 device 上。
 
-- 它将如何影响Android?
 
-- 是否可以将更改移动到接口，并实现存根实现，以免影响Android?  
 
-- Chrome OS或Android特定的代码是否可以用宏进行保护?
+#### 1.9.4 尊重其他代码库
 
-作为一个基本措施，如果添加/删除/重命名代码，请确保同时更改build.gn和Android.bp。不要将Chrome OS特定的代码(例如system_api或dlcservice中的其他库)带入update_engine的通用代码。尽量使用最佳软件工程实践来区分这些问题。
+~~当前的 update engine 代码库在许多项目(如 Android )中使用。~~
 
-#### 从Android(或其他代码库)合并
+Android 和 ChromeOS 代码库已正式分支。
 
-Chrome OS将Android代码作为上游分支跟踪。要将Android代码合并到Chrome OS(反之亦然)，只需将该分支合并到Chrome OS中，使用任何方法测试它，然后上传合并提交。
+我们经常在这两个项目之间同步代码库。请注意不要破坏 Android 或其他共享 update engine 代码的系统。每当提交更改时，务必考虑 Android 是否需要该更改:
 
+- 它将如何影响 Android?
+
+- 是否可以将更改移动到接口，并实现存根实现，以免影响 Android?  
+
+- Chrome OS 或 Android 特定的代码是否可以用宏进行保护?
+
+作为一个基本措施，如果添加/删除/重命名代码，请确保同时更改 build.gn 和 Android.bp。不要将 Chrome OS 特定的代码(例如 system_api 或 dlcservice 中的其他库)带入 update_engine 的通用代码。尽量使用最佳软件工程实践来区分这些问题。
+
+
+
+#### 1.9.5 从 Android( 或其他代码库)合并
+
+Chrome OS 将 Android 代码作为上游分支跟踪。要将 Android 代码合并到 Chrome OS (反之亦然)，只需将该分支合并到 Chrome OS中，使用任何方法测试它，然后上传合并提交。
+
+```bash
 repo start merge-aosp
-git merge --no-ff --strategy=recursive -X patience cros/upstream  
+git merge --no-ff --strategy=recursive -X patience cros/upstream 
 repo upload --cbr --no-verify .
+```
 
 
 
+## 2. 特别说明
 
+前一节 **Chrome OS 的更新过程** 大部分是 claude 翻译的结果，但有很多地方的翻译并不尽如人意。我又将部分内容根据我的习惯进行了调整并添加了一些注释。尽管如此，还是能感觉到很多地方的翻译有些生硬。
 
-# Payload 部分翻译
+所以，我还是强烈建议你去阅读一下文档原文，获取第一手的资料。如果英语不太好，可以和本篇翻译的内容进行参考对比理解。
 
-更新Payload生成
 
-更新Payload生成是将一组分区/文件转换为既能被升级应用(特别是较旧版本)理解，也能安全验证的格式的过程。这个过程涉及将输入分区分解成较小的组件并压缩以帮助下载Payload时的网络带宽。
 
-`delta_generator`是一个具有广泛选项的工具，用于生成不同类型的更新Payload。其代码位于`update_engine/payload_generator`中。这个目录包含生成更新Payload的所有相关源代码。这个目录中的文件不应包含或用于`delta_generator`之外的任何其他库/可执行文件中，这意味着这个目录没有编译到更新引擎的其他工具中。
+更多关于 Android A/B 更新的一些基础操作和特性，请参考博客专栏 [《Android A/B 系统》](https://blog.csdn.net/guyongqiangx/category_12140293.html)系列
 
-但是，不推荐直接使用`delta_generator`，因为它有太多的标志。应该使用像ota_from_target_files或OTA Generator这样的包装器。
+更多源于 Android A/B 更新的细节，请参考博客专栏[《Android Update Engine 分析》](https://blog.csdn.net/guyongqiangx/category_12140296.html) 系列
 
 
 
-更新Payload文件规范
-每个更新Payload文件都有下表中定义的特定结构:
+## 3. 其它
 
-字段	大小(字节)	类型	描述
-Magic Number	4	char[4]	魔数"CrAU"，标识这是一个更新Payload
-Major Version	8	uint64	Payload主版本号
-Manifest Size	8	uint64	清单大小，以字节为单位
-Manifest Signature Size	4	uint32	清单签名blob大小(字节)，仅在主版本2中存在
-Manifest	变化	DeltaArchiveManifest	要执行的操作列表
-Manifest Signature	变化	Signatures	前五个字段的签名。如果密钥发生变化，可以有多个签名。
-Payload Data	变化	List of raw or compressed data blobs	元数据中操作使用的二进制blob列表
-Payload Signature Size	变化	uint64	Payload签名的大小
-Payload Signature	变化	Signatures	整个Payload的签名，不包括元数据签名。如果密钥发生变化，可以有多个签名。
+- 到目前为止，我写过 Android OTA 升级相关的话题包括：
+  - 基础入门：[《Android A/B 系统》](https://blog.csdn.net/guyongqiangx/category_12140293.html)系列
+  - 核心模块：[《Android Update Engine 分析》](https://blog.csdn.net/guyongqiangx/category_12140296.html) 系列
+  - 动态分区：[《Android 动态分区》](https://blog.csdn.net/guyongqiangx/category_12140166.html) 系列
+  - 虚拟 A/B：[《Android 虚拟 A/B 分区》](https://blog.csdn.net/guyongqiangx/category_12121868.html)系列
+  - 升级工具：[《Android OTA 相关工具》](https://blog.csdn.net/guyongqiangx/category_12211864.html)系列
 
+更多这些关于 Android OTA 升级相关文章的内容，请参考[《Android OTA 升级系列专栏文章导读》](https://blog.csdn.net/guyongqiangx/article/details/129019303)。
 
+如果您已经订阅了动态分区和虚拟分区付费专栏，请务必加我微信，备注订阅账号，拉您进“动态分区 & 虚拟分区专栏 VIP 答疑群”。我会在方便的时候，回答大家关于 A/B 系统、动态分区、虚拟分区、各种 OTA 升级和签名的问题。
 
-###  完整更新Payload vs 增量更新Payload
+除此之外，我有一个 Android OTA 升级讨论群，里面现在有 400+ 朋友，主要讨论手机，车机，电视，机顶盒，平板等各种设备的 OTA 升级话题，如果您从事 OTA 升级工作，欢迎加群一起交流，请在加我微信时注明“Android OTA 讨论组”。此群仅限 Android OTA 开发者参与~
 
-有两种类型的Payload:完整和增量。全量 Payload 仅从目标镜像(我们要更新到的镜像)生成，包含更新非活动分区所需的所有数据。因此，全量 Payload 的大小可能非常大。另一方面，增量Payload是通过比较源镜像(活动分区)和目标镜像并生成这两者之间的差异而生成的差异更新。它基本上是一个类似于`diff`或`bsdiff`等应用程序的差异更新。因此，使用增量Payload更新系统需要系统读取活动分区的部分内容，以便更新非活动分区(或重构目标分区)。增量Payload明显小于全量 Payload 。两种类型的Payload结构相同。
+> 公众号“洛奇看世界”后台回复“wx”获取个人微信。
 
-Payload生成非常耗费资源，其工具实现了高度的并行化。
 
 
 
-#### 生成全量 Payload 
-
-全量 Payload 是通过将分区划分为2MiB(可配置)的块，然后使用bzip2或XZ算法对其进行压缩，或者根据哪种可以生成更小的数据而保持为原始数据来生成的。与增量Payload相比，全量 Payload 要大得多，因此如果网络带宽受限，它们需要更长的下载时间。另一方面，应用全量 Payload 稍快一些，因为系统不需要从源分区读取数据。
-
-
-
-#### 生成增量 Payload
-
-增量Payload是通过在文件和元数据级别(更精确地说是每个适当分区上的文件系统级别)查看源镜像数据和目标镜像数据来生成的。我们可以生成增量Payload的原因是Chrome OS分区是只读的。所以我们可以非常确定客户设备上活动分区的位比特与图像生成/签名阶段中生成的原始分区完全相同。生成增量Payload的过程大致如下:
-
-1. 在目标分区上找到所有填充零的值块，并为它们生成“ZERO”操作。“ZERO”操作基本上会丢弃相关的块(取决于具体实现)。
-2. 通过直接逐块比较源分区和目标分区，找到在源和目标分区之间未发生更改的所有块，并生成“SOURCE_COPY”操作。
-3. 列出源分区和目标分区中的所有文件(及其相关块)，并删除我们在最后两步中已经生成了操作的块(和文件)。将每个分区的剩余元数据(inode等)分配为一个文件。
-4. 如果文件是新文件，根据哪个可以生成更小的数据块来为其数据块生成“REPLACE”、“REPLACE_XZ”或“REPLACE_BZ”操作。
-5. 对于每个其他文件，比较源块和目标块，并根据哪个可以生成更小的数据块来生成“SOURCE_BSDIFF”或“PUFFDIFF”操作。这两个操作在源数据块和目标数据块之间生成二进制差异。(有关此类二进制差异程序的详细信息，请参阅bsdiff和puffin!)
-6. 根据目标分区的块偏移量对操作进行排序。
-7. 可选地将相邻的相同或相似操作合并为较大的操作，以提高效率和潜在的生成较小的Payload。
-
-全量 Payload 只能包含“REPLACE”、“REPLACE_BZ”和“REPLACE_XZ”操作。增量Payload可以包含任何操作。
-
-
-
-### 主版本号和次版本号
-
-主版本号和次版本号分别指定更新Payload文件的格式以及升级应用接受某些类型更新Payload的能力。这些数字在升级应用中是硬编码的。
-
-主版本号基本上就是上述更新Payload文件规范中的更新Payload文件版本(第二个字段)。每个升级应用支持一系列主版本号。目前只有两个主版本:1和2。Chrome OS和Android目前都在主版本2上(主版本1正在被弃用)。每当有新添加的不能装入Manifest protobuf的内容时，我们需要提升主版本号。提升主版本号需要非常谨慎，因为旧客户端不知道如何处理新的版本。在Chrome OS中任何主版本号提升都应该与GoldenEye步进石相关联。
-
-次版本号定义了升级应用接受某些操作或执行某些操作的能力。每个升级应用支持一系列次版本号。例如，次版本号为4(或更低)的升级应用不知道如何处理“PUFFDIFF”操作。因此，在为次版本号为4(或更低)的镜像生成增量Payload时，我们不能为它生成PUFFDIFF操作。Payload生成过程会查看源镜像的次版本号以决定它支持的操作类型，并只生成符合那些限制的Payload。类似地，如果某个特定次版本号的客户端存在bug，提升次版本号有助于避免生成会导致该bug出现的Payload。但是，提升次版本号在可维护性方面代价也很高，并且可能容易出错。所以进行这种更改时也需要谨慎。
-
-次版本号在全量 Payload 中无关紧要。全量 Payload 应该总是能够应用于非常旧的客户端。原因是升级应用可能不会发送它们当前的版本，所以如果我们有不同类型的全量 Payload ，我们就不会知道为客户端提供哪个版本。
-
-
-
-###  签名Payload vs 未签名Payload
-
-更新Payload可以使用公钥/私钥对进行签名以用于生产环境，或者保持未签名状态以用于测试。像`delta_generator`这样的工具可以帮助生成元数据和Payload哈希或者使用给定的私钥对Payload进行签名。
-
-对于生产环境，必须使用签名的Payload以确保安全性。未签名的Payload只应在测试环境中使用。
-
-签名Payload需要额外的签名数据和验证过程，会增加Payload的大小。但这是确保更新过程安全所必需的。
-
-生成签名Payload需要私钥。而验证签名需要对应的公钥。Key管理对于保证更新系统的安全至关重要。
-
-总之，签名Payload用于生产以防止恶意修改。未签名Payload用于测试以加速开发。两者在使用场景上有明确区分。
-
-
-
-## Update Payload Generation
-
-The update payload generation is the process of converting a set of partitions/files into a format that is both understandable by the updater client (especially if it's a much older version) and is securely verifiable. This process involves breaking the input partitions into smaller components and compressing them in order to help with network bandwidth when downloading the payloads.
-
-`delta_generator` is a tool with a wide range of options for generating different types of update payloads. Its code is located in `update_engine/payload_generator`. This directory contains all the source code related to mechanics of generating an update payload. None of the files in this directory should be included or used in any other library/executable other than the `delta_generator` which means this directory does not get compiled into the rest of the update engine tools.
-
-However， it is not recommended to use `delta_generator` directly， as it has way too many flags. Wrappers like [ota*from*target_files](https://cs.android.com/android/platform/superproject/+/master:build/make/tools/releasetools/ota_from_target_files.py) or [OTA Generator](https://github.com/google/ota-generator) should be used.
-
-### Update Payload File Specification
-
-Each update payload file has a specific structure defined in the table below:
-
-| Field                   | Size (bytes) | Type                                                         | Description                                                  |
-| ----------------------- | ------------ | ------------------------------------------------------------ | ------------------------------------------------------------ |
-| Magic Number            | 4            | char[4]                                                      | Magic string "CrAU" identifying this is an update payload.   |
-| Major Version           | 8            | uint64                                                       | Payload major version number.                                |
-| Manifest Size           | 8            | uint64                                                       | Manifest size in bytes.                                      |
-| Manifest Signature Size | 4            | uint32                                                       | Manifest signature blob size in bytes (only in major version 2). |
-| Manifest                | Varies       | [DeltaArchiveManifest](http://aospxref.com/update_metadata.proto#302) | The list of operations to be performed.                      |
-| Manifest Signature      | Varies       | [Signatures](http://aospxref.com/update_metadata.proto#122)  | The signature of the first five fields. There could be multiple signatures if the key has changed. |
-| Payload Data            | Varies       | List of raw or compressed data blobs                         | The list of binary blobs used by operations in the metadata. |
-| Payload Signature Size  | Varies       | uint64                                                       | The size of the payload signature.                           |
-| Payload Signature       | Varies       | [Signatures](http://aospxref.com/update_metadata.proto#122)  | The signature of the entire payload except the metadata signature. There could be multiple signatures if the key has changed. |
-
-### Delta vs. Full Update Payloads
-
-There are two types of payload: Full and Delta. A full payload is generated solely from the target image (the image we want to update to) and has all the data necessary to update the inactive partition. Hence， full payloads can be quite large in size. A delta payload， on the other hand， is a differential update generated by comparing the source image (the active partitions) and the target image and producing the diffs between these two images. It is basically a differential update similar to applications like `diff` or `bsdiff`. Hence， updating the system using the delta payloads requires the system to read parts of the active partition in order to update the inactive partition (or reconstruct the target partition). The delta payloads are significantly smaller than the full payloads. The structure of the payload is equal for both types.
-
-Payload generation is quite resource intensive and its tools are implemented with high parallelism.
-
-#### Generating Full Payloads
-
-A full payload is generated by breaking the partition into 2MiB (configurable) chunks and either compressing them using bzip2 or XZ algorithms or keeping it as raw data depending on which produces smaller data. Full payloads are much larger in comparison to delta payloads hence require longer download time if the network bandwidth is limited. On the other hand， full payloads are a bit faster to apply because the system doesn’t need to read data from the source partition.
-
-#### Generating Delta Payloads
-
-Delta payloads are generated by looking at both the source and target images data on a file and metadata basis (more precisely， the file system level on each appropriate partition). The reason we can generate delta payloads is that Chrome OS partitions are read only. So with high certainty we can assume the active partitions on the client’s device is bit-by-bit equal to the original partitions generated in the image generation/signing phase. The process for generating a delta payload is roughly as follows:
-
-1. Find all the zero-filled blocks on the target partition and produce `ZERO` operation for them. `ZERO` operation basically discards the associated blocks (depending on the implementation).
-2. Find all the blocks that have not changed between the source and target partitions by directly comparing one-to-one source and target blocks and produce `SOURCE_COPY` operation.
-3. List all the files (and their associated blocks) in the source and target partitions and remove blocks (and files) which we have already generated operations for in the last two steps. Assign the remaining metadata (inodes， etc) of each partition as a file.
-4. If a file is new， generate a `REPLACE`， `REPLACE_XZ`， or `REPLACE_BZ` operation for its data blocks depending on which one generates a smaller data blob.
-5. For each other file， compare the source and target blocks and produce a `SOURCE_BSDIFF` or `PUFFDIFF` operation depending on which one generates a smaller data blob. These two operations produce binary diffs between a source and target data blob. (Look at [bsdiff](https://android.googlesource.com/platform/external/bsdiff/+/master) and [puffin](https://android.googlesource.com/platform/external/puffin/+/master) for details of such binary differential programs!)
-6. Sort the operations based on their target partitions’ block offset.
-7. Optionally merge same or similar operations next to each other into larger operations for better efficiency and potentially smaller payloads.
-
-Full payloads can only contain `REPLACE`， `REPLACE_BZ`， and `REPLACE_XZ` operations. Delta payloads can contain any operations.
-
-### Major and Minor versions
-
-The major and minor versions specify the update payload file format and the capability of the updater client to accept certain types of update payloads respectively. These numbers are [hard coded](http://aospxref.com/update_engine.conf) in the updater client.
-
-Major version is basically the update payload file version specified in the [update payload file specification](http://aospxref.com/android-13.0.0_r3/xref/system/update_engine/#update-payload-file-specification) above (second field). Each updater client supports a range of major versions. Currently， there are only two major versions: 1， and 2. And both Chrome OS and Android are on major version 2 (major version 1 is being deprecated). Whenever there are new additions that cannot be fitted in the [Manifest protobuf](http://aospxref.com/update_metadata.proto)， we need to uprev the major version. Upreving major version should be done with utmost care because older clients do not know how to handle the newer versions. Any major version uprev in Chrome OS should be associated with a GoldenEye stepping stone.
-
-Minor version defines the capability of the updater client to accept certain operations or perform certain actions. Each updater client supports a range of minor versions. For example， the updater client with minor version 4 (or less) does not know how to handle a `PUFFDIFF` operation. So when generating a delta payload for an image which has an updater client with minor version 4 (or less) we cannot produce PUFFDIFF operation for it. The payload generation process looks at the source image’s minor version to decide the type of operations it supports and only a payload that confirms to those restrictions. Similarly， if there is a bug in a client with a specific minor version， an uprev in the minor version helps with avoiding to generate payloads that cause that bug to manifest. However， upreving minor versions is quite expensive too in terms of maintainability and it can be error prone. So one should practice caution when making such a change.
-
-Minor versions are irrelevant in full payloads. Full payloads should always be able to be applied for very old clients. The reason is that the updater clients may not send their current version， so if we had different types of full payloads， we would not have known which version to serve to the client.
-
-### Signed vs Unsigned Payloads
-
-Update payloads can be signed (with private/public key pairs) for use in production or be kept unsigned for use in testing. Tools like `delta_generator` help with generating metadata and payload hashes or signing the payloads given private keys.
 
 
 
