@@ -1,5 +1,7 @@
 # 20230817-Android Update Engine 分析（二十一）Android A/B 更新过程
 
+![android_update_engine_21_title](images-20230817-Android Update Engine 分析（二十一）Android AB 更新过程/android_update_engine_21_title.png)
+
 ## 0. 背景
 
 早期 Android A/B 系统升级在 Android 7.1 版本推出时，参考文档十分有限，也就是 Android 官方大概有两三个页面介绍文档。
@@ -90,7 +92,7 @@
 >
 > - [Android Update Engine分析（二十）为什么差分包比全量包小，但升级时间却更长？](https://blog.csdn.net/guyongqiangx/article/details/132343017)
 >
-> - [Android Update Engine分析（二十一）Android A/B 的更新过程]()
+> - [Android Update Engine分析（二十一）Android A/B 的更新过程](https://blog.csdn.net/guyongqiangx/article/details/132536383)
 
 > 如果您已经订阅了本专栏，请务必加我微信，拉你进“动态分区 & 虚拟分区专栏 VIP 答疑群”。
 
