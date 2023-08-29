@@ -144,6 +144,21 @@ $ grep -ni lpmake make-dist.log
 
 
 
+说下这里 lpmake 命令的参数重点：
+
+- `--metadata-size 65536`
+- `--super-name super`
+- `--metadata-slots 3`
+- `--virtual-ab`
+- `--device super:8531214336`
+- `--group google_dynamic_partitions_a:8527020032`
+- `--partition system_a:readonly:886816768:google_dynamic_partitions_a`
+- `--image system_a=out/target/product/panther/system.img`
+- `--sparse`
+- `--output out/target/product/panther/super.img`
+
+
+
 ## 4. 几个思考题
 
 到这里差不多应该结束了，给大家留三个思考题：
