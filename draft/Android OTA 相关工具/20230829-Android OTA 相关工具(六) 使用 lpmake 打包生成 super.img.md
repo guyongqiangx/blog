@@ -142,6 +142,8 @@ Device data format:
 
 
 
+### 3.1 示例 1
+
 这里说说 Android 编译中对 lpmake 的调用。
 
 
@@ -270,6 +272,10 @@ $ grep -ni lpmake make-dist.log
 
 
 
+### 3.2 示例 2
+
+
+
 另外，文章[《Android 动态分区详解(二) 核心模块和相关工具介绍》](https://blog.csdn.net/guyongqiangx/article/details/123931356) 中也介绍过 lpmake 工具的另外一个例子，可以参考上面的参数执行分析这个命令：
 
 ```bash
@@ -284,6 +290,23 @@ lpmake --metadata-size 65536 --super-name super --metadata-slots 3 \
 	--partition vendor_b:readonly:0:bcm_ref_b \
 	--sparse --output out/target/product/inuvik/super.img
 ```
+
+
+
+### 3.3 示例 3
+
+这里再提供一个 Android 文档中介绍 lpmake 时使用的例子:
+
+```bash
+lpmake --device-size 10240000000 \
+       --metadata-size 65536     \
+       --metadata-slots 2        \
+       -o /tmp/super.img         \
+       -p "cache:2da85788-f0e1-4fda-9ee7-e5177eab184b:none:67108864" \
+       -i "cache=out/target/hikey960/cache.img"
+```
+
+这个例子中，创建了一个 10GB 的 super 动态分区，里面只包含了一个 64M 大小的 "cache" 分区。
 
 
 
