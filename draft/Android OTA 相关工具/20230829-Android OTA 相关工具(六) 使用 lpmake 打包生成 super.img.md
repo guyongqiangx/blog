@@ -1,4 +1,4 @@
-# 20230829-Android OTA 相关工具(六)  使用 lpmake 打包生成 super.img
+# 20230829-Android OTA 相关工具(六) 使用 lpmake 打包生成 super.img
 
 我在 [《Android 动态分区详解(二) 核心模块和相关工具介绍》](https://blog.csdn.net/guyongqiangx/article/details/123931356) 介绍过 lpmake 工具，这款工具用于将多个分区镜像打包生成一个 Android 专用的动态分区镜像，一般称为 super.img。Android 编译时，系统会自动调用 lpmake 并传入相关参数来生成 super.img，不需要我们手动操作。但难免还是有朋友想深入研究下 super.img，希望自己手动生成 super.img。所以这里专门开一篇详解介绍下 lpmake 工具。
 
