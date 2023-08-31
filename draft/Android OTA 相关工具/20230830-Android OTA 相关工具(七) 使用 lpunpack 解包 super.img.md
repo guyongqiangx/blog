@@ -26,13 +26,13 @@
 > - [《Android OTA 相关工具(四) 查看 payload 文件信息》](https://blog.csdn.net/guyongqiangx/article/details/129228856)
 > - [《Android OTA 相关工具(五) 使用 lpdump 查看动态分区》](https://blog.csdn.net/guyongqiangx/article/details/129785777)
 > - [《Android OTA 相关工具(六) 使用 lpmake 打包生成 super.img》](https://blog.csdn.net/guyongqiangx/article/details/132581720)
-> - [《Android OTA 相关工具(七) 使用 lpunpack 解包 super.img》]()
+> - [《Android OTA 相关工具(七) 使用 lpunpack 解包 super.img》](https://blog.csdn.net/guyongqiangx/article/details/132598451)
 
 
 
 > 本文为洛奇看世界(guyongqiangx)原创，转载请注明出处。
 >
-> 文章链接：https://blog.csdn.net/guyongqiangx/article/details/
+> 文章链接：https://blog.csdn.net/guyongqiangx/article/details/132598451
 
 
 
@@ -256,7 +256,7 @@ Group table:
 
 
 
-### 1. 解包所有镜像
+### 3.1 解包所有镜像
 
 不带参数解包所有分区镜像。
 
@@ -281,7 +281,7 @@ total 2.1G
 
 
 
-### 2. 解包指定名称分区镜像
+### 3.2 解包指定名称分区镜像
 
 使用 "-p" 参数解包单个分区 system_a 的镜像：
 
@@ -308,12 +308,159 @@ total 1.5G
 
 
 
-### 3. 解包指定槽位分区镜像
+### 3.3 解包指定槽位分区镜像
 
-使用 "-s" 选项指定槽位，解包单个槽位镜像。
+根据 help 信息，可以使用 "-S"/"--slot" 选项指定槽位，解包单个槽位镜像。
+
+但必须吐槽一下这个选项，Bug 丛生。
+
+
+
+槽点 1：使用 "-S"(大写) 选项，提示不认识 "-S" 选项
 
 ```bash
+android-13.0.0_r41$ lpunpack -S 1 super_raw.img temp
+lpunpack: unrecognized option '-S'
+Unrecognized argument.
+lpunpack - command-line tool for extracting partition images from super
+
+Usage:
+  lpunpack [options...] SUPER_IMAGE [OUTPUT_DIR]
+
+Options:
+  -p, --partition=NAME     Extract the named partition. This can
+                           be specified multiple times.
+  -S, --slot=NUM           Slot number (default is 0).
 ```
+
+
+
+槽点 2：使用 "-s"(小写) 选项，提示不认识的参数
+
+```bash
+android-13.0.0_r41$ lpunpack -s 1 super_raw.img temp
+Unrecognized command-line arguments.
+lpunpack - command-line tool for extracting partition images from super
+
+Usage:
+  lpunpack [options...] SUPER_IMAGE [OUTPUT_DIR]
+
+Options:
+  -p, --partition=NAME     Extract the named partition. This can
+                           be specified multiple times.
+  -S, --slot=NUM           Slot number (default is 0).
+```
+
+
+
+槽点 3: 使用 "--slot 1" 选项提取槽位 1 的分区镜像，但实际上两个槽位的 image 都提取出来了
+
+```bash
+android-13.0.0_r41$ rm -rf temp/*
+android-13.0.0_r41$ lpunpack --slot 1 super_raw.img temp/
+android-13.0.0_r41$ ls -lh temp/
+total 2.1G
+-rw-r--r-- 1 rocky users 351M Aug 31 10:11 product_a.img
+-rw-r--r-- 1 rocky users    0 Aug 31 10:11 product_b.img
+-rw-r--r-- 1 rocky users 846M Aug 31 10:11 system_a.img
+-rw-r--r-- 1 rocky users  27M Aug 31 10:11 system_b.img
+-rw-r--r-- 1 rocky users 340K Aug 31 10:11 system_dlkm_a.img
+-rw-r--r-- 1 rocky users    0 Aug 31 10:11 system_dlkm_b.img
+-rw-r--r-- 1 rocky users 288M Aug 31 10:11 system_ext_a.img
+-rw-r--r-- 1 rocky users    0 Aug 31 10:11 system_ext_b.img
+-rw-r--r-- 1 rocky users 593M Aug 31 10:11 vendor_a.img
+-rw-r--r-- 1 rocky users    0 Aug 31 10:11 vendor_b.img
+-rw-r--r-- 1 rocky users  42M Aug 31 10:11 vendor_dlkm_a.img
+-rw-r--r-- 1 rocky users    0 Aug 31 10:11 vendor_dlkm_b.img
+```
+
+
+
+没想到这个 lpunpack 工具已经提供好几年了，lpunpack 竟然还有问题。
+
+好吧，那就只能去改下代码了。
+
+如果你需要指定槽位操作的话，可能需要修改下代码，以下代码仅供参考：
+
+```c++
+android-13.0.0_r41$ repo diff system/extras/partition_tools/lpunpack.cc 
+project system/extras/
+diff --git a/partition_tools/lpunpack.cc b/partition_tools/lpunpack.cc
+index 1f870c5d..951572d4 100644
+--- a/partition_tools/lpunpack.cc
++++ b/partition_tools/lpunpack.cc
+@@ -84,7 +84,7 @@ static int usage(int /* argc */, char* argv[]) {
+             "Options:\n"
+             "  -p, --partition=NAME     Extract the named partition. This can\n"
+             "                           be specified multiple times.\n"
+-            "  -S, --slot=NUM           Slot number (default is 0).\n",
++            "  -s, --slot=NUM           Slot number (default is 0).\n",
+             argv[0], argv[0]);
+     return EX_USAGE;
+ }
+@@ -93,7 +93,7 @@ int main(int argc, char* argv[]) {
+     // clang-format off
+     struct option options[] = {
+         { "partition",  required_argument,  nullptr, 'p' },
+-        { "slot",       required_argument,  nullptr, 'S' },
++        { "slot",       required_argument,  nullptr, 's' },
+         { nullptr,      0,                  nullptr, 0 },
+     };
+     // clang-format on
+@@ -102,7 +102,7 @@ int main(int argc, char* argv[]) {
+     std::unordered_set<std::string> partitions;
+ 
+     int rv, index;
+-    while ((rv = getopt_long_only(argc, argv, "+p:sh", options, &index)) != -1) {
++    while ((rv = getopt_long_only(argc, argv, "+p:s:h", options, &index)) != -1) {
+         switch (rv) {
+             case 'h':
+                 usage(argc, argv);
+@@ -110,7 +110,7 @@ int main(int argc, char* argv[]) {
+             case '?':
+                 std::cerr << "Unrecognized argument.\n";
+                 return usage(argc, argv);
+-            case 'S':
++            case 's':
+                 if (!android::base::ParseUint(optarg, &slot_num)) {
+                     std::cerr << "Slot must be a valid unsigned number.\n";
+                     return usage(argc, argv);
+```
+
+
+
+从代码中可以看到，如果指定了 slot，实际上是从 super 中读取该 slot 对应的 metadata，然后使用这个 metadata 提取分区镜像。
+
+由于读取到的 metadata 实际上还是包含了 a, b 两个槽位的信息，所以看起来即使指定了 "-s" 选项，但没什么作用，除非读取到的 metadata 只有 b 槽位的信息。
+
+> 关于 metadata 的布局，请参考[《Android 动态分区详解(一) 5 张图让你搞懂动态分区原理》](https://blog.csdn.net/guyongqiangx/article/details/123899602)中的下图:
+>
+> ![DynamicPartitionMetadata-Layout](images-20230830-Android OTA 相关工具(七) 使用 lpunpack 解包 super.img/DynamicPartitionMetadata-Layout.png)
+
+
+
+好了，说了一大堆废话。
+
+总结起来一句话就是：lpunpack 的 "-S"/"--slot" 选项有问题，没事就少用。使用的话，要慎重。
+
+
+
+## 4. 其它
+
+- 到目前为止，我写过 Android OTA 升级相关的话题包括：
+  - 基础入门：[《Android A/B 系统》](https://blog.csdn.net/guyongqiangx/category_12140293.html)系列
+  - 核心模块：[《Android Update Engine 分析》](https://blog.csdn.net/guyongqiangx/category_12140296.html) 系列
+  - 动态分区：[《Android 动态分区》](https://blog.csdn.net/guyongqiangx/category_12140166.html) 系列
+  - 虚拟 A/B：[《Android 虚拟 A/B 分区》](https://blog.csdn.net/guyongqiangx/category_12121868.html)系列
+  - 升级工具：[《Android OTA 相关工具》](https://blog.csdn.net/guyongqiangx/category_12211864.html)系列
+
+更多这些关于 Android OTA 升级相关文章的内容，请参考[《Android OTA 升级系列专栏文章导读》](https://blog.csdn.net/guyongqiangx/article/details/129019303)。
+
+如果您已经订阅了动态分区和虚拟分区付费专栏，请务必加我微信，备注订阅账号，拉您进“动态分区 & 虚拟分区专栏 VIP 答疑群”。我会在方便的时候，回答大家关于 A/B 系统、动态分区、虚拟分区、各种 OTA 升级和签名的问题，此群仅限专栏订阅者参与~
+
+除此之外，我有一个 Android OTA 升级讨论群，里面现在有 400+ 朋友，主要讨论手机，车机，电视，机顶盒，平板等各种设备的 OTA 升级话题，如果您从事 OTA 升级工作，欢迎加群一起交流，请在加我微信时注明“Android OTA 讨论组”。此群仅限 Android OTA 开发者参与~
+
+> 公众号“洛奇看世界”后台回复“wx”获取个人微信。
 
 
 
