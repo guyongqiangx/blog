@@ -28,8 +28,24 @@
 
 ## OTA 相关工具
 
+- lpadd
+- lpflash
+- simg2img, img2simg, append2simg
+- simg_dump.py
+- make_cow_from_ab_ota
 - 关于 google.protobuf 错误
-- 
+- remount
+- mkbootfs
+- mkbootimg
+- unpack_bootimg
+- repack_bootimg
+- certify_bootimg
+- update_engine_sideload
+- update_engine_client
+- lz4diff
+- cow_converter
+- ota_extractor
+- update_device.py
 
 
 
