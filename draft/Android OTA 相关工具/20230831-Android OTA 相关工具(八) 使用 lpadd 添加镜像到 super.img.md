@@ -2,9 +2,13 @@
 
 我一直以为没有人会使用 lpadd 工具，就像我以为没有人会去使用 lpmake 手动生成 super.img 一样。
 
-然鹅，真的有小伙伴使用 lpadd 和 lpmake 去学习和了解 super.img。话说 lpadd 和 lpmake 还真是一个修改 super.img 的好工具。
+然鹅，真的有小伙伴使用 lpadd 和 lpmake 去学习和了解 super.img。
 
+![lpadd-not-found](images-20230831-Android OTA 相关工具(八) 使用 lpadd 添加镜像到 super.img/lpadd-not-found.jpg)
 
+话说 lpmake 和 lpadd 还真是一个学习 super.img 的好工具，要是再有一个 lpdelete/remove 就更好了。当然，这些都是非常低频甚至几乎不会用到的小工具，以至于在上一篇提到的 lpunpack 中有 bug 也一直没有修复。
+
+> 其实 lpmake 在官方代码的 README.md 中介绍的命令也是有 bug 的。
 
 
 
@@ -23,13 +27,13 @@
 > - [《Android OTA 相关工具(五) 使用 lpdump 查看动态分区》](https://blog.csdn.net/guyongqiangx/article/details/129785777)
 > - [《Android OTA 相关工具(六) 使用 lpmake 打包生成 super.img》](https://blog.csdn.net/guyongqiangx/article/details/132581720)
 > - [《Android OTA 相关工具(七) 使用 lpunpack 解包 super.img》](https://blog.csdn.net/guyongqiangx/article/details/132598451)
-> - [《Android OTA 相关工具(八) 使用 lpadd 添加镜像到 super.img》]()
+> - [《Android OTA 相关工具(八) 使用 lpadd 添加镜像到 super.img》](https://blog.csdn.net/guyongqiangx/article/details/132635213)
 
 
 
 > 本文为洛奇看世界(guyongqiangx)原创，转载请注明出处。
 >
-> 文章链接：https://blog.csdn.net/guyongqiangx/article/details/
+> 文章链接：https://blog.csdn.net/guyongqiangx/article/details/132635213
 
 
 
@@ -143,17 +147,177 @@ Extra options:
 
 除了上面的 help 信息，Android 源码中自带的文档 `system/extras/partition_tools/README.md` 也包含了对 lpadd 的一些解释说明，如下：
 
-![1693458967(1)](images-20230831-Android OTA 相关工具(八) 使用 lpadd 添加镜像到 super.img/1693458967(1).png)
+![lpadd official description](images-20230831-Android OTA 相关工具(八) 使用 lpadd 添加镜像到 super.img/lpadd-official-doc.png)
+
+按照 Android 官方文档的说法，在我看来有以下重点：
+
+- lpadd 可以用来往 super.img 中添加分区镜像文件，或者往 super_empty.img 中添加分区。有利于在各种分开或者混合编译的情况，例如 radio.img 和 system.img 由不同的部门或公司管理的不同的代码编译，但都希望最后添加到一个 super.img 中。
+- 增加的分区名字 PART_NAME 必须是还没有存在的。
+- 不能往 super_empty.img 中添加分区镜像文件。
+- lpadd 会消耗大量 TMPDIR 空间，所以如果默认的 TMPDIR 不够空间的话，通过命令行变量 TMPDIR 临时指定一个位置。
 
 ## 3. lpadd 的用法
 
-### 3.1 添加新分区和镜像
+### 3.1 准备工作
 
-### 3.2 添加新分区到分区组
+为了方便演示，我这里手动生成了 3 个名为 rocky 的 super 设备镜像，分别是：
 
-### 3.3 更新现有分区镜像 
+- empty 的 super 设备镜像: rocky_empty.img
+- raw 格式的 super 设备镜像: rocky_raw.img
+- sparse 格式的 super 设备镜像: rocky_sparse.img
+
+super 设备的大小为 10G (10000M):
+
+- 包含 2 个大小为 4G(4000M)的 "guyognqiangx_a", "guyongqiangx_b" 以及默认 "default" 分组 group
+- 分组 "guyognqiangx_a" 和 "guyongqiangx_b" 分别包含大小为 20M 的 "boot_a" 和 "boot_b"
+- 默认分组 "default" 包含一个大小为 100M 的 "radio" 分组
+
+另外，我是基于 `android-13.0.0_r41` 上编译谷歌的 panther 设备进行这个实验的，如果下载代码和编译 panther，请参考手把手文章[《如何下载和编译 Android 源码？》](https://blog.csdn.net/guyongqiangx/article/details/132125431)
+
+因为制作 raw 格式和 sparse 格式镜像时，指定的分区需要先转换成 sparse 格式，所以我这里把 radio.img 和 system.img 转换成了 sparse 格式的 sradio.img 和 ssystem.img:
+
+```bash
+$ img2simg out/target/product/panther/radio.img sradio.img 
+$ img2simg out/target/product/panther/system.img ssystem.img 
+$ ls -lh out/target/product/panther/{radio,system}.img {sradio,ssystem}.img
+-rw-r--r-- 1 rocky users  77M Aug 16 00:29 out/target/product/panther/radio.img
+-rw-r--r-- 1 rocky users 846M Aug 16 00:58 out/target/product/panther/system.img
+-rw-r--r-- 1 rocky users  68M Sep  2 09:36 sradio.img
+-rw-r--r-- 1 rocky users 843M Sep  2 09:36 ssystem.img
+```
 
 
+
+#### empty 的 super 设备镜像
+
+不包含任何分区镜像
+
+```bash
+$ lpmake --device-size 10485760000 \
+        --metadata-size 65536     \
+        --metadata-slots 2        \
+        -g guyongqiangx_a:4194304000 \
+        -g guyongqiangx_b:4194304000 \
+        -p "radio:readonly:104857600" \
+        -p "boot_a:none:2197520:guyongqiangx_a" \
+        -p "boot_b:none:2197520:guyongqiangx_b" \
+        -o rocky_empty.img
+```
+
+
+
+#### raw 格式的 super 设备镜像
+
+"default" 组内的 "radio" 分区使用镜像 "sradio.img"
+
+```bash
+$ lpmake --device-size 10485760000 \
+       --metadata-size 65536     \
+       --metadata-slots 2        \
+       -g guyongqiangx_a:4194304000 \
+       -g guyongqiangx_b:4194304000 \
+       -p "radio:readonly:104857600" \
+       -i "radio=sradio.img" \
+       -p "boot_a:none:2197520:guyongqiangx_a" \
+       -p "boot_b:none:2197520:guyongqiangx_b" \
+       -o rocky_raw.img
+```
+
+
+
+#### sparse 格式的 super 设备镜像
+
+- "default" 组内的 "radio" 分区使用镜像 "sradio.img"
+- "guyongqiangx_a" 组内的 "system_a" 分区使用镜像 "ssystem.img"
+- 使用 "-S" 指定输出 sparse 格式的镜像
+
+```bash
+$ lpmake --device-size 10485760000 \
+       --metadata-size 65536     \
+       --metadata-slots 2        \
+       -g guyongqiangx_a:4194304000 \
+       -g guyongqiangx_b:4194304000 \
+       -p "radio:readonly:104857600" \
+       -i "radio=sradio.img" \
+       -p "system_a:readonly:1048576000:guyongqiangx_a" \
+       -i "system_a=ssystem.img" \
+       -p "boot_a:none:2197520:guyongqiangx_a" \
+       -p "boot_b:none:2197520:guyongqiangx_b" \
+       -S -o rocky_sparse.img
+```
+
+
+
+三种格式的分区镜像添加完成以后，可以使用 lpdump 查看分区镜像情况。
+
+后续操作主要使用 raw 格式的分区镜像 rocky_raw.img。
+
+
+
+### 3.1 lpadd 分区操作示例
+
+> 建议: 在下面的各个 lpmake 和 lpadd 的步骤完成后，建议再使用 lpdump 或 lpunpack 来检查 lpadd 的结果，以加深对 lpadd 和 super 动态分区设备的理解。
+
+
+
+rocky_raw.img 的 "guyongqiangx_a" 组内添加新分区 "vendor_a"和镜像:
+
+```
+$ lpadd rocky_raw.img vendor_a guyongqiangx_a out/target/product/panther/vendor.img
+```
+
+
+
+在 "guyognqiangx_a" 分组内添加 readonly 的分区 "radio_a"
+
+```bash
+$ lpadd rocky_raw.img --readonly radio_a guyongqiangx_a
+```
+
+
+
+在上一步的基础上，直接给 radio_a 分区添加镜像失败，需要使用 "--replace" 选项添加分区镜像:
+
+```bash
+$ lpadd rocky_raw.img radio_a guyongqiangx_a out/target/product/panther/radio.img
+[liblp]Attempting to create duplication partition with name: radio_a
+Could not add partition: radio_a
+$ lpadd rocky_raw.img --replace radio_a guyongqiangx_a out/target/product/panther/radio.img
+Writing data for partition radio_a...
+Done.
+```
+
+> 因为默认使用 lpadd 时默认是向 super 设备添加新分区，如果分区已经存在，需要更新分区镜像，则需要使用 "--replace" 选项。
+
+
+
+将 radio_a 分区镜像从原来的 radio.img 替换为 bootloader.img:
+
+```bash
+$ lpadd rocky_raw.img --replace radio_a guyongqiangx_a out/target/product/panther/bootloader.img
+Writing data for partition radio_a...
+Done.
+```
+
+
+
+直接给 empty 的 super 设备添加分区和镜像会失败:
+
+```bash
+$ lpadd rocky_empty.img radio_a guyongqiangx_a out/target/product/panther/radio.img
+Cannot add a partition image to an empty super file.
+```
+
+但是可以给 empty 的 super 设备添加分区:
+
+```bash
+$ lpadd rocky_empty.img radio_a guyongqiangx_a
+Done.
+```
+
+
+
+> 对于逻辑分区的管理，再添加一个 lpdelete 或者 lpremove 来从 super 设备移除分区就完美了，因为这样整个分区的增删改查操作就都具备了，可惜没有~
 
 ## 4. 其它
 
