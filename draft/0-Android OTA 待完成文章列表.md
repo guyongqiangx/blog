@@ -46,6 +46,9 @@
 - cow_converter
 - ota_extractor
 - update_device.py
+- make_cow_from_ab_ota
+- estimate_cow_from_nonab_ota
+- inspect_cow
 
 
 
