@@ -28,7 +28,7 @@
 
 ## OTA 相关工具
 
-- lpadd
+- 20230831-Android OTA 相关工具(八) 使用 lpadd 添加镜像到 super.img
 - lpflash
 - simg2img, img2simg, append2simg
 - simg_dump.py
