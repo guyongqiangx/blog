@@ -1,4 +1,4 @@
-# 20230227-Android Update Engine 分析（十九）Extent 到底是什么？
+### 20230227-Android Update Engine 分析（十九）Extent 到底是什么？
 
 
 
@@ -49,6 +49,10 @@
 这里提到，在计算机领域中，extent 是文件系统中用于存放文件的一片连续的区域，表示为一个范围内的块号，或设备上的磁道。
 
 > 在存储中，最小的操作单位为 sector，通常一个 sector 占用 512 byte。然后多个 sector 组成一个 block。
+>
+> 实际上我们常用的单位不是 sector，而是 block。
+>
+> Android 系统中，block 是文件和镜像数据存放的最小单位，每个 block 大小为 4K，即每 8 个 sector 组成 1 个 block。假设一个文件有 25K，则前面的 24K 占用 6 个 block，剩余的 1K 数据单独占用 1 个 block，所以一个使用 7 个 block。
 
 一个文件可以由 0 个或多个 extent 构成。例如，一个从第 0 个 block 开始，占用 20 个 block 的文件用 extent 数据可以表示为(0, 20)。
 
@@ -138,11 +142,11 @@ extent 方式索引空间占用小，连续读写有优势，缺点是算法复�
 
 
 
-## 2. Android 中的 Extent
+## 2. Update Engine 中的 Extent
 
-### 1. Payload 文件中的 extent
+### update_metadata.proto 中的 Extent
 
-Android 在 update_metadata.proto 中定义了 Extent 结构:
+Android 在 update_metadata.proto 中定义用于 payload 生成和处理的 Extent 结构:
 
 ```protobuf
 // 文件: system/update_engine/update_metadata.proto
@@ -160,8 +164,6 @@ Android 在 update_metadata.proto 中定义了 Extent 结构:
 // A sentinel value (kuint64max) as the start block denotes a sparse-hole
 // in a file whose block-length is specified by num_blocks.
 
-// ...
-
 message Extent {
   optional uint64 start_block = 1;
   optional uint64 num_blocks = 2;
@@ -170,153 +172,222 @@ message Extent {
 
 
 
-##### **制作全量包生成 extent**
+数据按块(block)存储在磁盘上，并且总是从 block 的开始位置开始存储。如果一个文件的数据对于一个 block 来说太大，它会溢出到另一个 block。这个 block 可能是，也可能不是在物理分区上的随后紧挨着的 block。一个有序的 extent 列表是有序 block 列表的另一种表示形式。
 
-制作全量包时，在 GenerateOperations 函数中生成 extent，代码如下：
+> 因为一个文件需要一个或多个 extent 按顺序表示，所以称为 **extent 有序列表**。
 
-```c++
-/*
- * file: system/update_engine/payload_generator/full_update_generator.cc
- */
-bool FullUpdateGenerator::GenerateOperations(
-    const PayloadGenerationConfig& config,
-    const PartitionConfig& old_part,
-    const PartitionConfig& new_part,
-    BlobFileWriter* blob_file,
-    vector<AnnotatedOperation>* aops) {
-  TEST_AND_RETURN_FALSE(new_part.ValidateExists());
+例如，按顺序存储在第 9、10、11、2、18、12 个 block 中的文件用 extent 列表的方式可以表示为一个包含 4 个 extent 的有序列表: `{{9,3}, {2,1}, {18,1}, {12,1}}`。
 
-  /*
-   * 1. 根据 hard_chunk_size, soft_chunk_size 等参数设置 full_chunk_size
-   */
-  // FullUpdateGenerator requires a positive chunk_size, otherwise there will
-  // be only one operation with the whole partition which should not be allowed.
-  // For performance reasons, we force a small default hard limit of 1 MiB. This
-  // limit can be changed in the config, and we will use the smaller of the two
-  // soft/hard limits.
-  size_t full_chunk_size;
-  if (config.hard_chunk_size >= 0) {
-    full_chunk_size = std::min(static_cast<size_t>(config.hard_chunk_size),
-                               config.soft_chunk_size);
-  } else {
-    full_chunk_size = std::min(kDefaultFullChunkSize, config.soft_chunk_size);
-    LOG(INFO) << "No chunk_size provided, using the default chunk_size for the "
-              << "full operations: " << full_chunk_size << " bytes.";
-  }
-  TEST_AND_RETURN_FALSE(full_chunk_size > 0);
-  TEST_AND_RETURN_FALSE(full_chunk_size % config.block_size == 0);
+一般来说，文件按顺序存储在磁盘上，所以使用 extent 来编码 block 列表更有效率(这实际上是一种行程编码)。
 
-  /*
-   * 2. 打印输出对应分区操作的 chunk_blocks 和 block_size 信息，以及并发的线程数(按 CPU 的核数计算)
-   * 通过检查做包的 log 信息可以看到相应的 chunk_blocks 和 block_size 参数
-   * 例如: "Compressing partition system from /tmp/system.img.i9qtlm splitting in chunks of 512 blocks (4096 bytes each) using 24 threads"
-   */
-  size_t chunk_blocks = full_chunk_size / config.block_size;
-  size_t max_threads = diff_utils::GetMaxThreads();
-  LOG(INFO) << "Compressing partition " << new_part.name << " from "
-            << new_part.path << " splitting in chunks of " << chunk_blocks
-            << " blocks (" << config.block_size << " bytes each) using "
-            << max_threads << " threads";
+> 比方说文件数据按顺序存放在第 9、10、11、12、13、14 个 block 中，使用 extent 有序列表的方式就是`{{9,6}}`，即 extent 有序列表中只包含了一个 extent: `{9, 6}`。这里显然使用 extent 有序列表的表现形式更高效。
 
-  int in_fd = open(new_part.path.c_str(), O_RDONLY, 0);
-  TEST_AND_RETURN_FALSE(in_fd >= 0);
-  ScopedFdCloser in_fd_closer(&in_fd);
 
-  /*
-   * 3. 通过分区大小和 block_size 计算当前分区的总 block 数量和 chunk 数量
-   */
-  // We potentially have all the ChunkProcessors in memory but only
-  // |max_threads| will actually hold a block in memory while we process.
-  size_t partition_blocks = new_part.size / config.block_size;
-  size_t num_chunks = utils::DivRoundUp(partition_blocks, chunk_blocks);
-  aops->resize(num_chunks);
-  vector<ChunkProcessor> chunk_processors;
-  chunk_processors.reserve(num_chunks);
-  blob_file->SetTotalBlobs(num_chunks);
 
-  /*
-   * 4. 把当前分区的所有 block 按照单次操作的 chunk 进行分割，生成 dst_extent 进行处理
-   *    一个 chunk 对应一个 dst_extent
-   */
-  for (size_t i = 0; i < num_chunks; ++i) {
-    size_t start_block = i * chunk_blocks;
-    // The last chunk could be smaller.
-    size_t num_blocks =
-        std::min(chunk_blocks, partition_blocks - i * chunk_blocks);
+update_metadata.proto 中定义的 Extent 结构包含两个成员:
 
-    // Preset all the static information about the operations. The
-    // ChunkProcessor will set the rest.
-    AnnotatedOperation* aop = aops->data() + i;
-    aop->name = base::StringPrintf(
-        "<%s-operation-%" PRIuS ">", new_part.name.c_str(), i);
-    Extent* dst_extent = aop->op.add_dst_extents();
-    dst_extent->set_start_block(start_block);
-    dst_extent->set_num_blocks(num_blocks);
+- 类型为 uint64 的 `start_block` 表示 extent 起始 block 位置，
+- 类型为 uint64 的 `num_blocks` 表示 extent 的 block 数量
 
-    chunk_processors.emplace_back(
-        config.version,
-        in_fd,
-        static_cast<off_t>(start_block) * config.block_size,
-        num_blocks * config.block_size,
-        blob_file,
-        aop);
-  }
+因此，一个 extent 相当于文件中从 `start_block`开始，长度为 `num_block` 个 block 的空洞。
 
-  /*
-   * 5. 基于 CPU 内核的数量(最少 4 个)线程，将每一个 dst_extent 交由 ChunkProcessor 进行处理。
-   *    dst_extent 记录了操作的信息，包括起始位置和长度
-   */
-  // Thread pool used for worker threads.
-  base::DelegateSimpleThreadPool thread_pool("full-update-generator",
-                                             max_threads);
-  thread_pool.Start();
-  for (ChunkProcessor& processor : chunk_processors)
-    thread_pool.AddWork(&processor);
-  thread_pool.JoinAll();
 
-  // All the work done, disable logging.
-  blob_file->SetTotalBlobs(0);
 
-  // All the operations must have a type set at this point. Otherwise, a
-  // ChunkProcessor failed to complete.
-  for (const AnnotatedOperation& aop : *aops) {
-    if (!aop.op.has_type())
-      return false;
-  }
-  return true;
-}
+### update engine 代码中的 Extent
+
+`update_metadata.proto` 定义的 Extent 是如何起作用的呢？
+
+在编译 Android 时，`update_metadata.proto` 会被 protobuf 工具编译成名为 `update_metadata.pb.h` 的头文件存放在  `out/soong/.intermediates` 目录下。
+
+如果你想知道生成文件的具体位置和内容，可以通过 find 命令查看:
+
+```bash
+$ find out -type f -iname update_metadata.pb.h
 ```
 
 
 
-对上面这段话总结一下就是：
+在 `update_metadata.pb.h` 我们可以看到定义了一个 Extent 类:
 
-1. 根据 hard_chunk_size, soft_chunk_size 等参数设置 full_chunk_size
+![image-20230910105822933](images-20230227-Android Update Engine 分析（十九）Extent 到底是什么？/image-20230910105822933.png)
 
-   > delta_generator 默认的 hard_chunk_size 为 200MB，soft_chunk_size 为 2MB
-
-2. 打印输出对应分区操作的 chunk_blocks 和 block_size 信息，以及并发的线程数(按 CPU 的核数计算)。
-  
-   可以通过检查做包的 log 信息可以看到相应的 chunk_blocks 和 block_size 参数。例如: 
-   
-   > "Compressing partition system from /tmp/system.img.i9qtlm splitting in chunks of 512 blocks (4096 bytes each) using 24 threads"
-   
-   这里说明当前 system 分区按照每个 chunk 为 512 个 block 进行处理，每个 block 大小为 4K，因此一个 chunk 大小为 512 x 4K = 2M；另外，启用了 24 个线程进行并行处理，每个线程每次处理 1 个 chunk；
-
-3. 通过分区大小和 block_size 计算当前分区的总 block 数量和 chunk 数量
-4. 把当前分区的所有 block 按照单次操作的 chunk 进行分割，生成 dst_extent 进行处理，一个 chunk 对应一个 dst_extent，记录了这个 chunk 的起始位置和长度(以 block 为基本单位)。
-5. 将每一个 dst_extent 交由 ChunkProcessor 进行并行处理
-6. 在 ChunkProcessor::ProcessChunk() 函数中处理 dst_extent 对应的数据，生成一个一个的 InstallOperation，并存放到  AnnotatedOperation 向量数组中供后续处理
+具体的 Extent 类的实现代码不需要关注，重点在于它的两个成员 `start_block` 和 `num_blocks`。
 
 
 
-> 更多全量包生成策略，请参考[《Android Update Engine 分析（十五） FullUpdateGenerator 策略》](https://guyongqiangx.blog.csdn.net/article/details/122767273)
+通过 protobuf 编译得到 Extent 类的实现以后，在相关的代码中通过像下面这样包含`update_metadata.pb.h` 就可以调用 Extent 了。
+
+```c++
+#include "update_engine/update_metadata.pb.h"
+```
 
 
 
-##### **制作差分包生成 extent**
+在这里我们直接搜索文件名中包含 extent 的文件(需要排除单元测试的  unittest.cc 文件)，来看看 update_engine 中都有哪些和 extent 相关的文件:
 
-制作差分包时，在 GenerateOperations 函数中生成所有 InstallOperation 操作，代码如下：
+```bash
+android-13.0.0_r41$ find system/update_engine/ -type f -name "*extent*" | grep -v unittest | sort
+system/update_engine/payload_consumer/block_extent_writer.cc
+system/update_engine/payload_consumer/block_extent_writer.h
+system/update_engine/payload_consumer/bzip_extent_writer.cc
+system/update_engine/payload_consumer/bzip_extent_writer.h
+system/update_engine/payload_consumer/extent_map.h
+system/update_engine/payload_consumer/extent_reader.cc
+system/update_engine/payload_consumer/extent_reader.h
+system/update_engine/payload_consumer/extent_writer.cc
+system/update_engine/payload_consumer/extent_writer.h
+system/update_engine/payload_consumer/fake_extent_writer.h
+system/update_engine/payload_consumer/snapshot_extent_writer.cc
+system/update_engine/payload_consumer/snapshot_extent_writer.h
+system/update_engine/payload_consumer/xor_extent_writer.cc
+system/update_engine/payload_consumer/xor_extent_writer.h
+system/update_engine/payload_consumer/xz_extent_writer.cc
+system/update_engine/payload_consumer/xz_extent_writer.h
+system/update_engine/payload_generator/extent_ranges.cc
+system/update_engine/payload_generator/extent_ranges.h
+system/update_engine/payload_generator/extent_utils.cc
+system/update_engine/payload_generator/extent_utils.h
+```
+
+> 这里基于 android-13.0.0_r41 代码搜索，如果版本不同可能会略有差异。
+
+将上面的 find 结果归类一下:
+
+payload_consumer 中包含了多组 extent 的 reader 和 writer 实现，包括：`extent_reader`, `extent_writer`，以及`block_extent_writer`, `bzip_extent_writer`,  `fake_extent_writer`, `snapshot_extent_writer`, `xor_extent_writer` 和 `xz_extent_writer`
+
+
+
+其中，ExtentReader 比较简单，重点关注下各种 ExtentWrite，它们之间的关系如下:
+
+![image-20230910113526583](images-20230227-Android Update Engine 分析（十九）Extent 到底是什么？/image-20230910113526583.png)
+
+一句话说来，这里各种 ExtentWriter 的作用就是将 OTA 中 Operation 所携带的数据写入到分区对应的 Extent 中。
+
+
+
+
+
+payload_generator 中包含了 `extent_ranges.cc` 和 `extent_utils.cc`两个文件，定义了 ExtentRanges 对象，以及 Extent 和 ExtentRanges 的各种操作。
+
+
+
+ExtentRanges 对象表示一组无序的 extent 集合。ExtentRanges  对象可以通过添加或删除 block 来进行修改(就像:集合加法或集合减法)。
+
+为什么是 ExtentRanges?
+
+在生成 payload 文件数据的过程中，各个分区镜像按照 4K 大小划分为若干个 block，再根据不同的情形将每一个  block 分门别类集中到某个  extent 中进行处理，最终得到一大堆 extent。
+
+ExtentRanges 支持的操作包括:
+
+- AddBlock，SubtractBlock
+- AddExtent，SubtractExtent
+- AddExtents，SubtractExtents
+- AddRepeatedExtents，SubtractRepeatedExtents
+- AddRanges，SubtractRanges
+- ContainsBlock
+- ExtentsOverlapOrTouch，ExtentsOverlap
+- GetExtentsForBlockCount
+
+具体操作也比较见名知意，对 ExtentRanges 对象按照不同的颗粒度 (block, extent, extents, repeated extents, ranges) 执行类似集合的添加和删除操作，具体代码这里不再展开。
+
+
+
+### OTA 中的 chunk
+
+在制作全量包时，对分区镜像按照 chunk 进行分割处理。"chunk" 通常指的是一个较大整体镜像被划分的小块，这样做通常是出于处理速度、内存使用或其他优化考虑。
+
+
+
+在 `payload_generation_config.h` 中定义了两种 chunk size:
+
+- **hard_chunk_size**
+
+`hard_chunk_size`在 delta_generator 中默认设置为 200M，但可以通过命令行参数 `chunk_size` 改写。
+
+`hard_chunk_size` 是 Payload 中单个操作(Operation)往目标中写入的最大尺寸。大于 `chunk_size` 的操作应该被拆分成多个操作。`hard_chunk_size`值为 `-1` 意味着没有大小限制。`hard_chunk_size` 意味着更多的操作，以及减少重用数据的机会。
+
+
+
+- **soft_chunk_size**
+
+`soft_chunk_size` 默认大小为 2M，是当没有显著影响操作时使用的首选 chunk 大小。例如，REPLACE、MOVE 和 SOURCE_COPY 操作不会显著受到 chunk 尺寸的影响，除了在 manifest 中描述操作额外所需的几个字节的开销。另一方面，分割 BSDIFF 操作会影响有效负载大小，因为在 chunk 之间不可能使用冗余。
+
+
+
+### 制作全量包时的 Extent
+
+
+
+制作全量包时，在 `FullUpdateGenerator::GenerateOperations()` 函数中生成 extent，代码会检查 `hard_chunk_size` 和 `soft_chunk_size`，并使用其中较小的值作为实际分割分区镜像时的 chunk 大小。
+
+由于 delta_generator 默认设置 `hard_chunk_size` 为 200M，导致最终会以 `soft_chunk_size` 的大小 2M 对分区镜像进行分割。
+
+操作时，会将一个完整的分区镜像按照每 2M 的大小分割成若干个 chunk，并将每个 chunk 的数据送到一个单独的线程进行并发处理。
+
+
+
+对于分区镜像的分割信息，在制作全量包时会有类似下面这样的打印:
+
+"Compressing partition system from /tmp/system.img.i9qtlm splitting in chunks of 512 blocks (4096 bytes each) using 24 threads"
+
+这里的 `/tmp/system.img.i9qtlm` 是 system 还原成 raw 格式后的临时镜像名称，然后以每个 chunk 包含 512 个 block 的方式进行分割，使用 24 个线程并行处理 chunk 数据。
+
+换句话说，这里每个 block 为 4K (即 4096 Bytes)，每个 chunk 为 2M (即 4K x 512 = 2048K)，有 24 个线程并行处理 chunk 数据。
+
+
+
+分区镜像划分为多个 chunk 后，每个 chunk 的原始数据交由 ChunkProcessor 类进行处理。每处理完一个 chunk 得到一个 InstallOperation。
+
+InstallOperation 有一个类似 "system-operation-198" 这样的名字，相应目标位置的 Extent 信息存放到 `dst_extent` 中，就是当前 chunk 的起始 block，以及 block 总数(2M 大小的 chunk 对应于  512)。
+
+例如，在制作全量包的最后能看到如下的输出信息：
+
+![image-20230911005606456](images-20230227-Android Update Engine 分析（十九）Extent 到底是什么？/image-20230911005606456.png)
+
+注意图中第二行的操作 "system-operation-198"，其原始数据大小为 2097152，这个数据就是 2M。
+
+我们试图从全量包的信息中还原这个操作，在这里我们通过 `payload_info.py` 工具查看全量包中索引值为 198 的操作，一共找到两个，很显然第一个类型为 REPLACE 的就是我们上面图中的 "system-operation-198":
+
+![image-20230911010504515](images-20230227-Android Update Engine 分析（十九）Extent 到底是什么？/image-20230911010504515.png)
+
+我来解读下这里第 198 个类型为 REPLACE 的操作信息：
+
+- "Data offset: 428050032"，说明该操作携带的数据在 payload.bin 文件的 428050032 偏移处
+- “Data length: 2097152"，说明该操作携带的数据大小为 2097152，即 2M
+- "Destination: 1 extent (512 blocks)"，原始数据包含 1 个 extent，实际为 512 个 block
+- "(101376, 512)"，具体的 extent 信息，即从 101376 开始的 512 个 block
+
+换句话说，这里就是将 payload.bin 的负载中从 428050032 字节开始的 2M 数据，写入到目标分区 extent (101376, 512) 指定的位置中，即第 101376 block 开始随后 512 个 block 。
+
+
+
+可以看到，制作全量包时，基于分区镜像的某个 2M 大小的 chunk 生成一个 Operation，位置信息保存在 `dst_extent` 中；升级时就将这个 Operation 的数据还原到 `dst_extent` 指定的目标分区位置中。
+
+
+
+> 更多全量包生成策略的细节，请参考[《Android Update Engine 分析（十五） FullUpdateGenerator 策略》](https://guyongqiangx.blog.csdn.net/article/details/122767273)
+
+
+
+### **制作差分包生成 extent**
+
+相比于全量包，生成差分包数据就显得非常复杂了。
+
+在 `ABGenerator::GenerateOperations()` 函数中生完成差分数据的生成。
+
+但实际上干活的是 `diff_utils::DeltaReadPartition()` 函数。
+
+
+
+生成差分包数据时，首先忽略分新区镜像中的 `has_tree_extent` 和 `fec_extent`, 因为这部分数据在设备升级时，会在`file_system_verify` 阶段重建。
+
+然后，对新旧分区按照 block 大小进行划分，在内存中创建一个 BlockMapping 图。
+
+所谓的 BlockMapping，有以下特点：
+
+
+
+
 
 ```c++
 /*
@@ -387,6 +458,162 @@ bool ABGenerator::GenerateOperations(const PayloadGenerationConfig& config,
 但这里真正生成 InstallOperation 的操作是在 DeltaReadPartition 函数中：
 
 ```c++
+bool DeltaReadPartition(vector<AnnotatedOperation>* aops,
+                        const PartitionConfig& old_part,
+                        const PartitionConfig& new_part,
+                        ssize_t hard_chunk_blocks,
+                        size_t soft_chunk_blocks,
+                        const PayloadVersion& version,
+                        BlobFileWriter* blob_file) {
+  ExtentRanges old_visited_blocks;
+  ExtentRanges new_visited_blocks;
+
+  /*
+   * 1. 如果 verity 功能已经打开，则将 verity 相关的 hash tree 和 fec 等 extent 标记为已经访问过，这里不再进行处理。为什么这里能够跳过，是因为 verity 的 hash tree 和 fec 在升级中会根据分区数据重建。
+   */
+  // If verity is enabled, mark those blocks as visited to skip generating
+  // operations for them.
+  if (version.minor >= kVerityMinorPayloadVersion &&
+      !new_part.verity.IsEmpty()) {
+    LOG(INFO) << "Skipping verity hash tree blocks: "
+              << ExtentsToString({new_part.verity.hash_tree_extent});
+    new_visited_blocks.AddExtent(new_part.verity.hash_tree_extent);
+    LOG(INFO) << "Skipping verity FEC blocks: "
+              << ExtentsToString({new_part.verity.fec_extent});
+    new_visited_blocks.AddExtent(new_part.verity.fec_extent);
+  }
+
+  ExtentRanges old_zero_blocks;
+  TEST_AND_RETURN_FALSE(DeltaMovedAndZeroBlocks(aops,
+                                                old_part.path,
+                                                new_part.path,
+                                                old_part.size / kBlockSize,
+                                                new_part.size / kBlockSize,
+                                                soft_chunk_blocks,
+                                                version,
+                                                blob_file,
+                                                &old_visited_blocks,
+                                                &new_visited_blocks,
+                                                &old_zero_blocks));
+
+  bool puffdiff_allowed = version.OperationAllowed(InstallOperation::PUFFDIFF);
+  map<string, FilesystemInterface::File> old_files_map;
+  if (old_part.fs_interface) {
+    vector<FilesystemInterface::File> old_files;
+    TEST_AND_RETURN_FALSE(deflate_utils::PreprocessPartitionFiles(
+        old_part, &old_files, puffdiff_allowed));
+    for (const FilesystemInterface::File& file : old_files)
+      old_files_map[file.name] = file;
+  }
+
+  TEST_AND_RETURN_FALSE(new_part.fs_interface);
+  vector<FilesystemInterface::File> new_files;
+  TEST_AND_RETURN_FALSE(deflate_utils::PreprocessPartitionFiles(
+      new_part, &new_files, puffdiff_allowed));
+
+  list<FileDeltaProcessor> file_delta_processors;
+
+  // The processing is very straightforward here, we generate operations for
+  // every file (and pseudo-file such as the metadata) in the new filesystem
+  // based on the file with the same name in the old filesystem, if any.
+  // Files with overlapping data blocks (like hardlinks or filesystems with tail
+  // packing or compression where the blocks store more than one file) are only
+  // generated once in the new image, but are also used only once from the old
+  // image due to some simplifications (see below).
+  for (const FilesystemInterface::File& new_file : new_files) {
+    // Ignore the files in the new filesystem without blocks. Symlinks with
+    // data blocks (for example, symlinks bigger than 60 bytes in ext2) are
+    // handled as normal files. We also ignore blocks that were already
+    // processed by a previous file.
+    vector<Extent> new_file_extents =
+        FilterExtentRanges(new_file.extents, new_visited_blocks);
+    new_visited_blocks.AddExtents(new_file_extents);
+
+    if (new_file_extents.empty())
+      continue;
+
+    // We can't visit each dst image inode more than once, as that would
+    // duplicate work. Here, we avoid visiting each source image inode
+    // more than once. Technically, we could have multiple operations
+    // that read the same blocks from the source image for diffing, but
+    // we choose not to avoid complexity. Eventually we will move away
+    // from using a graph/cycle detection/etc to generate diffs, and at that
+    // time, it will be easy (non-complex) to have many operations read
+    // from the same source blocks. At that time, this code can die. -adlr
+    FilesystemInterface::File old_file =
+        GetOldFile(old_files_map, new_file.name);
+    vector<Extent> old_file_extents;
+    if (version.InplaceUpdate())
+      old_file_extents =
+          FilterExtentRanges(old_file.extents, old_visited_blocks);
+    else
+      old_file_extents = FilterExtentRanges(old_file.extents, old_zero_blocks);
+    old_visited_blocks.AddExtents(old_file_extents);
+
+    file_delta_processors.emplace_back(old_part.path,
+                                       new_part.path,
+                                       version,
+                                       std::move(old_file_extents),
+                                       std::move(new_file_extents),
+                                       old_file.deflates,
+                                       new_file.deflates,
+                                       new_file.name,  // operation name
+                                       hard_chunk_blocks,
+                                       blob_file);
+  }
+  // Process all the blocks not included in any file. We provided all the unused
+  // blocks in the old partition as available data.
+  vector<Extent> new_unvisited = {
+      ExtentForRange(0, new_part.size / kBlockSize)};
+  new_unvisited = FilterExtentRanges(new_unvisited, new_visited_blocks);
+  if (!new_unvisited.empty()) {
+    vector<Extent> old_unvisited;
+    if (old_part.fs_interface) {
+      old_unvisited.push_back(ExtentForRange(0, old_part.size / kBlockSize));
+      old_unvisited = FilterExtentRanges(old_unvisited, old_visited_blocks);
+    }
+
+    LOG(INFO) << "Scanning " << utils::BlocksInExtents(new_unvisited)
+              << " unwritten blocks using chunk size of " << soft_chunk_blocks
+              << " blocks.";
+    // We use the soft_chunk_blocks limit for the <non-file-data> as we don't
+    // really know the structure of this data and we should not expect it to
+    // have redundancy between partitions.
+    file_delta_processors.emplace_back(
+        old_part.path,
+        new_part.path,
+        version,
+        std::move(old_unvisited),
+        std::move(new_unvisited),
+        vector<puffin::BitExtent>{},  // old_deflates,
+        vector<puffin::BitExtent>{},  // new_deflates
+        "<non-file-data>",            // operation name
+        soft_chunk_blocks,
+        blob_file);
+  }
+
+  size_t max_threads = GetMaxThreads();
+
+  // Sort the files in descending order based on number of new blocks to make
+  // sure we start the largest ones first.
+  if (file_delta_processors.size() > max_threads) {
+    file_delta_processors.sort(std::greater<FileDeltaProcessor>());
+  }
+
+  base::DelegateSimpleThreadPool thread_pool("incremental-update-generator",
+                                             max_threads);
+  thread_pool.Start();
+  for (auto& processor : file_delta_processors) {
+    thread_pool.AddWork(&processor);
+  }
+  thread_pool.JoinAll();
+
+  for (auto& processor : file_delta_processors) {
+    TEST_AND_RETURN_FALSE(processor.MergeOperation(aops));
+  }
+
+  return true;
+}
 ```
 
 
@@ -395,5 +622,5 @@ bool ABGenerator::GenerateOperations(const PayloadGenerationConfig& config,
 
 > 更多差分包(增量包)生成策略，请参考[《Android Update Engine 分析（十六） ABGenerator 策略》](https://guyongqiangx.blog.csdn.net/article/details/122886150)
 
-### 2. Super 设备中的 extent
+## 3. Super 设备中的 extent
 
