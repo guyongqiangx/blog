@@ -379,11 +379,32 @@ InstallOperation 有一个类似 "system-operation-198" 这样的名字，相应
 
 
 
-生成差分包数据时，首先忽略分新区镜像中的 `has_tree_extent` 和 `fec_extent`, 因为这部分数据在设备升级时，会在`file_system_verify` 阶段重建。
+生成差分包数据时，分成多步进行处理：
+
+首先忽略分新区镜像中的 `has_tree_extent` 和 `fec_extent`, 因为这部分数据在设备升级时，会在`file_system_verify` 阶段重建。
+
+
 
 然后，对新旧分区按照 block 大小进行划分，在内存中创建一个 BlockMapping 图。
 
 所谓的 BlockMapping，有以下特点：
+
+- 将每一个 block 的数据映射到一个唯一的整数值 block ids
+- 两个拥有相同数据的 block，将映射到同一个 block ids
+- 两个拥有相同 block ids 的 block，其数据也相同
+- 数据全 0 的 block，其 block ids 为 0
+
+新旧分区经过映射处理以后，分别得到自己的 BlockMapping  图，new_block_ids 和 old_block_ids。
+
+
+
+如果新分区某个 block 的 block ids 为 0，则说明这个 block 的数据全 0，将新分区所有全 0 的 block 添加到 new_zeros 的 Extent 向量中。对于全 0 的 Extent，按照 `soft_chunk_size` (2M) 大小生成 ZERO 操作。
+
+
+
+如果新分区中某个 block 和旧分区某个 block 的 block ids 一样，则说明新旧分区的这两个 block 的数据一样。
+
+
 
 
 
