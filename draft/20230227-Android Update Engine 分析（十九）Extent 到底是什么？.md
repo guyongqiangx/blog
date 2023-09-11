@@ -1,4 +1,4 @@
-### 20230227-Android Update Engine 分析（十九）Extent 到底是什么？
+### 20230227-Android Update Engine 分析（十九）Extent 到底是什么鬼？
 
 
 
@@ -215,7 +215,7 @@ $ find out -type f -iname update_metadata.pb.h
 
 
 
-通过 protobuf 编译得到 Extent 类的实现以后，在相关的代码中通过像下面这样包含`update_metadata.pb.h` 就可以调用 Extent 了。
+通过 protobuf 编译得到 Extent 类的实现以后，在代码中像下面这样包含`update_metadata.pb.h` 就可以调用 Extent 了。
 
 ```c++
 #include "update_engine/update_metadata.pb.h"
@@ -223,7 +223,7 @@ $ find out -type f -iname update_metadata.pb.h
 
 
 
-在这里我们直接搜索文件名中包含 extent 的文件(需要排除单元测试的  unittest.cc 文件)，来看看 update_engine 中都有哪些和 extent 相关的文件:
+我们直接在 update_engine 目录下搜索文件名中包含 extent 的文件(需要排除单元测试的  unittest.cc 文件)，来看看 update_engine 中都有哪些和 extent 相关的文件:
 
 ```bash
 android-13.0.0_r41$ find system/update_engine/ -type f -name "*extent*" | grep -v unittest | sort
@@ -253,7 +253,13 @@ system/update_engine/payload_generator/extent_utils.h
 
 将上面的 find 结果归类一下:
 
-payload_consumer 中包含了多组 extent 的 reader 和 writer 实现，包括：`extent_reader`, `extent_writer`，以及`block_extent_writer`, `bzip_extent_writer`,  `fake_extent_writer`, `snapshot_extent_writer`, `xor_extent_writer` 和 `xz_extent_writer`
+主要是 payload_consumer 和 payload_generator 有文件名带 extent 字样的文件。
+
+顾名思义，payload_consumer 就是升级中专门用于处理和消费 payload 数据，需要将各种各样的数据写入到目标设备中。payload_generator 就是制作升级包时根据源分区和目标分区的内容，生成差分数据。
+
+
+
+payload_consumer 由于需要处理多种 InstallOperation，包含了多组 extent 的 reader 和 writer 实现，包括：`extent_reader`, `extent_writer`，以及`block_extent_writer`, `bzip_extent_writer`,  `fake_extent_writer`, `snapshot_extent_writer`, `xor_extent_writer` 和 `xz_extent_writer`
 
 
 
@@ -261,7 +267,7 @@ payload_consumer 中包含了多组 extent 的 reader 和 writer 实现，包括
 
 ![image-20230910113526583](images-20230227-Android Update Engine 分析（十九）Extent 到底是什么？/image-20230910113526583.png)
 
-一句话说来，这里各种 ExtentWriter 的作用就是将 OTA 中 Operation 所携带的数据写入到分区对应的 Extent 中。
+各种 ExtentWriter 的作用就是将升级中各种 Operation 所携带的数据写入到分区对应的 Extent 中。
 
 
 
