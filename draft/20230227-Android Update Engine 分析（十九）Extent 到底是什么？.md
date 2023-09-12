@@ -379,7 +379,7 @@ InstallOperation 有一个类似 "system-operation-198" 这样的名字，相应
 
 相比于全量包，生成差分包数据就显得非常复杂了。
 
-在 `ABGenerator::GenerateOperations()` 函数中生完成差分数据的生成。
+在 `ABGenerator::GenerateOperations()` 函数中完成差分数据的生成。
 
 但实际上干活的是 `diff_utils::DeltaReadPartition()` 函数。
 
@@ -402,246 +402,90 @@ InstallOperation 有一个类似 "system-operation-198" 这样的名字，相应
 
 新旧分区经过映射处理以后，分别得到自己的 BlockMapping  图，new_block_ids 和 old_block_ids。
 
-
-
-如果新分区某个 block 的 block ids 为 0，则说明这个 block 的数据全 0，将新分区所有全 0 的 block 添加到 new_zeros 的 Extent 向量中。对于全 0 的 Extent，按照 `soft_chunk_size` (2M) 大小生成 ZERO 操作。
-
-
-
-如果新分区中某个 block 和旧分区某个 block 的 block ids 一样，则说明新旧分区的这两个 block 的数据一样。
+![DiskBlockMapping](images-20230227-Android Update Engine 分析（十九）Extent 到底是什么？/DiskBlockMapping.png)
 
 
 
+**全 0 的 Extent**
 
+如果新分区某个 block 的 block ids 为 0，则说明这个 block 的数据全 0，将新分区所有全 0 的 block 添加到名为 new_zeros 的 Extent 向量中。
 
+遍历完所有的 block 后，生成若干数据为 0  的 Extent，对于这些 Extent，按照 `soft_chunk_size` (2M) 大小分割生成 ZERO 操作。
 
+![image-20230912220034186](images-20230227-Android Update Engine 分析（十九）Extent 到底是什么？/image-20230912220034186.png)
 
-```c++
-/*
- * file: system/update_engine/payload_generator/ab_generator.cc
- */
-bool ABGenerator::GenerateOperations(const PayloadGenerationConfig& config,
-                                     const PartitionConfig& old_part,
-                                     const PartitionConfig& new_part,
-                                     BlobFileWriter* blob_file,
-                                     vector<AnnotatedOperation>* aops) {
-  TEST_AND_RETURN_FALSE(old_part.name == new_part.name);
+制作差分包时，对全 0 数据的 ZERO 操作，会输出下面这样的统计信息:
 
-  /*
-   * 1. 设置 hard_chunk_blocks 和 soft_chunk_blocks
-   */
-  ssize_t hard_chunk_blocks =
-      (config.hard_chunk_size == -1
-           ? -1
-           : config.hard_chunk_size / config.block_size);
-  size_t soft_chunk_blocks = config.soft_chunk_size / config.block_size;
-
-  /*
-   * 2. 调用 DeltaReadPartition 读取 old 和 new 分区数据，对比生成差分需要的 operation 存放到 aops 中, 对应数据存放到 blob_file 中
-   */
-  aops->clear();
-  TEST_AND_RETURN_FALSE(diff_utils::DeltaReadPartition(aops,
-                                                       old_part,
-                                                       new_part,
-                                                       hard_chunk_blocks,
-                                                       soft_chunk_blocks,
-                                                       config.version,
-                                                       blob_file));
-  LOG(INFO) << "done reading " << new_part.name;
-
-  /*
-   * 3. 对所有的 operation 按照 start_block 的位置进行排序
-   */
-  SortOperationsByDestination(aops);
-
-  /*
-   * 4. 将连续的多个小的同样的 operation 合并成一个
-   */
-  // Use the soft_chunk_size when merging operations to prevent merging all
-  // the operations into a huge one if there's no hard limit.
-  size_t merge_chunk_blocks = soft_chunk_blocks;
-  if (hard_chunk_blocks != -1 &&
-      static_cast<size_t>(hard_chunk_blocks) < soft_chunk_blocks) {
-    merge_chunk_blocks = hard_chunk_blocks;
-  }
-
-  LOG(INFO) << "Merging " << aops->size() << " operations.";
-  TEST_AND_RETURN_FALSE(MergeOperations(
-      aops, config.version, merge_chunk_blocks, new_part.path, blob_file));
-  LOG(INFO) << aops->size() << " operations after merge.";
-
-  /*
-   * 5. 对每一个带有 src_extents 的 operation，计算 source 哈希存放到 operation 中，升级恢复数据时检查操作的数据的哈希是否匹配
-   */
-  if (config.version.minor >= kOpSrcHashMinorPayloadVersion)
-    TEST_AND_RETURN_FALSE(AddSourceHash(aops, old_part.path));
-
-  return true;
-}
+```bash
+Produced 29 operations for 14709 zeroed blocks
 ```
 
 
 
-但这里真正生成 InstallOperation 的操作是在 DeltaReadPartition 函数中：
+**新旧分区数据一样的 Extent**
 
-```c++
-bool DeltaReadPartition(vector<AnnotatedOperation>* aops,
-                        const PartitionConfig& old_part,
-                        const PartitionConfig& new_part,
-                        ssize_t hard_chunk_blocks,
-                        size_t soft_chunk_blocks,
-                        const PayloadVersion& version,
-                        BlobFileWriter* blob_file) {
-  ExtentRanges old_visited_blocks;
-  ExtentRanges new_visited_blocks;
+遍历新分区除了 0 之外的所有 block，然后在旧分区的映射表中查找新分区的 block ids 是否存在。如果存在，则说明该 block 在新旧分区中都存在。
 
-  /*
-   * 1. 如果 verity 功能已经打开，则将 verity 相关的 hash tree 和 fec 等 extent 标记为已经访问过，这里不再进行处理。为什么这里能够跳过，是因为 verity 的 hash tree 和 fec 在升级中会根据分区数据重建。
-   */
-  // If verity is enabled, mark those blocks as visited to skip generating
-  // operations for them.
-  if (version.minor >= kVerityMinorPayloadVersion &&
-      !new_part.verity.IsEmpty()) {
-    LOG(INFO) << "Skipping verity hash tree blocks: "
-              << ExtentsToString({new_part.verity.hash_tree_extent});
-    new_visited_blocks.AddExtent(new_part.verity.hash_tree_extent);
-    LOG(INFO) << "Skipping verity FEC blocks: "
-              << ExtentsToString({new_part.verity.fec_extent});
-    new_visited_blocks.AddExtent(new_part.verity.fec_extent);
-  }
+对于数据一样的 block，分别将其添加到  old_identical_blocks 和 new_identical_blocks 的 Extent 向量中。
 
-  ExtentRanges old_zero_blocks;
-  TEST_AND_RETURN_FALSE(DeltaMovedAndZeroBlocks(aops,
-                                                old_part.path,
-                                                new_part.path,
-                                                old_part.size / kBlockSize,
-                                                new_part.size / kBlockSize,
-                                                soft_chunk_blocks,
-                                                version,
-                                                blob_file,
-                                                &old_visited_blocks,
-                                                &new_visited_blocks,
-                                                &old_zero_blocks));
+遍历完所有的 block 后，生成若干数据一样的 Extent，对于这些 Extent，按照 `soft_chunk_size` (2M) 大小分割生成 SOURCE_COPY 或 MOVE 操作。
 
-  bool puffdiff_allowed = version.OperationAllowed(InstallOperation::PUFFDIFF);
-  map<string, FilesystemInterface::File> old_files_map;
-  if (old_part.fs_interface) {
-    vector<FilesystemInterface::File> old_files;
-    TEST_AND_RETURN_FALSE(deflate_utils::PreprocessPartitionFiles(
-        old_part, &old_files, puffdiff_allowed));
-    for (const FilesystemInterface::File& file : old_files)
-      old_files_map[file.name] = file;
-  }
+![image-20230912221902114](images-20230227-Android Update Engine 分析（十九）Extent 到底是什么？/image-20230912221902114.png)
 
-  TEST_AND_RETURN_FALSE(new_part.fs_interface);
-  vector<FilesystemInterface::File> new_files;
-  TEST_AND_RETURN_FALSE(deflate_utils::PreprocessPartitionFiles(
-      new_part, &new_files, puffdiff_allowed));
+制作差分包时，对于新旧分区数据一样的 SOURCE_COPY/MOVE 操作，会输出下面这样的统计信息:
 
-  list<FileDeltaProcessor> file_delta_processors;
-
-  // The processing is very straightforward here, we generate operations for
-  // every file (and pseudo-file such as the metadata) in the new filesystem
-  // based on the file with the same name in the old filesystem, if any.
-  // Files with overlapping data blocks (like hardlinks or filesystems with tail
-  // packing or compression where the blocks store more than one file) are only
-  // generated once in the new image, but are also used only once from the old
-  // image due to some simplifications (see below).
-  for (const FilesystemInterface::File& new_file : new_files) {
-    // Ignore the files in the new filesystem without blocks. Symlinks with
-    // data blocks (for example, symlinks bigger than 60 bytes in ext2) are
-    // handled as normal files. We also ignore blocks that were already
-    // processed by a previous file.
-    vector<Extent> new_file_extents =
-        FilterExtentRanges(new_file.extents, new_visited_blocks);
-    new_visited_blocks.AddExtents(new_file_extents);
-
-    if (new_file_extents.empty())
-      continue;
-
-    // We can't visit each dst image inode more than once, as that would
-    // duplicate work. Here, we avoid visiting each source image inode
-    // more than once. Technically, we could have multiple operations
-    // that read the same blocks from the source image for diffing, but
-    // we choose not to avoid complexity. Eventually we will move away
-    // from using a graph/cycle detection/etc to generate diffs, and at that
-    // time, it will be easy (non-complex) to have many operations read
-    // from the same source blocks. At that time, this code can die. -adlr
-    FilesystemInterface::File old_file =
-        GetOldFile(old_files_map, new_file.name);
-    vector<Extent> old_file_extents;
-    if (version.InplaceUpdate())
-      old_file_extents =
-          FilterExtentRanges(old_file.extents, old_visited_blocks);
-    else
-      old_file_extents = FilterExtentRanges(old_file.extents, old_zero_blocks);
-    old_visited_blocks.AddExtents(old_file_extents);
-
-    file_delta_processors.emplace_back(old_part.path,
-                                       new_part.path,
-                                       version,
-                                       std::move(old_file_extents),
-                                       std::move(new_file_extents),
-                                       old_file.deflates,
-                                       new_file.deflates,
-                                       new_file.name,  // operation name
-                                       hard_chunk_blocks,
-                                       blob_file);
-  }
-  // Process all the blocks not included in any file. We provided all the unused
-  // blocks in the old partition as available data.
-  vector<Extent> new_unvisited = {
-      ExtentForRange(0, new_part.size / kBlockSize)};
-  new_unvisited = FilterExtentRanges(new_unvisited, new_visited_blocks);
-  if (!new_unvisited.empty()) {
-    vector<Extent> old_unvisited;
-    if (old_part.fs_interface) {
-      old_unvisited.push_back(ExtentForRange(0, old_part.size / kBlockSize));
-      old_unvisited = FilterExtentRanges(old_unvisited, old_visited_blocks);
-    }
-
-    LOG(INFO) << "Scanning " << utils::BlocksInExtents(new_unvisited)
-              << " unwritten blocks using chunk size of " << soft_chunk_blocks
-              << " blocks.";
-    // We use the soft_chunk_blocks limit for the <non-file-data> as we don't
-    // really know the structure of this data and we should not expect it to
-    // have redundancy between partitions.
-    file_delta_processors.emplace_back(
-        old_part.path,
-        new_part.path,
-        version,
-        std::move(old_unvisited),
-        std::move(new_unvisited),
-        vector<puffin::BitExtent>{},  // old_deflates,
-        vector<puffin::BitExtent>{},  // new_deflates
-        "<non-file-data>",            // operation name
-        soft_chunk_blocks,
-        blob_file);
-  }
-
-  size_t max_threads = GetMaxThreads();
-
-  // Sort the files in descending order based on number of new blocks to make
-  // sure we start the largest ones first.
-  if (file_delta_processors.size() > max_threads) {
-    file_delta_processors.sort(std::greater<FileDeltaProcessor>());
-  }
-
-  base::DelegateSimpleThreadPool thread_pool("incremental-update-generator",
-                                             max_threads);
-  thread_pool.Start();
-  for (auto& processor : file_delta_processors) {
-    thread_pool.AddWork(&processor);
-  }
-  thread_pool.JoinAll();
-
-  for (auto& processor : file_delta_processors) {
-    TEST_AND_RETURN_FALSE(processor.MergeOperation(aops));
-  }
-
-  return true;
-}
+```bash
+Produced 23 operations for 10293 identical blocks moved
 ```
+
+
+
+**新旧分区数据不一样的 Extent**
+
+处理完前面的全 0 或者新旧分区一样的数据后，剩余的就是新旧分区不一样的数据了，这才真正需要对数据进行差分操作。
+
+对于数据不一样的 block，又有两种情况：
+
+一种是新旧分区同一个文件发生了改变，文件部分数据不一样了。
+
+一种是新旧分区中有些不属于任何一个文件的数据发生了改变。
+
+按照我的理解，其实还有一种情况，新分区中增加了旧分区没有的文件，目前看来似乎这种情况已经包含在第一种情况中处理了。
+
+这部分差分数据的处理十分复杂，我没有深入调试过，也只是按照代码理解个大概，如果理解有误，十分欢迎批评指正，以免误导他人。因此，我说的也不一定都是对的，如果你的理解和我的不一样，建议多进行调试确认。
+
+
+
+先来看看新旧文件不一样的处理。
+
+第一步，获取新旧分区中所有文件的列表，以及文件相关的 extent 信息：
+
+![image-20230913004558449](images-20230227-Android Update Engine 分析（十九）Extent 到底是什么？/image-20230913004558449.png)
+
+第二步，遍历新分区所有文件的 extent，筛选出已经处理过的部分，剩余就是没处理的和旧分区同名文件不一样的部分，送到 FileDeltaProcessor 按照每块大小为 hard_chunk_blocks (200M) 进行差分处理。
+
+![image-20230913005453554](images-20230227-Android Update Engine 分析（十九）Extent 到底是什么？/image-20230913005453554.png)
+
+
+
+再来看看文件之外不一样的数据，也是将相应的 extent 送到 FileDeltaProcessor 按照 soft_chunk_blocks (2M) 进行差分。
+
+![image-20230913010007138](images-20230227-Android Update Engine 分析（十九）Extent 到底是什么？/image-20230913010007138.png)
+
+经过上面这个繁琐的处理后，基本问题就得到了解决：
+
+1. 先处理全部为 0 的数据，生成 ZERO 操作；
+2. 在处理新旧分区中相同的数据，生成 SOURCE_COPY 操作；
+3. 遍历新分区中所有的文件，然后逐个检查每一个文件没有处理的部分，对新旧分区的文件数据进行差分；
+4. 处理新分区中剩余的不属于任何文件的数据块，同旧分区同位置附近的数据块进行差分；
+
+新分区的每一 block 数据都包含在某个 InstallOperation 中了。
+
+
+
+然后为了防止 InstallOperation 操作的 Extent 碎片过多或单个操作过大，将相邻位置同样的 Operation 进行合并，然后再按照 2M 的大小进行拆分。
+
+最后给最终得到的 Operation 添加上源分区的 hash。
 
 
 
