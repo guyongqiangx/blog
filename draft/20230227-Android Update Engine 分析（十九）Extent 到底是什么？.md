@@ -483,9 +483,15 @@ Produced 23 operations for 10293 identical blocks moved
 
 
 
-然后为了防止 InstallOperation 操作的 Extent 碎片过多或单个操作过大，将相邻位置同样的 Operation 进行合并，然后再按照 2M 的大小进行拆分。
+然后为了防止 InstallOperation 操作的 Extent 碎片过多或单个操作过大，将相邻位置同样的 Operation 进行合并，然后再按照 2M 的大小进行拆分。这就是为什么在查看 payload 信息时，看到所有的 Operation 操作的 Extent 都不超过 2M 的原因。
 
-最后给最终得到的 Operation 添加上源分区的 hash。
+
+
+那么，问题来了(没有深入调试代码，我自己也要这些疑问)：
+
+前面按照 hard_chunk_blocks (200M) 进行差分好的代码，如果按照 2M 进行拆分，
+
+
 
 
 
