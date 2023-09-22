@@ -195,3 +195,28 @@ android-13.0.0_r41/out$ grep -rnw utc dist-new/build.prop
 
 使用 `ota_from_target_files` 工具的 `-v` 选项制作一个升级包，然后查看相应的 timestamp 参数。
 
+
+
+## 如何进行 timestamp 和 UTC 时间的转换
+
+### 1. 在线工具
+
+网上有很多进行 timestamp 和 UTC 时间转换的工具，推荐这个在线工具: https://www.timestamp-converter.com/
+![1695379670(1)](images-20230922-Android Update Engine 分析（二十二）OTA 降级限制之 timestamp/1695379670(1).png)
+
+### 2. 命令行工具
+
+如果想把 timestamp 和 UTC 时间转换集成到你的代码或工具中，可以使用 python 或其它语言来实现。
+
+这里展示命令行上使用 date 命令转换 timestamp 的方法，比较方便:
+
+```bash
+# 默认的日期、时分秒格式
+$ date -u -d "@1541687009" +'%Y-%m-%d %H:%M:%S'
+2018-11-08 14:23:29
+
+# 带 AM/PM 格式
+$ date -u -d "@1541687009" +'%Y-%m-%d %I:%M:%S %p'
+2018-11-08 02:23:29 PM
+```
+
