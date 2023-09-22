@@ -2,11 +2,67 @@
 
 
 
-前段时间有小伙伴在 OTA 讨论 2 群问 OTA 中 `max_timestamp` 处理的问题，这个问题之前在 1 群讨论过多次，本文就 `max_timestamp` 作为降级限制功能进行详细分析。
+## 从 timestamp 的升级错误说起
 
-![666423c017779d44c8a5127c9978ed6](images-20230922-Android Update Engine 分析（二十二）OTA 降级限制之 timestamp/666423c017779d44c8a5127c9978ed6.jpg)
+先从很多很多年前在我的 OTA 讨论群里的一个升级错误说起：
+
+![questions on timestamp error](images-20230922-Android Update Engine 分析（二十二）OTA 降级限制之 timestamp/01-question-on-timestamp-error.jpg)
+
+这里具体的错误信息如下：
+
+```bash
+update_engine: [1105/000053:ERROR:delta_performer.cc<1478>] The current OS build timestamp <1542293913> is newer than the maximum timestamp in the manifest <1541687009>
+```
+
+这个错误的意思是：
+
+当前运行系统的编译时间戳(1542293913，即 Nov 15, 2018, 2:58:33 PM)，和 Payload 中 manifest 的时间戳(1541687009，即 Nov 8, 2018, 2:23:29 PM)相比，显然当前系统的编译时间比 OTA 包中的时间要新(newer)。
+
+
+
+想象一下这个问题是如何发生的？
+
+1. 代码在 t1 时间编译，我们把该时间点的系统叫做 A，编译后将镜像写入到设备中成了当前运行的系统 A。
+
+2. 你修改了代码，在 t2 时间编译生成了系统 B 的镜像，紧接着使用系统 B 的镜像对系统 A 的镜像进行差分制作升级包，得到 payload 文件。
+
+3. 使用 payload 文件对当前的系统 A 进行升级，得到系统 B。
+
+4. 升级时系统 A 检查 payload 文件的时间戳，发现当前系统 A 的时间竟然比 payload 中的时间还要新~
+
+明明是先编译的系统 A，之后再制作的升级包，怎么可能系统的编译时间比升级包的时间还要新呢？这完全没有道理哈。一定是哪里搞错了，于是本文前面提到的这个错误就发生了。
+
+
+
+这个错误来自 `system/update_engine/payload_consumer/delta_performer.cc` 文件中的一段代码:
 
 ![607ab19ce409a1ed2ce3bc90d8f6acf](images-20230922-Android Update Engine 分析（二十二）OTA 降级限制之 timestamp/607ab19ce409a1ed2ce3bc90d8f6acf.png)
+
+其作用是，如果当前系统的编译时间戳(系统 A，通过 GetBuildTimestamp() 获取)比升级的目标系统时间戳(系统 B，即这里的 max_timestamp)还要新的话，打印这里的提示信息:
+
+```
+The current OS build timestamp <1542293913> is newer than the maximum timestamp in the manifest <1541687009>
+```
+
+> 背景知识：
+>
+> manifest 中的 max_timestamp 实际上是制作升级包时，目标(target)系统的编译时间戳。
+
+
+
+紧接着，如果当前系统不允许降级的话，则返回 kPayloadTimestampError 错误。
+
+如果当前系统允许降级操作，则打印提示信息:
+
+```bash
+The current OS build allows downgrade, continuing to apply the payload with an older timestamp.
+```
+
+
+
+显然，真有一种当前系统的时间比 payload 中的时间还要新的可能，那就是降级操作，我们后面详细展开说明。
+
+在 Android 12 以后的代码中，`hardware_->AllowDowngrade()` 检查的逻辑判断已经改到外层函数中了，不过总体思路仍然一样。
 
 
 
@@ -19,6 +75,10 @@
 > 详细的 commit 内容可以通过以下链接查看: 
 >
 > https://cs.android.com/android/_/android/platform/system/update_engine/+/5011df680621eb477cad8b34f03fba5b542cc2f9
+
+
+
+从这里的提交描述可以看到，引入 max_timestamp 就是为防止
 
 
 
