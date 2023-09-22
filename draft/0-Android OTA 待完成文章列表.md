@@ -6,7 +6,9 @@
 
 - 20230227-Android Update Engine 分析（十九）Extent 到底是个什么鬼？
 - 20230816-Android Update Engine 分析（二十）为什么差分包比全量包小，但升级时间却更长？
-- 20230817-Android Update Engine 分析（二十一）Android A/B 更新过程
+- 20230817-Android Update Engine 分析（二一）Android A/B 更新过程
+- 20230922-Android Update Engine 分析（二二）OTA 降级限制之 timestamp
+- 20230929-Android Update Engine 分析（二三）OTA 降级限制之 security patch level
 - 升级后如何自动清除用户数据(userdata)? `--wipe-data`
 - update.zip 是如何打包生成的？
 - 升级后如何同步两个槽位？
