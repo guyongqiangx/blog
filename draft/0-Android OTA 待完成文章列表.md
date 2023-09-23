@@ -4,11 +4,11 @@
 
 ## A/B 系统
 
-- 20230227-Android Update Engine 分析（十九）Extent 到底是个什么鬼？
-- 20230816-Android Update Engine 分析（二十）为什么差分包比全量包小，但升级时间却更长？
-- 20230817-Android Update Engine 分析（二一）Android A/B 更新过程
-- 20230922-Android Update Engine 分析（二二）OTA 降级限制之 timestamp
-- 20230929-Android Update Engine 分析（二三）OTA 降级限制之 security patch level
+- [x] 20230227-Android Update Engine 分析（十九）Extent 到底是个什么鬼？
+- [x] 20230816-Android Update Engine 分析（二十）为什么差分包比全量包小，但升级时间却更长？
+- [x] 20230817-Android Update Engine 分析（二十一）Android A/B 更新过程
+- [x] 20230922-Android Update Engine 分析（二十二）OTA 降级限制之 timestamp
+- [ ] 20230929-Android Update Engine 分析（二十三）OTA 降级限制之 security patch level
 - 升级后如何自动清除用户数据(userdata)? `--wipe-data`
 - update.zip 是如何打包生成的？
 - 升级后如何同步两个槽位？
@@ -26,11 +26,13 @@
 
 ## 虚拟分区
 
+- [ ] 20230325-Android 虚拟分区详解(十) cow 是如何映射出来的？.md
+
 
 
 ## OTA 相关工具
 
-- 20230831-Android OTA 相关工具(八) 使用 lpadd 添加镜像到 super.img
+- [x] 20230831-Android OTA 相关工具(八) 使用 lpadd 添加镜像到 super.img
 - lpflash
 - simg2img, img2simg, append2simg
 - simg_dump.py
@@ -56,5 +58,5 @@
 
 ## 其它
 
-Linux 存储快照(snapshot)原理与实践(三)-快照的物理结构
+- Linux 存储快照(snapshot)原理与实践(三)-快照的物理结构
 
