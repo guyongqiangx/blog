@@ -85,17 +85,20 @@
 6. 根据 "cow_partition_size"，在 super 设备上创建 "system_b" 对应的 cow 逻辑分区，例如: "system_b-cow"
 7. 将 "system_b" 分区的快照状态保存到快照状态文件("/metadata/ota/snapshots/system_b")中
 8. 如果 "cow_file_size > 0"，则在目录 /data/gsi/ota/ 下创建 cow 文件。例如: "/data/gsi/ota/system_b-cow-img.img"
-9. 分配好 "system_b" 升级所需的 cow 分区和文件以后，会生成以下文件:
-   - "system_b" 分区快照状态文件: "/metadata/ota/snapshots/system_b"
-   - "system_b" 分区的 cow 文件列表: "/data/gsi/ota/system_b-cow-img.img"
-   - "system_b" 分区的 cow 数据文件(从 0000 开始的多个文件): "/data/gsi/ota/system_b-cow-img.img.0000"
-   - 描述所有分区 cow 文件的 metadata 数据: "/metadata/gsi/ota/lp_metadata"
+
+
+
+总体上，分配好 "system_b" 升级所需的 cow 分区和文件以后，会生成以下文件:
+- "system_b" 分区快照状态文件: "/metadata/ota/snapshots/system_b"
+- "system_b" 分区的 cow 文件列表: "/data/gsi/ota/system_b-cow-img.img"
+- "system_b" 分区的 cow 数据文件(从 0000 开始的多个文件): "/data/gsi/ota/system_b-cow-img.img.0000"
+- 描述所有分区 cow 文件的 metadata 数据: "/metadata/gsi/ota/lp_metadata"
 
 > 对于 lp_metadata 文件，系统在更新重启准备 merge 的 first init 阶段，通过读取 /metadata/gsi/ota/lp_metadata 得到所有分区在 /data 下的 cow 文件信息，在加上分区在 super 设备上分配的 cow 空间一起，得到该分区完整的 cow 空间。
 
 
 
-在上一篇介绍如何分配出快照设备所需要的空间和文件后，本篇将基于 InitializeUpdateSnapshots 函数介绍系统如何使用分配好的 cow 逻辑分区和文件映射出升级所需要的完整的快照设备。
+在上一篇介绍如何分配出 cow 快照设备所需要的空间和文件后，本篇将基于 InitializeUpdateSnapshots 函数介绍系统如何使用分配好的 cow 逻辑分区和文件映射出升级所需要的完整 cow 快照设备，如 "system_b-cow"。
 
 因此，本篇的重点是分析 "InitializeUpdateSnapshots()" 以及随后的 "UpdatePartitionTable()" 函数。
 
@@ -104,10 +107,8 @@
 > 相关文章阅读：
 >
 > - [《Android 虚拟 A/B 详解(八) cow 的大小是如何计算的？》](https://blog.csdn.net/guyongqiangx/article/details/129470881)
->   - 分析快照 (snapshot) 设备的 COW 大小是如何计算的
->
-> - [《Android 虚拟 A/B 详解(九) cow 的存储是如何分配的？》](https://blog.csdn.net/guyongqiangx/article/details/129494397)
->   - 分析快照 (snapshot) 设备的 COW 是如何分配和存储的
+>   
+>- [《Android 虚拟 A/B 详解(九) cow 的存储是如何分配的？》](https://blog.csdn.net/guyongqiangx/article/details/129494397)
 
 
 
