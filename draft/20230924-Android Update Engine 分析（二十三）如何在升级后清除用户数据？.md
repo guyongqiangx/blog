@@ -138,13 +138,28 @@ console:/ # update_engine_client \
 
 ![image-20230925001829125](images-20230924-Android Update Engine 分析（二十三）如何在升级后清除用户数据？/image-20230925001829125.png)
 
+
+
+那重启进入 recovery 以后，到底是如何知道要调用 WipeData 删除数据的呢？
+
+![image-20230925004751517](images-20230924-Android Update Engine 分析（二十三）如何在升级后清除用户数据？/image-20230925004751517.png)
+
+![image-20230925005000896](images-20230924-Android Update Engine 分析（二十三）如何在升级后清除用户数据？/image-20230925005000896.png)
+
+![image-20230925005835172](images-20230924-Android Update Engine 分析（二十三）如何在升级后清除用户数据？/image-20230925005835172.png)
+
+![image-20230925010237278](images-20230924-Android Update Engine 分析（二十三）如何在升级后清除用户数据？/image-20230925010237278.png)
+
+![image-20230925010609118](images-20230924-Android Update Engine 分析（二十三）如何在升级后清除用户数据？/image-20230925010609118.png)
+
 ## 思考题
 
 1. 如果制作升级包时没有指定 "--wipe-user-data"，又该如何使得在升级后擦除用户数据呢？
 2. 你知道要擦除用户数据需要经历几个阶段吗？
 3. 为什么要在 recovery 模式下擦除用户数据，直接在升级过程中擦除不就可以了吗？
-4. 为什么 Android A/B 系统出现这么久了，还仍然需要 recovery 模式？
-5. 使用 "--wipe-user-data" 以后，升级时就完全清除了所有的用户数据了吗？
+4. recovery 模式下，recovery 应用是如何得知当前的具体操作并执行的？
+5. 为什么 Android A/B 系统出现这么久了，还仍然需要 recovery 模式？
+6. 使用 "--wipe-user-data" 以后，升级时就完全清除了所有的用户数据了吗？
 
 
 
