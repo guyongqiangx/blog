@@ -1,10 +1,10 @@
 # 20230924-Android Update Engine 分析（二十三）如何在升级后清除用户数据？
 
+
+
 > 本文为洛奇看世界(guyongqiangx)原创，转载请注明出处。
 >
-> 原文链接：https://blog.csdn.net/guyongqiangx/article/details/
-
-
+> 原文链接：https://blog.csdn.net/guyongqiangx/article/details/133274277
 
 ## 0. 导读
 
@@ -31,6 +31,15 @@ ota_from_target_files --wipe-user-data -i old-target_files.zip new-target_files.
 > 本文基于 android-13.0.0_r3 代码进行分析，总体脉络框架适用于所有支持 A/B 系统的版本。
 >
 > 在线代码阅读: http://aospxref.com/android-13.0.0_r3/
+
+
+
+以下是章节导读：
+
+- 如果你只对如何清楚用户数据感兴趣，那读到这里就可以了。
+- 如果你对从制作升级包使用"--wipe-user-data"选项开始，到最终擦除数据的整个流程代码感兴趣，请跳转到第 1 节查看一步一步的代码分析；
+- 如果你希望了解整个整个流程，但又不希望深入代码，请跳转到第 2 节，查看关于 3 个阶段的总结；
+- 如果你觉得自己了解了整个过程，不妨试着回答下第 3 节的思考题；
 
 
 
@@ -79,6 +88,8 @@ ota_from_target_files --wipe-user-data -i old-target_files.zip new-target_files.
 > - [Android Update Engine分析（二十一）Android A/B 的更新过程](https://blog.csdn.net/guyongqiangx/article/details/132536383)
 >
 > - [Android Update Engine分析（二十二）OTA 降级限制之 timestamp](https://blog.csdn.net/guyongqiangx/article/details/133191750)
+>
+> - [Android Update Engine分析（二十三）如何在升级后清除用户数据？](https://blog.csdn.net/guyongqiangx/article/details/133274277)
 
 > 如果您已经订阅了本专栏，请务必加我微信，拉你进“动态分区 & 虚拟分区专栏 VIP 答疑群”。
 
@@ -86,7 +97,7 @@ ota_from_target_files --wipe-user-data -i old-target_files.zip new-target_files.
 
 
 
-### 1. 制作升级包阶段
+### 1.1 制作升级包阶段
 
 #### 1. 制作升级包的 "--wipe-user-data" 选项
 
@@ -107,6 +118,10 @@ ota_from_target_files --wipe-user-data -i old-target_files.zip new-target_files.
 在提供了 "--wipe_user_data" 选项后，ota_from_target_files.py 工具会在生成的 payload_properties.txt 文件中添加一项 "POWERWASH=1"
 
 ![01-save-powerwash-to-property-file.png](images-20230924-Android Update Engine 分析（二十三）如何在升级后清除用户数据？/01-save-powerwash-to-property-file.png)
+
+图 1. ota_from_target_files 处理 "--wipe_user_data" 选项
+
+
 
 例如:
 
@@ -137,11 +152,17 @@ POWERWASH=1
 
 ![02-powerwash-from-claude.png](images-20230924-Android Update Engine 分析（二十三）如何在升级后清除用户数据？/02-powerwash-from-claude.png)
 
+图 2. 为什么 Android 中把清除用户数据叫做 Power Wash?
+
 
 
 我还在网上找到一个更直接的解释:
 
 ![03-powerwash-for-google.png](images-20230924-Android Update Engine 分析（二十三）如何在升级后清除用户数据？/03-powerwash-for-google.png)
+
+图 3. ChromeOS 中关于 Powerwash 的解释
+
+
 
 > 来源: https://www.computerhope.com/jargon/p/powerwash.htm
 
@@ -157,7 +178,7 @@ Google 系的 ChromeOS 和 Android 上的这个术语等同于其它地方的“
 
 
 
-### 2. OTA 升级阶段
+### 1.2 OTA 升级阶段
 
 #### 1. payload_properties.txt 文件中的 "POWERWASH=1"
 
@@ -186,15 +207,25 @@ console:/ # update_engine_client \
 
 ![04-headers-in-update_engine_client.png](images-20230924-Android Update Engine 分析（二十三）如何在升级后清除用户数据？/04-headers-in-update_engine_client.png)
 
+图 4. update_engine_client 使用换行符分割 headers 参数
+
+
+
 Update Engine 的 Binder 服务的实际执行者是 UpdateAttempterAndroid 的 ApplyPayload 函数:
 
 ![05-headers-for-applypayload.png](images-20230924-Android Update Engine 分析（二十三）如何在升级后清除用户数据？/05-headers-for-applypayload.png)
+
+图 5. headers 参数传递到 update engine 服务端的 ApplyPayload 函数
+
+
 
 #### 2. ApplyPayload 函数设置 InstallPlan
 
 因此，传递给 update_client_engine 的 header 参数最终转到 UpdateAttempterAndroid::ApplyPayload() 函数，在该函数中提取 headers 数组中关于 "POWERWASH" 的键值对用于设置 `install_plan_.powerwash_required`
 
 ![06-install_plan-powerwash_required.png](images-20230924-Android Update Engine 分析（二十三）如何在升级后清除用户数据？/06-install_plan-powerwash_required.png)
+
+图 6. ApplyPayload 函数使用 POWERWASH 设置 InstallPlan
 
 
 
@@ -210,11 +241,15 @@ Update Engine 的 Binder 服务的实际执行者是 UpdateAttempterAndroid 的 
 
 ![07-BuildUpdateActions.png](images-20230924-Android Update Engine 分析（二十三）如何在升级后清除用户数据？/07-BuildUpdateActions.png)
 
+图 7. ApplyPayload 中创建所有 Action
+
 
 
 在 PostinstallRunnerAction 内部会检查 `install_plan_.powerwash_required` 设置。如果 `powerwash_required` 设置为真，则启动 `hardware_->SchedulePowerwash()` 操作。
 
 ![08-check-powerwash_required-when-perform-action.png](images-20230924-Android Update Engine 分析（二十三）如何在升级后清除用户数据？/08-check-powerwash_required-when-perform-action.png)
+
+图 8. PostinstallRunnerAction 中检查 powerwash_required 设置
 
 
 
@@ -223,6 +258,10 @@ Update Engine 的 Binder 服务的实际执行者是 UpdateAttempterAndroid 的 
 我们进一步看看 `hardware_->SchedulePowerwash()` 是如何操作的：
 
 ![09-schedule-powerwash.png](images-20230924-Android Update Engine 分析（二十三）如何在升级后清除用户数据？/09-schedule-powerwash.png)
+
+图 9. SchedulePowerwash 写入 "--wipe_data" 指令
+
+
 
 非常简单，就是往 bootloader message block 中写入命令 "--wipe_data" 指令。
 
@@ -242,7 +281,7 @@ Update Engine 的 Binder 服务的实际执行者是 UpdateAttempterAndroid 的 
 
 
 
-### 3. Recovery 阶段
+### 1.3 Recovery 阶段
 
 
 
@@ -258,11 +297,15 @@ Update Engine 的 Binder 服务的实际执行者是 UpdateAttempterAndroid 的 
 
 ![10-recovery-read-bcb-block.png](images-20230924-Android Update Engine 分析（二十三）如何在升级后清除用户数据？/10-recovery-read-bcb-block.png)
 
+图 10. Recovery 从 BCB 中读取数据用于反向构建 args 参数
+
 
 
 然后，将构建好的参数作为参数传递给 start_recovery 函数进一步执行操作。
 
 ![11-call-start_recovery-with-args.png](images-20230924-Android Update Engine 分析（二十三）如何在升级后清除用户数据？/11-call-start_recovery-with-args.png)
+
+图 11. 启动 start_recovery 函数
 
 
 
@@ -270,9 +313,15 @@ Update Engine 的 Binder 服务的实际执行者是 UpdateAttempterAndroid 的 
 
 ![12-call-wipe-data-in-start_recovery.png](images-20230924-Android Update Engine 分析（二十三）如何在升级后清除用户数据？/12-call-wipe-data-in-start_recovery.png)
 
+图 12. start_recovery 中检查 "--wipe_data"
+
+
+
 而 "should_wipe_data" 的结果就是调用 WipeData 函数执行具体的操作。
 
 ![13-call-wipe-data.png](images-20230924-Android Update Engine 分析（二十三）如何在升级后清除用户数据？/13-call-wipe-data.png)
+
+图 13. start_recovery 调用 WipeData 操作
 
 
 
@@ -281,6 +330,10 @@ Update Engine 的 Binder 服务的实际执行者是 UpdateAttempterAndroid 的 
 最终在 Recovery 下执行 WipeData 操作来完成数据的擦除:
 
 ![14-wipe-data-detail.png](images-20230924-Android Update Engine 分析（二十三）如何在升级后清除用户数据？/14-wipe-data-detail.png)
+
+图 14. WipeData 函数
+
+
 
 从这里看，WipeData 依次做了一下几个动作：
 
