@@ -8,15 +8,15 @@
 - [x] 20230816-Android Update Engine 分析（二十）为什么差分包比全量包小，但升级时间却更长？
 - [x] 20230817-Android Update Engine 分析（二十一）Android A/B 更新过程
 - [x] 20230922-Android Update Engine 分析（二十二）OTA 降级限制之 timestamp
-- [ ] 20230924-Android Update Engine 分析（二十三）如何在升级后清除用户数据？
+- [x] 20230924-Android Update Engine 分析（二十三）如何在升级后清除用户数据？
 - [ ] 20230929-Android Update Engine 分析（二十三）OTA 降级限制之 security patch level
 - [ ] 关于 OTA 升级中的 security_patch_level 说明
 - [ ] 如何只升级部分分区？partial_update
-- 如何在升级后清除用户数据(userdata)? `--wipe-user-data`
 - 制作升级包时指定"--downgrade"，随后都发生了什么？
 - 升级后如何同步两个槽位？
 - postinstall 阶段到底都干了什么？
 - 升级状态保存在哪里？
+- 如何实现断点续传？
 - check point 是如何实现的？
 - update.zip 是如何打包生成的？
 - 如何使用 lldb 调试 host 应用?
