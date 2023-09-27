@@ -14,8 +14,6 @@
 - [ ] 20230929-Android Update Engine 分析（二十三）OTA 降级限制之 security patch level
 - [ ] 关于 OTA 升级中的 security_patch_level 说明
 - [ ] 如何只升级部分分区？partial_update
-- 如何在升级后清除用户数据(userdata)? `--wipe-user-data`
-- 制作升级包时指定"--downgrade"，随后都发生了什么？
 - 升级后如何同步两个槽位？
 - postinstall 阶段到底都干了什么？
 - check point 是如何实现的？
@@ -24,7 +22,7 @@
 - 如何使用 lldb 调试 update engine?
 - 升级中有哪些检查校验哈希的地方？
 - 升级中哪些地方会进行大量的 IO 操作?
-- update.zip 中的哪些文件都是干嘛用的？
+- update.zip 包中的那些文件都是干嘛用的？
 
 ## OTA 定制
 
