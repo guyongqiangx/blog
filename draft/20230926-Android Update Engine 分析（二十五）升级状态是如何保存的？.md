@@ -233,7 +233,9 @@ android-13.0.0_r41/system/update_engine$ grep -rn kPrefsBootId --exclude="*test.
 
 
 
-关于 update engine 服务端进程如如何启动的，请参考:[《Android Update Engine分析（四）服务端进程》](https://blog.csdn.net/guyongqiangx/article/details/82116213)
+关于 Update Engine 服务端进程如如何启动的，在 android-13.0.0_r3 上想对于早期的 android-7.1.2_r39 有少许变化，但总体框架没有个改变，如果希望了解 update engine 服务进程启动的细节，请参考博客:[《Android Update Engine分析（四）服务端进程》](https://blog.csdn.net/guyongqiangx/article/details/82116213)
+
+
 
 下面是简单说明：
 
