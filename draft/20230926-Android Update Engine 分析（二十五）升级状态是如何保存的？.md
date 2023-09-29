@@ -1,10 +1,27 @@
-# 20230926-Android Update Engine 分析（二十五）升级状态是如何保存的？
+# 20230926-Android Update Engine 分析（二十五）升级状态 prefs 是如何保存的？
 
-
+## 0. 导读
 
 本系列到现在为止一共二十四篇，前面十七篇基本上就是阅读 update engine 的核心代码和函数，第十七篇以后开始按照话题进行分析。
 
-目前已有的文章列表如下：
+在前面十七篇中，把核心功能代码过了一遍，但仍然有不少功能代码还没分析过。
+
+例如，Update Engine 的升级状态数据时如何保存的？系统到底定义了哪些 prefs 数据？本文就管理 Update Engine 状态的 Prefs 类进行详细分析。
+
+- 如果你想了解 Prefs 实现涉及的文件和类，请转到 第 1.1 节；
+- 如果你好奇 Update Engine 的启动流程，请转到第 1.3 节；
+- 如果你想了解 Prefs 的初始化，以及如何调用的，请转到第 1.4 节；
+- 如果你想了解当前 Update Engine 系统中到底有哪些 prefs，请转到第 2 节；
+- 系统定义了 70 个 prefs，你希望知道哪些被引用过，请转到第 3 节；
+- 第 4 节预留了思考题，你可以试着挑战下自己；
+
+
+
+> 本文基于 android-13.0.0_r3 代码进行分析，总体脉络框架适用于所有支持 A/B 系统的版本。
+>
+> 在线代码阅读: http://aospxref.com/android-13.0.0_r3/
+
+
 
 > 核心代码[《Android Update Engine 分析》](https://blog.csdn.net/guyongqiangx/category_12140296.html)系列，文章列表：
 >
@@ -53,24 +70,20 @@
 > - [Android Update Engine分析（二十二）OTA 降级限制之 timestamp](https://blog.csdn.net/guyongqiangx/article/details/133191750)
 >
 > - [Android Update Engine分析（二十三）如何在升级后清除用户数据？](https://blog.csdn.net/guyongqiangx/article/details/133274277)
+>
+> - [Android Update Engine分析（二十四）制作降级包时，到底发生了什么？]()
+>
+> - [Android Update Engine分析（二十五）升级状态 prefs 是如何保存的？]()
 
 > 如果您已经订阅了本专栏，请务必加我微信，拉你进“动态分区 & 虚拟分区专栏 VIP 答疑群”。
 
 
 
-在前面十七篇中，把核心功能代码过了一遍，但仍然有不少功能代码还没分析过。
-
-例如，Update Engine 是如何保存升级状态的？本文就管理 Update Engine 状态的 Prefs 类进行详细分析。
-
-> 本文基于 android-13.0.0_r3 代码进行分析，总体脉络框架适用于所有支持 A/B 系统的版本。
->
-> 在线代码阅读: http://aospxref.com/android-13.0.0_r3/
-
 ## 1. Prefs 的实现
 
-### 1. Prefs 的代码实现
+### 1. Prefs 的代码文件
 
-和 Prefs 定义和实现相关的主要文件有 4 个，分别是:
+Update Engine 中和 Prefs 定义和实现相关的主要文件有 4 个，分别是:
 
 - system/update_engine/common/prefs_interface.h
 - system/update_engine/common/prefs.h
@@ -79,13 +92,13 @@
 
 
 
-文件 prefs_interface.h
+**文件 prefs_interface.h**
 
 定义了 prefs 的抽象基类 `PrefsInterface`，主要是定了 prefs 操作的接口。
 
 
 
-文件 prefs.h, prefs.cc
+**文件 prefs.h, prefs.cc**
 
 定义了 prefs 的基类 PrefsBase，以及两个实现类 Prefs 和 MemoryPrefs。
 
@@ -95,11 +108,15 @@
 
 见名知意，Perfs 是基于文件的 prefs 实现类，而 MemoryPrefs 是基于内存的 prefs 实现类。
 
-各个 prefs 类之间的关系如图所示:
+各个 prefs 类之间的关系如图 1 所示:
 
-![image-20230929210007607](images-20230926-Android Update Engine 分析（二十五）升级状态是如何保存的？/image-20230929210007607.png)
+![01-prefs-classes-architecture.png](images-20230926-Android Update Engine 分析（二十五）升级状态是如何保存的？/01-prefs-classes-architecture.png)
 
-文件 constants.h
+图 1. prefs 类层次结构图
+
+
+
+**文件 constants.h**
 
 定义了所有使用到的 prefs 变量名，例如: kPrefsBootId, kPrefsCurrentBytesDownloaded 等。
 
@@ -115,23 +132,39 @@
 
 
 
-在设计上，Get/SetString(), Get/SetInt64() 和 Get/SetBoolean() 操作都通过 Get/SetString() 实现，将存储的各种不同的值，都以 string 的格式存储：数字转换成字符串，bool 值转换成 "true", "false" 字符串。
+### 2. Prefs 的接口实现
 
-在 GetString() 和 SetString() 又把具体工作交由存储接口的 GetKey() 和 SetKey() 完成。
 
-![image-20230929213059235](images-20230926-Android Update Engine 分析（二十五）升级状态是如何保存的？/image-20230929213059235.png)
+
+在实现上，prefs 类的 Get/SetString(), Get/SetInt64() 和 Get/SetBoolean() 操作都通过 Get/SetString() 实现，各种不同的值，都以 string 的格式存储：数字转换成字符串，bool 值转换成 "true", "false" 字符串。
+
+在 GetString() 和 SetString() 把具体工作交由存储接口的 GetKey() 和 SetKey() 完成。
+
+![02-get_set-string-handle-all-value-types.png](images-20230926-Android Update Engine 分析（二十五）升级状态是如何保存的？/02-get_set-string-handle-all-value-types.png)
+
+图 2. 通过 Get/SetString() 处理各种不同类型的值
+
+
 
 在基于文件系统的 Prefs 中，FileStorage 存储接口在 GetKey() 和 SetKey() 操作时，先将 key 转换成文件名，然后从文件中读取字符串到 value 中，或将 value 字符串写入到文件中。
 
-![image-20230929214909833](images-20230926-Android Update Engine 分析（二十五）升级状态是如何保存的？/image-20230929214909833.png)
+![03-file_storage-based-get_set-key.png](images-20230926-Android Update Engine 分析（二十五）升级状态是如何保存的？/03-file_storage-based-get_set-key.png)
+
+图 3. 基于 FileStorage 接口的 GetKey 和 SetKey
 
 
 
 在基于内存的 MemoryPrefs 中，存储接口在 GetKey() 和 SetKey() 操作时，直接将将键值交由 std::map 数据处理，非常简单。
 
-![image-20230929220042289](images-20230926-Android Update Engine 分析（二十五）升级状态是如何保存的？/image-20230929220042289.png)
+![04-memory_storage-based-get_set-key.png](images-20230926-Android Update Engine 分析（二十五）升级状态是如何保存的？/04-memory_storage-based-get_set-key.png)
 
-### 2. Update Engine 的启动
+图 4. 基于 MemoryStorage 接口的 GetKey 和 SetKey
+
+
+
+### 3. Update Engine 的启动
+
+
 
 在开始 Prefs 的初始化之前，先回顾下 Update Engein 的服务端守护 daemon 进程是如何启动的。
 
@@ -170,29 +203,43 @@ Update Engine 服务端进程的启动，在 android-13.0.0_r3 上相对于早�
 
 
 
-### 3. Prefs 的初始化和调用
+### 4. Prefs 的初始化和调用
+
+
 
 回顾了 Update Engine 是如何启动的之后，我们可以开始看看 Prefs 到底是如何初始化，以及如何被调用的了。
 
 初始化 DaemonAndroid 类初始化时，生成 daemon_state_ 对象，并调用 "Initialize()" 函数。
 
-![image-20230929103152974](images-20230926-Android Update Engine 分析（二十五）升级状态是如何保存的？/image-20230929103152974.png)
+![05-code-in-DaemonAndroid-OnInit.png](images-20230926-Android Update Engine 分析（二十五）升级状态是如何保存的？/05-code-in-DaemonAndroid-OnInit.png)
+
+图 5. DaemonAndroid::OnInit() 函数
+
+
 
 在 DaemonStateAndroid::Initialzie() 函数中检查 "/data/misc/update_engine" 目录是否可用，不可用话就将 prefs 状态数据保存在内存中，否则将 prefs 状态数据保存在 "/data/misc/update_engine/prefs" 目录下。
 
 并将初始化好的  prefs 用于实例化 UpdateAttempterAndroid 类生成 `update_attempter_` 对象。
 
-![image-20230929104659338](images-20230926-Android Update Engine 分析（二十五）升级状态是如何保存的？/image-20230929104659338.png)
+![06-code-in-DaemonStateAndroid-Initialize.png](images-20230926-Android Update Engine 分析（二十五）升级状态是如何保存的？/06-code-in-DaemonStateAndroid-Initialize.png)
+
+图 6. DaemonStateAndroid::Initialize() 函数
 
 
 
 在 UpdateAttempterAndroid 类的构造函数中，将 prefs 保存到 prefs_ 成员中。
 
-![image-20230929104924054](images-20230926-Android Update Engine 分析（二十五）升级状态是如何保存的？/image-20230929104924054.png)
+![07-constructor-of-UpdateAttempterAndroid.png](images-20230926-Android Update Engine 分析（二十五）升级状态是如何保存的？/07-constructor-of-UpdateAttempterAndroid.png)
+
+图 7. UpdateAttempterAndroid 类的构造函数
+
+
 
 这样在 UpdateAttempterAndroid 类中初始化了 prefs_ 成员后，就可以直接用来记录状态，或者将 prefs_ 成员传递给其他对象用来记录状态了。例如 `UpdateAttempterAndroid::ApplyPayload()` 函数:
 
-![image-20230929110314910](images-20230926-Android Update Engine 分析（二十五）升级状态是如何保存的？/image-20230929110314910.png)
+![08-use-prefs-in-UpdateAttempterAndroid.png](images-20230926-Android Update Engine 分析（二十五）升级状态是如何保存的？/08-use-prefs-in-UpdateAttempterAndroid.png)
+
+图 8. UpdateAttempterAndroid 类中使用 prefs
 
 
 
@@ -204,7 +251,9 @@ Update Engine 服务端进程的启动，在 android-13.0.0_r3 上相对于早�
 
 当然，`daemon_state_` 中，除了`update_attempter_` 外，还有一个 `certificate_checker_`，专门负责 https 数据下载时的 Certificate 检查。所以，`daemon_state_` 内部管理大致如下：
 
-![image-20230929120726350](images-20230926-Android Update Engine 分析（二十五）升级状态是如何保存的？/image-20230929120726350.png)
+![09-class-DaemonStateAndroid.png](images-20230926-Android Update Engine 分析（二十五）升级状态是如何保存的？/09-class-DaemonStateAndroid.png)
+
+图 9. DaemonStateAndroid 类的定义
 
 
 
@@ -334,7 +383,7 @@ console:/ #
 
 
 
-在 Android 下可以使用 cat 其它命令查看，但我自己习惯使用 xxd 命令查看原始的十六进制以及 ASCII 格式的内容，例如:
+前面分析 prefs 实现说过，在 "/data/misc/update_engine" 目录可用时，prefs 变量的 value 以字符串的方式存放在以 key 为名字的文件中。可以使用 cat 命令查看，但我自己习惯使用 xxd 命令查看原始的十六进制以及 ASCII 格式的内容，例如：
 ```bash
 # 1. 查看 boot-id
 console:/data/misc/update_engine/prefs # xxd -g 1 boot-id
@@ -353,9 +402,7 @@ console:/data/misc/update_engine/prefs # xxd -g 1 total-bytes-downloaded
 
 
 
-## 3. 重要的 prefs 举例
-
-### 1. 对所有 prefs 排序
+## 3. 对所有 prefs 排序
 
 你肯定会说，70 个 prefs，那么多，我怎么可能知道这些 prefs 都是干什么用的。
 
@@ -363,7 +410,7 @@ console:/data/misc/update_engine/prefs # xxd -g 1 total-bytes-downloaded
 
 ### 
 
-我写了个 python 脚本从 update engine 中抓取所有定义的 prefs 被使用的地方，除了在 common/constant.h 中的定义外，根据其在代码和注释中被引用的次数作为热度进行了排序。
+我写了个 python 脚本从 Update Engine 中抓取所有 prefs 被使用的地方，除了在 common/constant.h 中的定义外，根据其在代码和注释中被引用的次数作为热度进行了排序。
 
 全部 70 个 prefs 中有 40 个 prefs 只有定义，没有被使用。其余 30 个 prefs 按照被引用情况的情况排序如下：
 
@@ -411,39 +458,29 @@ console:/data/misc/update_engine/prefs # xxd -g 1 total-bytes-downloaded
 
 
 
-由于 prefs 个数实在太多，不可能在本篇中一一列举其作用或意义。
-
-以下提供一些研究 prefs 的方法。
-
-```bash
-android-13.0.0_r41/system/update_engine$ grep -rn kPrefsBootId --exclude="*test.cc" .
-./common/constants.h:46:static constexpr const auto& kPrefsBootId = "boot-id";
-./aosp/update_attempter_android.h:203:  //   |kPrefsBootId|, |kPrefsPreviousVersion|
-./aosp/update_attempter_android.cc:161:  if (!prefs->GetString(kPrefsBootId, &old_boot_id)) {
-./aosp/update_attempter_android.cc:988:  prefs_->SetString(kPrefsBootId, current_boot_id);
-```
-
-> 这里使用选项 `--exclude="*test.cc"` 来排除所有的 unittest.cc 测试文件。
-
-在所有的 4 个搜索结果中：
-
-第 1 条，kPrefsBootId 的定义；
-
-第 2 条，注释释，没有实质内容；
-
-第 3 条，调用 GetString 获取现有的 "boot-id"；
-
-第 4 条，调用 SetString 设置新的 "boot-id"；
-
-那到底啥时候读取 "boot-id"，啥时候设置新的 "boot-id" 呢？
+由于 prefs 个数实在太多，不可能在本篇中一一列举其作用或意义
 
 
+
+原来打算以 kPrefsBootId 的变化为例，提供一些研究 prefs 的方法。
+
+但随着学习的深入，发现 kPrefsBootId 的变化涉及到系统 OTA 升级数据成功更新后写入标记，到系统重启，到切换 slot 检查，到再次启动 Update Engine 服务进程后进行的状态检查有关。
+
+
+
+在我的 OTA 讨论群中曾经讨论过一种场景，行驶中的机车升级后，不能马上重启验证新系统，必须要等所有其它部分的 firmware 都升级完成以后，再切换 slot 进行激活。
+
+然而，在激活之前机车系统是有可能进行重启的，比如系统熄火再打火。但是如果一直不激活，系统会提示升级失败。
+
+对这个场景问题的解释，三言两语无法解释清楚，所以临时决定单独用一篇展开说明。
+
+![10-update-data-but-do-not-swith-slot.png](images-20230926-Android Update Engine 分析（二十五）升级状态是如何保存的？/10-update-data-but-do-not-swith-slot.png)
+
+图 10. 升级数据但不切换 slot 的场景
 
 
 
 ## 4. 思考题
-
-**思考题 1**
 
 在 `DaemonStateAndroid::Initialize()`函数中通过检查目录 /data/misc/update_engine 来实例化 `prefs_` 成员
 
@@ -451,6 +488,26 @@ android-13.0.0_r41/system/update_engine$ grep -rn kPrefsBootId --exclude="*test.
 - 如果目录存在，则将 `prefs_` 实例化为 Prefs 类对象，并使用 /data/misc/update_engine/prefs 作为 Prefs 操作的目录；
 
 哪些情况会导致目录 /data/misc/update_engine 不存在，进而使用 MemoryPrefs 类对象来管理  prefs 呢？
+
+
+
+## 5. 其它
+
+到目前为止，我写过 Android OTA 升级相关的话题包括：
+
+- 基础入门：《Android A/B 系统》系列
+- 核心模块：《Android Update Engine 分析》 系列
+- 动态分区：《Android 动态分区》 系列
+- 虚拟 A/B：《Android 虚拟 A/B 分区》系列
+- 升级工具：《Android OTA 相关工具》系列
+
+更多这些关于 Android OTA 升级相关文章的内容，请参考[《Android OTA 升级系列专栏文章导读》](https://blog.csdn.net/guyongqiangx/article/details/129019303)。
+
+如果您已经订阅了动态分区和虚拟分区付费专栏，请务必加我微信，备注订阅账号，拉您进“动态分区 & 虚拟分区专栏 VIP 答疑群”。我会在方便的时候，回答大家关于 A/B 系统、动态分区、虚拟分区、各种 OTA 升级和签名的问题。
+
+除此之外，我有一个 Android OTA 升级讨论群，里面现在有 400+ 朋友，主要讨论手机，车机，电视，机顶盒，平板等各种设备的 OTA 升级话题，如果您从事 OTA 升级工作，欢迎加群一起交流，请在加我微信时注明“Android OTA 讨论组”。此群仅限 Android OTA 开发者参与~
+
+> 公众号“洛奇看世界”后台回复“wx”获取个人微信。
 
 
 
