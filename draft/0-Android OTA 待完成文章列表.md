@@ -10,7 +10,8 @@
 - [x] 20230922-Android Update Engine 分析（二十二）OTA 降级限制之 timestamp
 - [x] 20230924-Android Update Engine 分析（二十三）如何在升级后清除用户数据？
 - [ ] 20230925-Android Update Engine 分析（二十四）制作降级包时，到底发生了什么？
-- [ ] 20230926-Android Update Engine 分析（二十五）升级状态是如何保存的？
+- [x] 20230926-Android Update Engine 分析（二十五）升级状态 prefs 是如何保存的？
+- [ ] 20230930-Android Update Engine 分析（二十六）成功更新数据后 prefs 状态是如何切换的？
 - [ ] 20230929-Android Update Engine 分析（二十三）OTA 降级限制之 security patch level
 - [ ] 关于 OTA 升级中的 security_patch_level 说明
 - [ ] 如何只升级部分分区？partial_update
