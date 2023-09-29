@@ -1,5 +1,11 @@
 # 20230926-Android Update Engine 分析（二十五）升级状态 prefs 是如何保存的？
 
+
+
+> 本文为洛奇看世界(guyongqiangx)原创，转载请注明出处。
+>
+> 原文链接：https://blog.csdn.net/guyongqiangx/article/details/133421560
+
 ## 0. 导读
 
 本系列到现在为止一共二十四篇，前面十七篇基本上就是阅读 update engine 的核心代码和函数，第十七篇以后开始按照话题进行分析。
@@ -71,9 +77,9 @@
 >
 > - [Android Update Engine分析（二十三）如何在升级后清除用户数据？](https://blog.csdn.net/guyongqiangx/article/details/133274277)
 >
-> - [Android Update Engine分析（二十四）制作降级包时，到底发生了什么？]()
+> - [Android Update Engine分析（二十四）制作降级包时，到底发生了什么？](https://blog.csdn.net/guyongqiangx/article/details/133421556)
 >
-> - [Android Update Engine分析（二十五）升级状态 prefs 是如何保存的？]()
+> - [Android Update Engine分析（二十五）升级状态 prefs 是如何保存的？](https://blog.csdn.net/guyongqiangx/article/details/133421560)
 
 > 如果您已经订阅了本专栏，请务必加我微信，拉你进“动态分区 & 虚拟分区专栏 VIP 答疑群”。
 
