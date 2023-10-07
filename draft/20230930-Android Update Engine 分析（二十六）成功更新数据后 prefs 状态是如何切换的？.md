@@ -193,3 +193,11 @@ UpdateStateAfterReboot() 函数使用 OTA 检查结果更新系统状态，决�
 
 
 
+UpdateAttempterAndroid::TerminateUpdateAndNotify() 函数
+
+
+
+### 问题
+
+如果系统更新成功以后，不切换 Slot 槽位，重启后系统会提示升级失败。但又需要这个场景，该如何修改代码？
+
