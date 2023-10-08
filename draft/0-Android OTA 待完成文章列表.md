@@ -11,13 +11,13 @@
 - [x] 20230924-Android Update Engine 分析（二十三）如何在升级后清除用户数据？
 - [ ] 20230925-Android Update Engine 分析（二十四）制作降级包时，到底发生了什么？
 - [x] 20230926-Android Update Engine 分析（二十五）升级状态 prefs 是如何保存的？
-- [ ] 20230930-Android Update Engine 分析（二十六）成功更新数据后 prefs 状态是如何切换的？
+- [x] 20230930-Android Update Engine 分析（二十六）OTA 更新后不切换 Slot 会怎样？
 - [ ] 20230929-Android Update Engine 分析（二十三）OTA 降级限制之 security patch level
-- [ ] 关于 OTA 升级中的 security_patch_level 说明
+- [ ] OTA 的流式更新是如何实现的？
+- [ ] OTA 的 CheckPoint 是如何实现的？
 - [ ] 如何只升级部分分区？partial_update
 - 升级后如何同步两个槽位？
 - postinstall 阶段到底都干了什么？
-- check point 是如何实现的？
 - update.zip 是如何打包生成的？
 - 如何使用 lldb 调试 host 应用?
 - 如何使用 lldb 调试 update engine?
