@@ -1,5 +1,7 @@
 # 20230930-Android Update Engine 分析（二十六）OTA 更新后强制不切换 Slot 会怎么样？
 
+## 0. 导读
+
 成功更新数据后 prefs 状态是如何切换的？
 
 
@@ -24,7 +26,7 @@ OTA 升级更新数据以后，暂不切换 Slot，等到某个时机成熟以�
 
 
 
-### 1. OTA 结束的操作
+## 1. OTA 结束的设置操作
 
 这个话题要从 OTA 升级结束的操作说起。
 
@@ -43,7 +45,7 @@ OTA 升级更新数据以后，暂不切换 Slot，等到某个时机成熟以�
 
 
 
-#### OTA 更新数据成功
+### 1.1 OTA 更新数据成功
 
 对于成功写入 OTA 升级数据，此时的返回结果为 kSuccess，因此调用 WriteUpdateCompleteMarker() 函数，并随后将 kPrefsDeltaUpdateFailures 设置为 0。
 
@@ -60,7 +62,7 @@ OTA 升级更新数据以后，暂不切换 Slot，等到某个时机成熟以�
 
 
 
-#### OTA 更新数据失败
+### 1.2 OTA 更新数据失败
 
 OTA 更新数据失败的情况并不是我们这里讨论的重点，但为了完整讨论 ProcessingDone() 函数，这里也简单说明一下。
 
@@ -68,20 +70,26 @@ OTA 更新数据失败的情况并不是我们这里讨论的重点，但为了�
 
 ![image-20231007231905132](images-20230930-Android Update Engine 分析（二十六）成功更新数据后 prefs 状态是如何切换的？/image-20231007231905132.png)
 
+在[《Android Update Engine分析（二十五）升级状态 prefs 是如何保存的？》](https://blog.csdn.net/guyongqiangx/article/details/133421560)中，我贴过一些测试设备上的 prefs 状态数据例子，我重新截图如下:
+
+![1696735221(1)](images-20230930-Android Update Engine 分析（二十六）成功更新数据后 prefs 状态是如何切换的？/1696735221(1).png)
+
+从图上可以看到，截图中的大部分状态数据都会被 ResetUpdateProgress 函数重置。
 
 
-### 2. Update Engine 启动后的 Init 操作
+
+## 2. Update Engine 启动后的检查操作
 
 在介绍 Update Engine 启动检查 prefs 和 OTA 状态前，先回顾下 Update Engine 的启动流程。
 
 
 
-#### Update Engine 启动流程
+### 2.1 Update Engine 启动流程
 
 更多关于 Update Engine 服务端进程启动的细节，请参考博客：
 
 - [《Android Update Engine分析（四）服务端进程》](https://blog.csdn.net/guyongqiangx/article/details/82116213)
-- [Android Update Engine分析（二十五）升级状态 prefs 是如何保存的？](https://blog.csdn.net/guyongqiangx/article/details/133421560)
+- [《Android Update Engine分析（二十五）升级状态 prefs 是如何保存的？》](https://blog.csdn.net/guyongqiangx/article/details/133421560)
 
 以下是 Update Engine 服务端进程启动时，函数的调用流程:
 
@@ -111,7 +119,7 @@ OTA 更新数据失败的情况并不是我们这里讨论的重点，但为了�
 
 
 
-#### OTA 更新后还没有重启系统
+### 2.2 OTA 更新后还没有重启系统
 
 OTA 更新后还没有重启系统，但 Update Engine 因为某种意外重启了。
 
@@ -125,13 +133,17 @@ OTA 更新后还没有重启系统，但 Update Engine 因为某种意外重启�
 
 
 
-#### OTA 更新后已经重启系统
+### 2.3 OTA 更新后已经重启系统
 
 如果 Update Engine 启动中发现 prefs 记录的 boot_id 和当前系统的 boot_id 不一样，说明自系统更新完数据后，已经重新启动过了。
 
-此时的调用 `GetOTAUpdateResult()` 检查并返回 OTA 升级结果，并根据 OTA 升级结果更新系统的升级状态，如下：
+此时先调用 GetOTAUpdateResult() 检查并返回 OTA 更新结果，然后调用 DidSystemReboot() 检查系统是否重启过，如果重启过了，就把 OTA 更新结果传递给  UpdateStateAfterReboot(result) 函数，用于更新系统的升级状态。
+
+这部分代码如下：
 
 ![image-20230930111023844](images-20230930-Android Update Engine 分析（二十六）成功更新数据后 prefs 状态是如何切换的？/image-20230930111023844.png)
+
+
 
 这里主要有 3 个操作：
 
@@ -139,13 +151,13 @@ OTA 更新后还没有重启系统，但 Update Engine 因为某种意外重启�
 2. 调用 DidSystemReboot() 检查系统是否重启过；
 3. 调用 UpdateStateAfterReboot(result)，根据 OTA 更新结果更新系统状态；
 
-下面逐个分析这 3 个操作函数。
+下面逐个分析这 3 个操作函数，对操作细节不感兴趣的话，可以略过。
 
 
 
-##### GetOTAUpdateResult() 函数
+#### GetOTAUpdateResult() 函数
 
-不得不说，函数 GetOTAUpdateResult() 对升级结果的检查有点复杂：
+函数 GetOTAUpdateResult() 用于对升级结果的检查，不得不说，这个检查真的有点复杂：
 
 ![image-20230930000036110](images-20230930-Android Update Engine 分析（二十六）成功更新数据后 prefs 状态是如何切换的？/image-20230930000036110.png)
 
@@ -155,23 +167,27 @@ OTA 更新后还没有重启系统，但 Update Engine 因为某种意外重启�
 
 1. 检查数据更新成功后写入的标记
 
-   检查升级数据写入成功后的标记 kPrefsUpdateCompleteOnBootId
+   - 检查升级数据写入成功后的标记 kPrefsUpdateCompleteOnBootId
 
 2. 检查系统是否重启过
+   - 比较 kPrefsBootId 和系统当前的 boot_id
 
 3. 检查系统 slot 槽位是否发生了切换
+   - 比较 kPrefsPreviousSlot 和当前系统的槽位 slot
+   - 检查 kPrefsPreviousVersion 和当前系统属性 `ro.build.version.incremental`
 
 
 
-根据 3 个条件的结果，讨论 4 类可能得情况：
 
-- 如果检查到系统上次升级数据成功后写入的标记，并且系统重启了，而且槽位发生了切换，返回结果：升级成功(OTA_SUCCESSFUL)。
+根据 3 个条件的结果，讨论 4 类可能的情况：
 
-- 如果检查到系统上次升级数据成功后写入的标记，系统也重启了，但是槽位没有发生切换，那说明系统升级可能在哪里发生问题了导致系统槽位没有切换成功，返回结果：系统回滚(ROLLED_BACK)。
+- 如果检查到系统上次升级数据成功后写入的标记，并且系统重启了，而且槽位发生了切换，返回结果：升级成功(**OTA_SUCCESSFUL**)。
 
-- 如果检查到系统上次升级数据成功后写入的标记，系统还没重启，返回结果：系统需要重启(UPDATED_NEED_REBOOT)。
+- 如果检查到系统上次升级数据成功后写入的标记，系统也重启了，但是槽位没有发生切换，那说明系统升级可能在哪里发生问题了导致系统槽位没有切换成功，返回结果：系统回滚(**ROLLED_BACK**)。
 
-- 如果连系统上次升级数据成功后写入的标记都没有检查到，那说明系统没有升级，返回结果：没有尝试过升级(NOT_ATTEMPTED)。
+- 如果检查到系统上次升级数据成功后写入的标记，系统还没重启，返回结果：系统需要重启(**UPDATED_NEED_REBOOT**)。
+
+- 如果连系统上次升级数据成功后写入的标记都没有检查到，那说明系统没有升级，返回结果：没有尝试过升级(**NOT_ATTEMPTED**)。
 
 
 
@@ -179,7 +195,7 @@ OTA 更新后还没有重启系统，但 Update Engine 因为某种意外重启�
 
 
 
-##### DidSystemReboot() 函数
+#### DidSystemReboot() 函数
 
 检查当前系统在升级后是否重启过比较简单，就是将当前系统的 boot_id 和上一次启动 Update Engine 记录的 boot_id 进行比较，如果不一样，则说明重启过。
 
@@ -187,17 +203,98 @@ OTA 更新后还没有重启系统，但 Update Engine 因为某种意外重启�
 
 
 
-##### UpdateStateAfterReboot() 函数
+#### UpdateStateAfterReboot() 函数
 
-UpdateStateAfterReboot() 函数使用 OTA 检查结果更新系统状态，决定下一步操作，函数代码有点长。
+UpdateStateAfterReboot(result) 函数使用 OTA 检查结果更新系统状态，决定下一步操作，函数代码有点长。
 
-
-
-UpdateAttempterAndroid::TerminateUpdateAndNotify() 函数
+![1696741640(1)](images-20230930-Android Update Engine 分析（二十六）成功更新数据后 prefs 状态是如何切换的？/1696741640(1).png)
 
 
 
-### 问题
+UpdateStateAfterReboot(result) 函数中，不论哪一种情况，都会进行以下操作：
 
-如果系统更新成功以后，不切换 Slot 槽位，重启后系统会提示升级失败。但又需要这个场景，该如何修改代码？
+1. 获取系统属性 `ro.build.version.incremental` 作为当前系统的版本号(实际上是系统的 fingerprint)
+2. 获取当前 kernel 的 boot_id 并保存到 prefs 的 kPrefsBootId 中
+3. 如果 prefs 中没有找到 kPrefsPreviousVersion 数据，说明当前的系统是刚出厂的新设备，或者是刚恢复出厂设置的设备(擦除了 /data 分区)，此时不存在任何的升级记录，将系统版本和和当前槽位分别保存到 kPrefsPreviousVersion 和 kPrefsPreviousSlot 中。
+
+如果系统有 OTA 更新，但没有成功的情况下，使用 kPrefsNumReboots 记录设备的启动次数。
+
+如果系统有 OTA 更新，但 OTA 检查的结果是回滚 (ROLLED_BACK)，则释放 apex 占用的空间，并复位进度。
+
+如果系统有 OTA 更新，并且成功了，则保存当前的版本号(fingerprint)和槽位(slot)信息，并复位进度。
+
+
+
+对于 LoadAndReportTimeToReboot() 函数，目前内部会读取 kPrefsSystemUpdatedMarker 数据，保存的是系统在完成 OTA 时的时间信息，但并没有做什么实际操作。
+
+
+
+### 2.4 关于 kPrefsPreviousVersion  和 kPrefsPreviousSlot 
+
+#### **kPrefsPreviousVersion **
+
+这里的 kPrefsPreviousVersion 到底保存了什么数据？
+
+不妨在设备上看看:
+
+```bash
+console:/data/misc/update_engine/prefs # xxd -g1 previous-version
+00000000: 65 6e 67 2e 72 67 39 33 35 37 2e 32 30 32 32 31  eng.rg9357.20221
+00000010: 30 31 30 2e 32 31 30 36 31 36                    010.210616
+console:/data/misc/update_engine/prefs # 
+```
+
+也可以直接在编译生成的 dist 目录中搜索查看 "ro.build.version.incremental" 属性:
+
+```bash
+$ grep "ro.build.version.incremental" out/dist/build.prop 
+ro.build.version.incremental=eng.rg9357.20221010.210616
+$
+```
+
+所以，这里 `previous-version` 保存的就是系统的 fingerprint
+
+
+
+#### **kPrefsPreviousSlot** 
+
+另外，在我的测试设备上运行的是 Android R(11) 的代码，还没有 kPrefsPreviousSlot 数据。
+
+查看官方源码，kPrefsPreviousSlot 在下面这个更改中加入:
+
+![1696754780(1)](images-20230930-Android Update Engine 分析（二十六）成功更新数据后 prefs 状态是如何切换的？/1696754780(1).png)
+
+> 在线源码:
+>
+> https://cs.android.com/android/_/android/platform/system/update_engine/+/866034758956e0c47ab2e642c4ed8fdfa3e88a72
+
+
+
+### 2.5 总结
+
+
+
+### 3. 问题
+
+回到问题：OTA 更新后强制不切换 Slot 会怎么样？
+
+答案就是：重启后系统会提示升级失败，具体原因是系统重启后，在 Update Engine 启动中会检查 OTA 升级结果。
+
+能检查到系统上次升级数据成功后写入的标记，系统也重启了，但是槽位没有发生切换，按照一般的系统操作场景的理解，说明系统升级可能在哪里发生问题了导致系统槽位没有切换成功，最终返回 OTA 结果：系统回滚(**ROLLED_BACK**)。
+
+对于系统回滚 (ROLLED_BACK)，就意味着升级失败了，此时进行失败的清理操作，复位升级数据。
+
+
+
+但是，实际上我们是有这个需求的：
+
+OTA 升级更新数据以后，暂不切换 Slot，等到某个时机成熟以后再切换槽位完成最后的升级。
+
+例如，OTA 讨论群中提到的场景，车机升级时主系统(Android)更新了，此时还要等待各种其它设备(MCU)也完成了升级，整个系统才触发 Slot 切换转到新系统。
+
+
+
+所以，对于这个场景，该如何修改代码来实现呢？
+
+
 
