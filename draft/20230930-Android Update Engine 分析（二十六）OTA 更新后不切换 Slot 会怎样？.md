@@ -2,7 +2,7 @@
 
 >  本文为洛奇看世界(guyongqiangx)原创，转载请注明出处。
 >
-> 原文链接：https://blog.csdn.net/guyongqiangx/article/details/
+> 原文链接：https://blog.csdn.net/guyongqiangx/article/details/133691683
 
 ## 0. 导读
 
@@ -99,7 +99,7 @@ OTA 升级更新数据以后，暂不切换 Slot，等到某个时机成熟以�
 >
 > - [Android Update Engine分析（二十五）升级状态 prefs 是如何保存的？](https://blog.csdn.net/guyongqiangx/article/details/133421560)
 >
-> - [Android Update Engine分析（二十六）OTA 更新后不切换 Slot 会怎样？]()
+> - [Android Update Engine分析（二十六）OTA 更新后不切换 Slot 会怎样？](https://blog.csdn.net/guyongqiangx/article/details/133691683)
 
 > 如果您已经订阅了本专栏，请务必加我微信，拉你进“动态分区 & 虚拟分区专栏 VIP 答疑群”。
 
@@ -137,7 +137,7 @@ OTA 升级更新数据以后，暂不切换 Slot，等到某个时机成熟以�
 
 ![03-WriteUpdateCompleteMarker.png](images-20230930-Android Update Engine 分析（二十六）OTA 更新后不切换 Slot 会怎样？/03-WriteUpdateCompleteMarker.png)
 
-**图 3. WriteUpdateCompleteMarker() 函数**
+**图 3. WriteUpdateCompletedMarker() 函数**
 
 
 
