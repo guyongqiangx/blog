@@ -28,6 +28,7 @@
 - update.zip 包中的那些文件都是干嘛用的？
 - 升级中的进度是如何计算的？
 - 各个 Action 流程是如何衔接的？
+- update_metadata.proto 结构 (Android 13)
 
 ## OTA 定制
 
