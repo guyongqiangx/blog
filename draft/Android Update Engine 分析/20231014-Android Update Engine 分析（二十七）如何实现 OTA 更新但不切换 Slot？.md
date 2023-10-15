@@ -126,7 +126,7 @@
 
 ![04-write-SWITH_SLOT_ON_REBOOT.png](images-20231014-Android Update Engine 分析（二十七）如何实现 OTA 更新但不切换 Slot？/04-write-SWITH_SLOT_ON_REBOOT.png)
 
-**图 4. 往 payload_peroperties.txt 中写入 SWITCH_SLOT+ON_REBOOT=0**
+**图 4. 往 payload_peroperties.txt 中写入 SWITCH_SLOT_ON_REBOOT=0**
 
 
 
