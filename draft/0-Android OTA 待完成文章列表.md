@@ -12,7 +12,7 @@
 - [ ] 20230925-Android Update Engine 分析（二十四）制作降级包时，到底发生了什么？
 - [x] 20230926-Android Update Engine 分析（二十五）升级状态 prefs 是如何保存的？
 - [x] 20230930-Android Update Engine 分析（二十六）OTA 更新后不切换 Slot 会怎样？
-- [ ] 20231009-Android Update Engine 分析（二十七）如何优雅地在 OTA 更新后不进行 Slot 切换？
+- [x] 20231014-Android Update Engine 分析（二十七）如何实现 OTA 更新但不切换 Slot？
 - [ ] 20231008-Android Update Engine 分析（二十八）检查点 CheckPoint 是如何实现的？
 - [ ] 20230929-Android Update Engine 分析（二十三）OTA 降级限制之 security patch level
 - [ ] OTA 的流式更新是如何实现的？
