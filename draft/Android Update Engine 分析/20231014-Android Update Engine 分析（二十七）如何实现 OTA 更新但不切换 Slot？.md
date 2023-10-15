@@ -1,5 +1,9 @@
 # 20231014-Android Update Engine 分析（二十七）如何实现 OTA 更新但不切换 Slot？
 
+> 本文为洛奇看世界(guyongqiangx)原创，转载请注明出处。
+>
+> 原文链接：https://blog.csdn.net/guyongqiangx/article/details/133849661
+
 ## 0. 导读
 
 上篇[《Android Update Engine分析（二十六）OTA 更新后不切换 Slot 会怎样？》](https://blog.csdn.net/guyongqiangx/article/details/133691683) 分析了 OTA 更新但如果不进行切换，重启会失败的原因，以及我的一种解决思路。
@@ -14,7 +18,7 @@
 
 ![02-slot_switch_on_reboot-checking.png](images-20231014-Android Update Engine 分析（二十七）如何实现 OTA 更新但不切换 Slot？/02-slot_switch_on_reboot-checking.png)
 
-**图 2. switch_slot_on_reboot=false 时的 kUpdateButNotActive**
+**图 2. switch_slot_on_reboot = false 时的 kUpdateButNotActive**
 
 
 
@@ -97,6 +101,8 @@
 > - [Android Update Engine分析（二十五）升级状态 prefs 是如何保存的？](https://blog.csdn.net/guyongqiangx/article/details/133421560)
 >
 > - [Android Update Engine分析（二十六）OTA 更新后不切换 Slot 会怎样？](https://blog.csdn.net/guyongqiangx/article/details/133691683)
+>
+> - [Android Update Engine分析（二十七）如何实现 OTA 更新但不切换 Slot？](https://blog.csdn.net/guyongqiangx/article/details/133849661)
 
 > 如果您已经订阅了本专栏，请务必加我微信，拉你进“动态分区 & 虚拟分区专栏 VIP 答疑群”。
 
