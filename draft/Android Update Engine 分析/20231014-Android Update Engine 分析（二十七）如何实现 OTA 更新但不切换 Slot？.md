@@ -6,13 +6,15 @@
 
 分享到 OTA 答疑群后，小伙伴子非鱼分享了他的理解，比我提到的方法更简单，立马打脸了(也不完全算是打脸，主要是现成的，更简单直接，在这里也特别对子非鱼的分享表示感谢)。哈哈，我欢迎这样打脸，大家多交流才有进步。
 
+![01-wechat-discussion-on-switch-slot.png](images-20231014-Android Update Engine 分析（二十七）如何实现 OTA 更新但不切换 Slot？/01-wechat-discussion-on-switch-slot.png)
+
+**图 1. 小伙伴子非鱼的分享**
 
 
-![image-20231015210341592](images-20231014-Android Update Engine 分析（二十七）如何实现 OTA 更新但不切换 Slot？/image-20231015210341592.png)
 
+![02-slot_switch_on_reboot-checking.png](images-20231014-Android Update Engine 分析（二十七）如何实现 OTA 更新但不切换 Slot？/02-slot_switch_on_reboot-checking.png)
 
-
-![image-20231014170359775](images-20231014-Android Update Engine 分析（二十七）如何实现 OTA 更新但不切换 Slot？/image-20231014170359775.png)
+**图 2. switch_slot_on_reboot=false 时的 kUpdateButNotActive**
 
 
 
@@ -102,7 +104,11 @@
 
 这里的分享提到了 switch_slot_on_reboot 选项， 这个参数是从 "--include_secondary" 做包选项引入的，本来是打算在在介绍 "--include_secondary" 选项的时候专门介绍，但没想到升级时单独使用 "SWITCH_SLOT_ON_REBOOT" 还有意外的效果。
 
-![image-20231015210722369](images-20231014-Android Update Engine 分析（二十七）如何实现 OTA 更新但不切换 Slot？/image-20231015210722369.png)
+![03-include_secondary-option.png](images-20231014-Android Update Engine 分析（二十七）如何实现 OTA 更新但不切换 Slot？/03-include_secondary-option.png)
+
+**图 3. 制作升级包的 include_secondary 参数**
+
+
 
 既然这里提到了 switch_slot_on_reboot, 我们就简单看下这个参数是如何设置，如何起作用的。
 
@@ -112,7 +118,11 @@
 
 默认情况下使用 "--include_secondary" 做包时，会往 payload 的 `payload_properties.txt` 文件中写入数据:
 
-![image-20231015212715893](images-20231014-Android Update Engine 分析（二十七）如何实现 OTA 更新但不切换 Slot？/image-20231015212715893.png)
+![04-write-SWITH_SLOT_ON_REBOOT.png](images-20231014-Android Update Engine 分析（二十七）如何实现 OTA 更新但不切换 Slot？/04-write-SWITH_SLOT_ON_REBOOT.png)
+
+**图 4. 往 payload_peroperties.txt 中写入 SWITCH_SLOT+ON_REBOOT=0**
+
+
 
 最终的 `payload_properties.txt` 大概长这样:
 
@@ -133,7 +143,9 @@ SWITCH_SLOT_ON_REBOOT=0
 
 在升级的 applyPayload() 函数中准备 install plan 时会检查 headers 参数中的 "SWITCH_SLOT_ON_REBOOT"，默认为 true，但如果指定了 "SWITCH_SLOT_ON_REBOOT=0" 则得到的值为 false。
 
-![image-20231015213123256](images-20231014-Android Update Engine 分析（二十七）如何实现 OTA 更新但不切换 Slot？/image-20231015213123256.png)
+![05-set-switch_slot_on_reboot-from-headers.png](images-20231014-Android Update Engine 分析（二十七）如何实现 OTA 更新但不切换 Slot？/05-set-switch_slot_on_reboot-from-headers.png)
+
+**图 5. 使用 headers 参数设置 switch_slot_on_reboot**
 
 
 
@@ -143,11 +155,19 @@ SWITCH_SLOT_ON_REBOOT=0
 
 在 PerformPartitionPostinstall() 中，如果已经检查完所有的分区，并且没有错误，则会调用 CompletePostinstall(ErrorCode::kSuccess) 函数。
 
-![image-20231015213448297](images-20231014-Android Update Engine 分析（二十七）如何实现 OTA 更新但不切换 Slot？/image-20231015213448297.png)
+![06-function-CompletePostinstall.png](images-20231014-Android Update Engine 分析（二十七）如何实现 OTA 更新但不切换 Slot？/06-function-CompletePostinstall.png)
 
-在 CompletePostinstall(ErrorCode::kSuccess) 中，如果当前的 switch_slot_on_reboot = false, 则会将 error_code 设置为 ErrorCode::kUpdatedButNotActive，并将这个 error code 传递给 ScopedActionComplete 类对象，使得在销毁 PostinstallRunnerAction 的阶段调用调用下面的 ActionProcessor::ActionComplete() 函数：
+**图 6. CompletePostinstall() 函数**
 
-![image-20231015214822314](images-20231014-Android Update Engine 分析（二十七）如何实现 OTA 更新但不切换 Slot？/image-20231015214822314.png)
+
+
+在 `CompletePostinstall(ErrorCode::kSuccess)` 中，如果当前的 `switch_slot_on_reboot = false`, 则会将 `error_code` 设置为 `ErrorCode::kUpdatedButNotActive`，并将这个 code 传递给 ScopedActionComplete 类对象，使得在销毁 PostinstallRunnerAction 的阶段调用调用下面的 `ActionProcessor::ActionComplete()` 函数：
+
+![07-function-ActionComplete.png](images-20231014-Android Update Engine 分析（二十七）如何实现 OTA 更新但不切换 Slot？/07-function-ActionComplete.png)
+
+**图 7. ActionComplete() 函数**
+
+
 
 所以这里会依次调用:
 
@@ -160,7 +180,9 @@ SWITCH_SLOT_ON_REBOOT=0
 
 在 UpdateAttempterAndroid::ActionCompleted() 函数中，如果当前的 code 为 ErrorCode::kUpdatedButNotAcitve, 往 prefs 文件 `/data/misc/update_engine/prefs/post-install-succeeded` 中写入 true:
 
-![image-20231015164957604](images-20231014-Android Update Engine 分析（二十七）如何实现 OTA 更新但不切换 Slot？/image-20231015164957604.png)
+![08-function-UpdateAttempterAndroid-ActionCompleted.png](images-20231014-Android Update Engine 分析（二十七）如何实现 OTA 更新但不切换 Slot？/08-function-UpdateAttempterAndroid-ActionCompleted.png)
+
+**图 8. 基于 kUpdatedButNotActive 更新 "post-install-succeeded" 文件** 
 
 
 
@@ -168,7 +190,9 @@ SWITCH_SLOT_ON_REBOOT=0
 
 在 UpdateAttempterAndroid::ProcessingDone() 函数中，如果当前的 code 为 ErrorCode::kUpdatedButNotActive，则不进行任何处理，最后只给外界发送通知 kUpdatedButNotActive。
 
-![image-20231015165917911](images-20231014-Android Update Engine 分析（二十七）如何实现 OTA 更新但不切换 Slot？/image-20231015165917911.png)
+![09-function-UpdateAttempterAndroid-ProcessingDone.png](images-20231014-Android Update Engine 分析（二十七）如何实现 OTA 更新但不切换 Slot？/09-function-UpdateAttempterAndroid-ProcessingDone.png)
+
+**图 9. ProcessingDone() 函数**
 
 
 
@@ -224,7 +248,9 @@ update engine 服务端的 applyPayload 解析 headers 的 `SWITCH_SLOT_ON_REBOO
 
 
 
-换言之，就是在升级时，将 "SWITCH_SLOT_ON_REBOOT=0" 选项通过 headers 参数传递给 update engine 的服务端来达到目的。
+简而言之，如果我们升级以后，又不希望切换 Slot，就可以借用 "SWITCH_SLOT_ON_REBOOT=0" 选项。在升级时，将 "SWITCH_SLOT_ON_REBOOT=0" 选项通过 headers 参数传递给 update engine 的服务端，这样在当前更新完目标分区后，不会进行 Slot 切换。
+
+
 
 ## 2. 触发 Slot 切换的两种方式
 
@@ -268,7 +294,9 @@ update_engine_client --switch_slot
 
 update_engine_client 对 switch_slot 选项的处理如下：
 
-![image-20231015222153648](images-20231014-Android Update Engine 分析（二十七）如何实现 OTA 更新但不切换 Slot？/image-20231015222153648.png)
+![10-switch_slot-in-update_engine_client.png](images-20231014-Android Update Engine 分析（二十七）如何实现 OTA 更新但不切换 Slot？/10-switch_slot-in-update_engine_client.png)
+
+**图 10. update engine client 中对 switch_slot 的处理**
 
 
 
@@ -286,7 +314,11 @@ update_engine_client 对 switch_slot 选项的处理如下：
 
 如果只是指定了 "--switch-slot"，不明确指定 true，则在 update_engine_client 中会调用服务端的 resetShouldSwitchSlotOnReboot() 服务，进行简单直接的切换操作，基本上等同于前面粗暴的切换方式，但毕竟是系统自带的服务，所以比粗暴方式又略显得优雅一点。
 
-![image-20231015223340512](images-20231014-Android Update Engine 分析（二十七）如何实现 OTA 更新但不切换 Slot？/image-20231015223340512.png)
+![11-function-resetShouldSwithSlotOnReboot.png](images-20231014-Android Update Engine 分析（二十七）如何实现 OTA 更新但不切换 Slot？/11-function-resetShouldSwithSlotOnReboot.png)
+
+**图 11. resetShouldSwithSlotOnReboot() 函数**
+
+
 
 > 问题：
 >
