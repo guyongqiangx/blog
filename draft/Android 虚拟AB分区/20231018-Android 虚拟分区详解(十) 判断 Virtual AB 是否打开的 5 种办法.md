@@ -2,7 +2,25 @@
 
 > 本文为洛奇看世界(guyongqiangx)原创，转载请注明出处。
 >
-> 原文链接：
+> 原文链接：https://blog.csdn.net/guyongqiangx/article/details/133917853
+
+## 0. 导读
+
+这是一篇临时加入的文章，计划中的第十篇并不是准备分析这个，只不过因为时常会有小伙伴在 OTA 讨论群和专栏答疑群里问如何判断一个设备是否打开了虚拟分区(Virtual A/B)功能。
+
+![01-question-on-virtual-ab-switch.png](images-20231018-Android 虚拟分区详解(十) 判断 Virtual AB 是否打开的 5 种办法/01-question-on-virtual-ab-switch.png)
+
+**图 1. 如何判断设备开启了虚拟 AB 的问题**
+
+
+
+本文总结我知道的 5 种办法：
+
+1. 从源码判断
+2. 从编译输出判断
+3. 从 image 镜像文件判断
+4. 从运行设备的系统属性判断
+5. 从运行设备的 super 分区数据判断
 
 
 
@@ -17,31 +35,16 @@
 > - [Android 虚拟 A/B 详解(七) 升级中用到了哪些标识文件？](https://blog.csdn.net/guyongqiangx/article/details/129098176)
 > - [Android 虚拟 A/B 详解(八) cow 的大小是如何计算的？](https://blog.csdn.net/guyongqiangx/article/details/129470881)
 > - [Android 虚拟 A/B 详解(九) cow 的存储是如何分配的？](https://blog.csdn.net/guyongqiangx/article/details/129494397)
+> - [Android 虚拟 A/B 详解(十) 判断 Virtual A/B 是否打开的 5 种办法](https://blog.csdn.net/guyongqiangx/article/details/133917853)
 >
 > 对 linux 快照(snapshot) 的了解可以增加对虚拟 A/B 分区的理解：
 >
 > - [Linux 快照 (snapshot) 原理与实践(一) 快照基本原理](https://blog.csdn.net/guyongqiangx/article/details/128494795)
 > - [Linux 快照 (snapshot) 原理与实践(二) 快照功能实践](https://blog.csdn.net/guyongqiangx/article/details/128496471)
 
-## 0. 导读
-
-这是一篇临时加入的文章，计划中的第十篇并不是准备分析这个，只不过因为时常会有小伙伴在 OTA 讨论群和专栏答疑群里问如何判断一个设备是否打开了虚拟分区(Virtual A/B)功能。
-
-![01-question-on-virtual-ab-switch.png](images-20231018-Android 虚拟分区详解(十) 判断 Virtual AB 是否打开的 5 种办法/01-question-on-virtual-ab-switch.png)
-
-**图 1. 如何判断设备开启了虚拟 AB 的问题**
 
 
-
-本文总结我知道的 5 种办法，主要分成 3 中情况。
-
-1. 从源码判断
-2. 从编译输出判断
-3. 从 image 镜像文件判断
-4. 从 payload 文件判断
-5. 从运行的设备判断
-
-
+> 如果您已经订阅了本专栏，请务必加我微信，拉你进“动态分区 & 虚拟分区专栏 VIP 答疑群”。
 
 ## 1. Virtual A/B 的开关
 
