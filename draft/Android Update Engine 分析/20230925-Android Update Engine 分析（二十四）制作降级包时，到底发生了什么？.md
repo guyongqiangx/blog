@@ -172,7 +172,11 @@ Android 中，跟降级相关的选项比较多，在 Android 13 的代码中就
 
 Android OTA 更新时，如何制作降级包？答案就是在制作 OTA 升级包时使用 "--downgrade" 选项。
 
-![image-20231022105154732](images-20230925-Android Update Engine 分析（二十四）制作降级包时，到底发生了什么？/image-20231022105154732.png)
+![01-downgrade-option-in-command.png](images-20230925-Android Update Engine 分析（二十四）制作降级包时，到底发生了什么？/01-downgrade-option-in-command.png)
+
+**图 1. 制作升级包的 "--downgrade" 选项**
+
+
 
 一个典型的降级包制作命令如下(使用默认的 test key 签名)：
 
@@ -190,7 +194,9 @@ $ ota_from_target_files --downgrade -i new-target_files.zip old-target_files.zip
 
 在制作 OTA 更新包时，如果指定了 "--downgrade" 选项，则设置选项"OPTIONS.downgrade=True" 以及 "OPTIONS.wide_user_data=True":
 
-![image-20231022111416523](images-20230925-Android Update Engine 分析（二十四）制作降级包时，到底发生了什么？/image-20231022111416523.png)
+![02-parse-downgrade-option.png](images-20230925-Android Update Engine 分析（二十四）制作降级包时，到底发生了什么？/02-parse-downgrade-option.png)
+
+**图 2. 解析 "--downgrade" 选项**
 
 
 
@@ -198,7 +204,11 @@ $ ota_from_target_files --downgrade -i new-target_files.zip old-target_files.zip
 
 另外，在制作降级包时，OPTIONS.downgrade 选项会影响 max_timestamp 的提取：
 
-![image-20231022110349266](images-20230925-Android Update Engine 分析（二十四）制作降级包时，到底发生了什么？/image-20231022110349266.png)
+![03-set_max-timestamp-from-source-image.png](images-20230925-Android Update Engine 分析（二十四）制作降级包时，到底发生了什么？/03-set_max-timestamp-from-source-image.png)
+
+**图 3. 降级时从 source 分区提取编译时间作为 max_timestamp**
+
+
 
 如果"OPTIONS.downgrade=True"，则提取 source 槽位的编译时间作为 max_timestamp，并保存到 payload 文件中。
 
@@ -251,7 +261,9 @@ manifest.max_timestamp == 当前系统的编译时间
 
 而对于 "OPTIONS.wide_user_data=True"，就是将 "POWERWASH=1" 写入到 payload_properties.txt 文件中:
 
-![image-20231022111822603](images-20230925-Android Update Engine 分析（二十四）制作降级包时，到底发生了什么？/image-20231022111822603.png)
+![04-set_POWERWASH-to-payloader-properites.png](images-20230925-Android Update Engine 分析（二十四）制作降级包时，到底发生了什么？/04-set_POWERWASH-to-payloader-properites.png)
+
+**图 4. wipe_user_data 时输出 POWERWASH=1 设置**
 
 
 
@@ -296,7 +308,7 @@ manifest.max_timestamp == 当前系统的编译时间
 
 在生成升级包之前，如果是有两个包参与的增量升级，会从 target 和 source 槽位镜像提取信息生成制作升级包的 metadata，其中会调用函数 HandleDowngradeMetadata() 对两个镜像的时间戳进行检查：
 
-![image-20231022111201652](images-20230925-Android Update Engine 分析（二十四）制作降级包时，到底发生了什么？/image-20231022111201652.png)
+![05-check-image-build-time-for-incremental.png](images-20230925-Android Update Engine 分析（二十四）制作降级包时，到底发生了什么？/05-check-image-build-time-for-incremental.png)
 
 制作增量包时，
 
@@ -308,7 +320,7 @@ manifest.max_timestamp == 当前系统的编译时间
 
 ## 5. 总结
 
-使用 "--downgrade" 选项制作降级包：
+使用 "--downgrade" 选项制作降级包，命令：
 
 ```bash
 $ ota_from_target_files --downgrade -i new-target_files.zip old-target_files.zip downgrade.zip
