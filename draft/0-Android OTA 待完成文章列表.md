@@ -13,10 +13,10 @@
 - [x] 20230926-Android Update Engine 分析（二十五）升级状态 prefs 是如何保存的？
 - [x] 20230930-Android Update Engine 分析（二十六）OTA 更新后不切换 Slot 会怎样？
 - [x] 20231014-Android Update Engine 分析（二十七）如何实现 OTA 更新但不切换 Slot？
-- [ ] 20231008-Android Update Engine 分析（二十八）检查点 CheckPoint 是如何实现的？
-- [ ] 20230929-Android Update Engine 分析（二十三）OTA 降级限制之 security patch level
+- [ ] 20231022-Android Update Engine 分析（二十八）OTA 降级之 override timestam
+- [ ] 20230929-Android Update Engine 分析（二十九）OTA 降级限制之 security patch level
+- [ ] 20231008-Android Update Engine 分析（三十）检查点 CheckPoint 是如何实现的？
 - [ ] OTA 的流式更新是如何实现的？
-- [ ] OTA 的 CheckPoint 是如何实现的？
 - [ ] 如何只升级部分分区？partial_update
 - 升级后如何同步两个槽位？
 - postinstall 阶段到底都干了什么？
@@ -29,7 +29,7 @@
 - 升级中的进度是如何计算的？
 - 各个 Action 流程是如何衔接的？
 - update_metadata.proto 结构 (Android 13)
-- META-INF/com/android/metadata.pb 文件是做啥用的？
+- META-INF/com/android/metadata.pb 文件是做啥用的？如何查看？
 
 ## OTA 定制
 
