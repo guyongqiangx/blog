@@ -9,7 +9,7 @@
 - [x] 20230817-Android Update Engine 分析（二十一）Android A/B 更新过程
 - [x] 20230922-Android Update Engine 分析（二十二）OTA 降级限制之 timestamp
 - [x] 20230924-Android Update Engine 分析（二十三）如何在升级后清除用户数据？
-- [ ] 20230925-Android Update Engine 分析（二十四）制作降级包时，到底发生了什么？
+- [x] 20230925-Android Update Engine 分析（二十四）制作降级包时，到底发生了什么？
 - [x] 20230926-Android Update Engine 分析（二十五）升级状态 prefs 是如何保存的？
 - [x] 20230930-Android Update Engine 分析（二十六）OTA 更新后不切换 Slot 会怎样？
 - [x] 20231014-Android Update Engine 分析（二十七）如何实现 OTA 更新但不切换 Slot？
@@ -29,6 +29,7 @@
 - 升级中的进度是如何计算的？
 - 各个 Action 流程是如何衔接的？
 - update_metadata.proto 结构 (Android 13)
+- META-INF/com/android/metadata.pb 文件是做啥用的？
 
 ## OTA 定制
 
