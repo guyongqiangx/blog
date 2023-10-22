@@ -396,5 +396,3 @@ $ ota_from_target_files --downgrade -i new-target_files.zip old-target_files.zip
 
 
 
-
-
