@@ -1,0 +1,584 @@
+# AVB 数据实战之 system.img
+
+## 1. 前言
+
+在上一篇[《AVB 数据实战之 boot.img》]()中分析了使用 `add_hash_footer` 操作的 boot.img 镜像的格式。
+
+本篇进一步分析 `add_hashtree_footer` 操作的 system.img 镜像的格式。
+
+
+
+因此，system.img 都包含哪些数据，你有尝试亲自去分析 system.img 吗？
+
+一个 system 分区的镜像，为了满足 AVB 需要，需要进行如何处理？
+
+
+
+本文以实际操作的形式，带你查看 system.img 镜像，包括 avbtool 的多个操作，以及如何如何手动解析 AVB Footer，如何使用 shell 命令验证带有 salt 的镜像 hash 值。
+
+
+
+如果觉得实际操作比较返回，请转到第 4 节，查看 avbtool 命令，以及 boot.img 的格式总结。
+
+## 2. 环境
+
+具体的环境搭建，请参考[《AVB 数据实战之 boot.img》]()第二节中关于环境搭建的内容。
+
+这里就基于其生成的 system.img 进行分析分析。
+
+
+
+## 3. 操作
+
+### 1. 使用 avbtool 处理 boot.img
+
+在编译 log 文件 `make-dist-20241202-avbtool.log` 中查看 avbtool 用于 system.img 的操作，再回到完整的 log 文件中查看，原始的对 boot.img 操作的 log 是这样的：
+
+```bash
+2024-12-02 14:54:27 - common.py - INFO    :   Running: "/local/public/users/rocky/android-13.0.0_r41/out/host/linux-x86/bin/avbtool add_hashtree_footer --partition_size 886812672 --partition_name system --image /local/public/users/rocky/android-13.0.0_r41/out/target/product/panther/obj/PACKAGING/target_files_intermediates/aosp_panther-target_files-eng.rocky/IMAGES/system.img --salt 6902f6b436dd8f08a2ecd512d4576a03325e14db8e6b1bb72b68d22f20a6a6d3 --hash_algorithm sha256 --prop com.android.build.system.os_version:13 --prop com.android.build.system.fingerprint:Android/aosp_panther/panther:13/TQ2A.230405.003.E1/rocky12021421:userdebug/test-keys --prop com.android.build.system.security_patch:2023-04-05"
+```
+
+
+
+根据 log 中的信息，看起来是对 `aosp_panther-target_files-eng.rocky/IMAGES` 文件夹下面的 system.img 进行处理。
+
+为了显示方便，整理一下具体的处理命令，如下：
+
+```bash
+avbtool add_hashtree_footer \
+	--partition_size 886812672 \
+	--partition_name system \
+	--image aosp_panther-target_files-eng.rocky/IMAGES/system.img \
+	--salt 6902f6b436dd8f08a2ecd512d4576a03325e14db8e6b1bb72b68d22f20a6a6d3 \
+	--hash_algorithm sha256 \
+	--prop com.android.build.system.os_version:13 \
+	--prop com.android.build.system.fingerprint:Android/aosp_panther/panther:13/TQ2A.230405.003.E1/rocky12021421:userdebug/test-keys \
+	--prop com.android.build.system.security_patch:2023-04-05"
+```
+
+
+
+简单来说，就是对 system.img 执行 `add_hashtree_footer` 操作。
+
+> 注意：这里并没有传入 `-key` 参数，所以不会对 system.img 进行签名。
+
+
+
+### 2. 使用 avbtool 查看 system.img
+
+我们使用 avbtool 工具的 `info_image` 查看下生成的 boot.img 文件：
+
+```bash
+$ avbtool info_image --image out/target/product/panther/obj/PACKAGING/target_files_intermediates/aosp_panther-target_files-eng.rocky/IMAGES/system.img
+Footer version:           1.0
+Image size:               886812672 bytes
+Original image size:      872734720 bytes
+VBMeta offset:            886571008
+VBMeta size:              832 bytes
+--
+Minimum libavb version:   1.0
+Header Block:             256 bytes
+Authentication Block:     0 bytes
+Auxiliary Block:          576 bytes
+Algorithm:                NONE
+Rollback Index:           0
+Flags:                    0
+Rollback Index Location:  0
+Release String:           'avbtool 1.2.0'
+Descriptors:
+    Hashtree descriptor:
+      Version of dm-verity:  1
+      Image Size:            872734720 bytes
+      Tree Offset:           872734720
+      Tree Size:             6881280 bytes
+      Data Block Size:       4096 bytes
+      Hash Block Size:       4096 bytes
+      FEC num roots:         2
+      FEC offset:            879616000
+      FEC size:              6955008 bytes
+      Hash Algorithm:        sha256
+      Partition Name:        system
+      Salt:                  6902f6b436dd8f08a2ecd512d4576a03325e14db8e6b1bb72b68d22f20a6a6d3
+      Root Digest:           e2b0749496127b3b0dd589ea54bf6ccb113fa05d587b1e361a55d3bc0ea6f068
+      Flags:                 0
+    Prop: com.android.build.system.os_version -> '13'
+    Prop: com.android.build.system.fingerprint -> 'Android/aosp_panther/panther:13/TQ2A.230405.003.E1/rocky12021421:userdebug/test-keys'
+    Prop: com.android.build.system.security_patch -> '2023-04-05'
+```
+
+
+
+主要部分和上一篇[《AVB 数据实战之 boot.img》]()的基本一样，但又略有不同，多了 Hashtree 和 FEC 相关的信息，如下：
+
+![c85237c4b6ef68bbdcffb8679dd3539](images-20241204-AVB 数据实战之 system.img/c85237c4b6ef68bbdcffb8679dd3539.png)
+
+这里的数据重点如下：
+
+- AVB Footer 数据
+
+  - AVB Footer 版本: `1.0`
+
+  - 处理后的 system.img 镜像大小为 886812672 字节( 4K 粒度对齐)，给 avbtool 传入的参数指定了这个值。
+
+  - 原始的不带任何额外数据的 system.img 镜像为 872734720 字节 (可以通过 `avbtool erase_footer` 移除额外的 AVB 数据来还原原始的镜像)
+
+  - AVB 的元数据 VBMeta 大小为 832 字节，位于偏移量为 886571008 的位置(原始镜像结束的地方)
+
+- VBMeta 数据
+
+  - 头部各块数据大小(Header, Authentication, Auxiliary 等数据)
+
+  - Authentication Block 大小为 0，所以不带有签名数据(在 vbmeta_system.img 中单独处理)
+
+  - 回滚 Index 值：0
+
+  - 包含了 1 个哈希树(hashtree)描述符
+    - hashtree 位置: 872734720，大小: 6881280
+    - FEC 位置: 879616000, 大小: 6955008
+    - Salt 值和 Root 哈希值
+
+  - 包含了 3 个 Prop 属性
+
+
+
+### 3. 使用 avbtool 添加的额外数据
+
+当使用 avbtool 对原来的 system.img 执行 `add_hashtree_footer` 操作时到底添加了哪些数据呢？
+
+1. 写入原始未经处理的镜像 boot.img
+2. 将原始镜像 boot.img 计算得到的 VBMeta 元数据存放在原始镜像结束的地方
+3. 将新镜像填充到指定的 64M 大小(`--partition_size 67108864`)，如果使用 `--dynamic_partition_size` 参数，则不进行填充，直接按照 4K 对齐进行处理
+4. 在新镜像的最后 64 直接直接写入 AVB Footer 内容
+
+> 注：所有操作都按照 4K 页面进行
+>
+> 例如：
+>
+> 1. 原始未经处理的 boot.img 镜像填充到 4K 对齐；(生成时已经按照 4K 对齐了)
+> 2. VBMeta 存放在 4K 起始位置，并且填充到 4K 对齐(这里实际 1664 字节，最终占用 4K)
+> 3. 如果需要填充，则填充到指定大小 - 4K，因为最后 4K 放 AVB Footer
+> 4. 最后 1 个 4K 结束位置的 64 字节写入 AVBFooter
+
+
+
+所以，最终的 boot.img 格式如下：
+
+```bash
+boot.img layout：
++----------------+  <-- 0
+|                |
+|   Boot Image   |
+|                |
++----------------+  <-- original_image_size
+|    VBMeta      |  <-- vbmeta_offset
+|    (64KB max)  |
++----------------+
+|   AVB Footer   |  <-- Last 4KB
+|    (4KB)       |
++----------------+  <-- partition_size (64MB)
+```
+
+
+
+总体来说，使用 `add_hash_footer` 操作的镜像处理后包含以下 3 块数据：
+
+- 原始分区镜像
+- AVB 元数据 (VBMeta)，位置从原始镜像结束开始
+- AVB Footer 数据，最后一个 4K 页面的最后 64 个字节
+
+
+
+### 4. 查验 boot.img 中额外添加的数据
+
+为了证实上一节的结论，即：使用 `add_hash_footer` 操作的镜像处理后包含以下 3 块数据：
+
+- 原始分区镜像
+- AVB 元数据 (VBMeta)，位置从原始镜像结束开始
+- AVB Footer 数据，最后一个 4K 页面的最后 64 个字节
+
+我们使用 hexdump 工具检查生成的 boot.img 文件
+
+#### 查看 AVB Footer
+
+整个 64M 镜像最后 4K 的起始地址为 0x3FFF000，这里查看从 0x3FFF000 开始的 4096 字节：
+
+```
+$ hexdump -C -s 0x3FFF000 -n 4096 out/target/product/panther/boot.img 
+03fff000  00 00 00 00 00 00 00 00  00 00 00 00 00 00 00 00  |................|
+*
+03ffffc0  41 56 42 66 00 00 00 01  00 00 00 00 00 00 00 00  |AVBf............|
+03ffffd0  01 7d 30 00 00 00 00 00  01 7d 30 00 00 00 00 00  |.}0......}0.....|
+03ffffe0  00 00 06 80 00 00 00 00  00 00 00 00 00 00 00 00  |................|
+03fffff0  00 00 00 00 00 00 00 00  00 00 00 00 00 00 00 00  |................|
+04000000
+```
+
+可以看到，这里最后 64 直接为 AVB Footer。
+
+可以根据文件 `external/avb/libavb/avb_footer.h` 中定义的 AVB Footer 来手动解析一下：
+
+```c
+/* Magic for the footer. */
+#define AVB_FOOTER_MAGIC "AVBf"
+#define AVB_FOOTER_MAGIC_LEN 4
+
+/* Size of the footer. */
+#define AVB_FOOTER_SIZE 64
+
+/* The current footer version used - keep in sync with avbtool. */
+#define AVB_FOOTER_VERSION_MAJOR 1
+#define AVB_FOOTER_VERSION_MINOR 0
+
+/* The struct used as a footer used on partitions, used to find the
+ * AvbVBMetaImageHeader struct. This struct is always stored at the
+ * end of a partition.
+ */
+typedef struct AvbFooter {
+  /*   0: Four bytes equal to "AVBf" (AVB_FOOTER_MAGIC). */
+  uint8_t magic[AVB_FOOTER_MAGIC_LEN];
+  /*   4: The major version of the footer struct. */
+  uint32_t version_major;
+  /*   8: The minor version of the footer struct. */
+  uint32_t version_minor;
+
+  /*  12: The original size of the image on the partition. */
+  uint64_t original_image_size;
+
+  /*  20: The offset of the |AvbVBMetaImageHeader| struct. */
+  uint64_t vbmeta_offset;
+
+  /*  28: The size of the vbmeta block (header + auth + aux blocks). */
+  uint64_t vbmeta_size;
+
+  /*  36: Padding to ensure struct is size AVB_FOOTER_SIZE bytes. This
+   * must be set to zeroes.
+   */
+  uint8_t reserved[28];
+} AVB_ATTR_PACKED AvbFooter;
+```
+
+
+
+解析结果：
+
+```
+              magic( 4): 41 56 42 66              -> magic: "AVBf"
+      version_major( 4): 00 00 00 01              -> major: 1
+      version_minor( 4): 00 00 00 00              -> minor: 0
+original_image_size( 8): 00 00 00 00  01 7d 30 00 -> 0x00000000 017d3000 = 24981504
+      vbmeta_offset( 8): 00 00 00 00  01 7d 30 00 -> 0x00000000 017d3000 = 24981504
+        vbmeta_size( 8): 00 00 00 00  00 00 06 80 -> 0x00000000 00000680 = 1664
+```
+
+所以，通过最后 64 字节的 AVB Footer 解析得到以下内容：
+
+```
+Footer version:           1.0
+Image size:               67108864 bytes
+Original image size:      24981504 bytes
+VBMeta offset:            24981504
+VBMeta size:              1664 bytes
+```
+
+
+
+#### 查看 AVB 元数据 VBMeta
+
+从前面可以看到，原始镜像大小为 24981504 字节，VBMeta offset 也是从偏移位置 24981504 开始，我们看下从24981504 开始的这 4K 数据：
+
+```
+$ hexdump -C -s 24981504 -n 4096 out/target/product/panther/boot.img 
+017d3000  41 56 42 30 00 00 00 01  00 00 00 00 00 00 00 00  |AVB0............|
+017d3010  00 00 01 40 00 00 00 00  00 00 04 40 00 00 00 01  |...@.......@....|
+017d3020  00 00 00 00 00 00 00 00  00 00 00 00 00 00 00 20  |............... |
+017d3030  00 00 00 00 00 00 00 20  00 00 00 00 00 00 01 00  |....... ........|
+017d3040  00 00 00 00 00 00 02 00  00 00 00 00 00 00 02 08  |................|
+017d3050  00 00 00 00 00 00 04 08  00 00 00 00 00 00 00 00  |................|
+017d3060  00 00 00 00 00 00 00 00  00 00 00 00 00 00 02 00  |................|
+017d3070  00 00 00 00 64 2c ba 00  00 00 00 00 00 00 00 00  |....d,..........|
+017d3080  61 76 62 74 6f 6f 6c 20  31 2e 32 2e 30 00 00 00  |avbtool 1.2.0...|
+017d3090  00 00 00 00 00 00 00 00  00 00 00 00 00 00 00 00  |................|
+*
+017d3100  97 e0 ad 7d 58 29 0d 94  9e 8c 19 04 db 9f f1 50  |...}X).........P|
+017d3110  8d 4d 2e 03 c2 23 ff ed  f5 71 7e 39 ee a1 c9 35  |.M...#...q~9...5|
+017d3120  71 b9 61 3a 06 3e ae 36  e3 79 19 12 10 c8 d9 cb  |q.a:.>.6.y......|
+017d3130  06 58 06 4f c2 04 03 46  f1 0b a8 87 84 e7 a4 84  |.X.O...F........|
+017d3140  7a e3 39 79 e3 48 d8 83  68 a1 fd bc 33 15 5e 76  |z.9y.H..h...3.^v|
+017d3150  13 96 ef f1 96 4a de 93  62 00 b9 00 39 1f 2a 01  |.....J..b...9.*.|
+017d3160  7e b1 da c1 7e 9b a4 8a  97 7a 1b d6 eb 8e f3 73  |~...~....z.....s|
+017d3170  9e 3f 61 36 c3 74 1f 74  83 e9 7d e7 5d 8b 85 31  |.?a6.t.t..}.]..1|
+017d3180  57 bf 55 e6 83 18 f1 76  3f 93 c6 dc 68 b2 c2 54  |W.U....v?...h..T|
+017d3190  a3 56 42 6f b0 da 9e 41  55 62 4d bf 3e 8d 24 cb  |.VBo...AUbM.>.$.|
+017d31a0  d6 b0 9f 9b 08 58 e6 75  d8 0c fd 61 f2 6e 2d 80  |.....X.u...a.n-.|
+017d31b0  25 e4 12 0d 09 64 0c 27  44 7f 4e e9 10 c4 95 03  |%....d.'D.N.....|
+017d31c0  ea f4 89 26 c0 ae d4 c5  9b e5 74 44 af 9e d9 58  |...&......tD...X|
+017d31d0  77 85 73 51 ea ad f2 0b  76 f8 81 ff 26 d8 e5 8e  |w.sQ....v...&...|
+017d31e0  ab 0d 2b e7 e6 10 9e 44  86 28 16 10 d5 57 90 f0  |..+....D.(...W..|
+017d31f0  db 9a db f5 76 e0 1e c2  f6 88 e7 e1 a4 11 91 79  |....v..........y|
+017d3200  e2 eb 56 85 32 ba 0a bd  49 45 09 0d fc ce 9a 18  |..V.2...IE......|
+017d3210  85 80 ab 64 c9 db cc f2  8c 35 fd a2 55 2c 4e 9f  |...d.....5..U,N.|
+017d3220  00 00 00 00 00 00 00 00  00 00 00 00 00 00 00 00  |................|
+*
+017d3240  00 00 00 00 00 00 00 02  00 00 00 00 00 00 00 b8  |................|
+017d3250  00 00 00 00 01 7d 30 00  73 68 61 32 35 36 00 00  |.....}0.sha256..|
+017d3260  00 00 00 00 00 00 00 00  00 00 00 00 00 00 00 00  |................|
+017d3270  00 00 00 00 00 00 00 00  00 00 00 04 00 00 00 20  |............... |
+017d3280  00 00 00 20 00 00 00 00  00 00 00 00 00 00 00 00  |... ............|
+017d3290  00 00 00 00 00 00 00 00  00 00 00 00 00 00 00 00  |................|
+*
+017d32c0  00 00 00 00 62 6f 6f 74  9f 4a 65 30 e6 ce 8d 00  |....boot.Je0....|
+017d32d0  b7 75 48 ed 0a d0 03 44  cd 77 24 f8 3c a0 bf 9a  |.uH....D.w$.<...|
+017d32e0  8f 0a d9 ea 4c 36 6b 41  e3 55 12 74 06 fb ce 41  |....L6kA.U.t...A|
+017d32f0  f1 cd 04 4e 6a b0 6a ff  4c 24 a3 6e 99 84 bc eb  |...Nj.j.L$.n....|
+017d3300  3c c5 9d 3f 14 a6 6b e1  00 00 00 00 00 00 00 00  |<..?..k.........|
+017d3310  00 00 00 00 00 00 00 38  00 00 00 00 00 00 00 21  |.......8.......!|
+017d3320  00 00 00 00 00 00 00 02  63 6f 6d 2e 61 6e 64 72  |........com.andr|
+017d3330  6f 69 64 2e 62 75 69 6c  64 2e 62 6f 6f 74 2e 6f  |oid.build.boot.o|
+017d3340  73 5f 76 65 72 73 69 6f  6e 00 31 33 00 00 00 00  |s_version.13....|
+017d3350  00 00 00 00 00 00 00 00  00 00 00 00 00 00 00 88  |................|
+017d3360  00 00 00 00 00 00 00 22  00 00 00 00 00 00 00 54  |.......".......T|
+017d3370  63 6f 6d 2e 61 6e 64 72  6f 69 64 2e 62 75 69 6c  |com.android.buil|
+017d3380  64 2e 62 6f 6f 74 2e 66  69 6e 67 65 72 70 72 69  |d.boot.fingerpri|
+017d3390  6e 74 00 41 6e 64 72 6f  69 64 2f 61 6f 73 70 5f  |nt.Android/aosp_|
+017d33a0  70 61 6e 74 68 65 72 2f  70 61 6e 74 68 65 72 3a  |panther/panther:|
+017d33b0  31 33 2f 54 51 32 41 2e  32 33 30 34 30 35 2e 30  |13/TQ2A.230405.0|
+017d33c0  30 33 2e 45 31 2f 72 6f  63 6b 79 31 32 30 32 31  |03.E1/rocky12021|
+017d33d0  34 32 31 3a 75 73 65 72  64 65 62 75 67 2f 74 65  |421:userdebug/te|
+017d33e0  73 74 2d 6b 65 79 73 00  00 00 00 00 00 00 00 00  |st-keys.........|
+017d33f0  00 00 00 00 00 00 00 48  00 00 00 00 00 00 00 25  |.......H.......%|
+017d3400  00 00 00 00 00 00 00 0a  63 6f 6d 2e 61 6e 64 72  |........com.andr|
+017d3410  6f 69 64 2e 62 75 69 6c  64 2e 62 6f 6f 74 2e 73  |oid.build.boot.s|
+017d3420  65 63 75 72 69 74 79 5f  70 61 74 63 68 00 32 30  |ecurity_patch.20|
+017d3430  32 33 2d 30 34 2d 30 35  00 00 00 00 00 00 00 00  |23-04-05........|
+017d3440  00 00 08 00 c9 d8 7d 7b  c6 55 51 dd 32 24 a2 e0  |......}{.UQ.2$..|
+017d3450  0e bc 7e fd bd a2 53 80  58 69 7e f5 4a 40 87 95  |..~...S.Xi~.J@..|
+017d3460  90 54 59 3d 55 ca ff 36  34 1a fa e1 e0 90 2a 1a  |.TY=U..64.....*.|
+017d3470  32 68 5b f3 df ad 0b f9  b1 d0 f7 ea ab 47 1f 76  |2h[..........G.v|
+017d3480  be 1b 98 4b 67 a3 62 fa  df e6 b5 f8 ee 73 16 5f  |...Kg.b......s._|
+017d3490  b8 b1 82 de 49 89 d5 3d  d7 a8 42 99 81 75 c8 d8  |....I..=..B..u..|
+017d34a0  84 7b bd 54 a8 22 64 44  bc 34 06 10 3c 89 c2 d1  |.{.T."dD.4..<...|
+017d34b0  f3 2c 03 65 91 b1 a0 d1  c8 21 56 15 99 48 20 27  |.,.e.....!V..H '|
+017d34c0  74 ef 01 7a 76 a5 0b 6b  fd e3 fa ed 0d f9 0f 7a  |t..zv..k.......z|
+017d34d0  41 fa 76 05 37 49 fe 34  4f 4b 01 49 e4 98 f7 89  |A.v.7I.4OK.I....|
+017d34e0  8e cd 36 aa 39 1d a9 7d  5d 6b 5a 52 d1 75 69 a8  |..6.9..}]kZR.ui.|
+017d34f0  df 7c de 1c 1b f9 d9 19  5b b7 47 4c b9 70 2e ad  |.|......[.GL.p..|
+017d3500  e5 d6 88 7c ed 92 6e 46  08 10 b5 76 03 3e 09 ac  |...|..nF...v.>..|
+017d3510  4d b6 2c cd 12 00 bd d4  a7 03 d3 1b 91 08 23 36  |M.,...........#6|
+017d3520  5b 11 fe af 59 69 b3 3c  88 24 37 2d 61 ba c5 99  |[...Yi.<.$7-a...|
+017d3530  51 18 97 f9 23 42 96 9f  87 2e cd b2 4d 5f a9 24  |Q...#B......M_.$|
+017d3540  f2 45 da e2 65 26 26 4d  1e fa 3b 53 ab c5 d3 79  |.E..e&&M..;S...y|
+017d3550  53 2f 66 b8 21 94 66 9a  93 6f 35 26 43 8c 8f 96  |S/f.!.f..o5&C...|
+017d3560  b9 ff ac cd f4 00 6e be  b6 73 54 84 50 85 46 53  |......n..sT.P.FS|
+017d3570  d5 dd 43 fe b2 6a 78 40  79 56 9f 86 f3 d3 81 3b  |..C..jx@yV.....;|
+017d3580  3d 40 90 35 32 9a 51 7f  f8 c3 4b c7 d6 a1 ca 30  |=@.52.Q...K....0|
+017d3590  fb 1b fd 27 0a b8 64 41  34 c1 17 de a1 76 9a eb  |...'..dA4....v..|
+017d35a0  cf 0c 50 d9 13 f5 0d 0b  2c 99 24 cb b5 b4 f8 c6  |..P.....,.$.....|
+017d35b0  0a d0 26 b1 5b fd 4d 44  66 9d b0 76 aa 79 9d c0  |..&.[.MDf..v.y..|
+017d35c0  5c 3b 94 36 c1 8f fe c9  d2 5a 6a a0 46 e1 a2 8b  |\;.6.....Zj.F...|
+017d35d0  2f 51 61 51 a3 36 91 83  b4 fb cd a9 40 34 46 98  |/QaQ.6......@4F.|
+017d35e0  8a 1a 91 df d9 2c 3a bf  57 3a 46 46 20 f2 f0 bc  |.....,:.W:FF ...|
+017d35f0  31 5e 29 fe 58 90 32 5c  66 97 99 9a 8e 15 23 eb  |1^).X.2\f.....#.|
+017d3600  a9 47 d3 63 c6 18 bb 8e  d2 20 9f 78 af 71 b3 2e  |.G.c..... .x.q..|
+017d3610  08 89 a1 f1 7d b1 30 a0  e6 1b bd 6e c8 f6 33 e1  |....}.0....n..3.|
+017d3620  da b0 bd 16 41 fe 07 6f  6e 97 8b 6a 33 d2 d7 80  |....A..on..j3...|
+017d3630  03 6a 4d e7 05 82 28 1f  ef 6a a9 75 7e e1 4e e2  |.jM...(..j.u~.N.|
+017d3640  95 5b 4f e6 dc 03 b9 81  00 00 00 00 00 00 00 00  |.[O.............|
+017d3650  00 00 00 00 00 00 00 00  00 00 00 00 00 00 00 00  |................|
+*
+017d4000
+```
+
+从输出的内容看，从位置 0x017d3650 (针对 VBMeta 的偏移为 0x650)开始，后面的数据全部都填充为 0 了。 
+
+
+
+这里的重点是解析 AVB Footer，并提取信息查看 VBMeta 的具体位置。但关于 VBMeta 数据具体内容的解析不是这里的重点，所以暂时略过。
+
+
+
+### 5. 其它操作
+
+#### 1. 还原原始的 boot.img 镜像
+
+可以通过 avbtool 的 `erase_footer` 命令来还原原始镜像。
+
+为了不破坏原始数据，这里先将生成的 boot.img 复制为 boot1.img，然后基于 boot1.img 进行操作：
+
+```bash
+$ cp out/target/product/panther/boot.img boot1.img
+$ avbtool erase_footer --image boot1.img 
+$ ls -al boot1.img 
+-rw-r--r-- 1 rocky users 24981504 Dec  3 15:57 boot1.img
+```
+
+从这里可以看到，当移除了 VBMeta，AVB Footer 以及填充后，boot1.img 恢复到了原始镜像的 24981504 字节大小。
+
+#### 2. 验证原始的 boot.img 镜像加 salt 后的哈希值
+
+在分析 boot.img 时，提到了 boot.img 的 VBMeta 中包含了一个 Hash Descriptor:
+
+```bash
+    Hash descriptor:
+      Image Size:            24981504 bytes
+      Hash Algorithm:        sha256
+      Partition Name:        boot
+      Salt:                  9f4a6530e6ce8d00b77548ed0ad00344cd7724f83ca0bf9a8f0ad9ea4c366b41
+      Digest:                e355127406fbce41f1cd044e6ab06aff4c24a36e9984bceb3cc59d3f14a66be1
+      Flags:                 0
+```
+
+我们可以通过上一步还原的 boot1.img 以及这里使用的 Salt 值验证 Digest 值：
+
+```
+# 1. 将 Salt 转换成二进制文件
+$ echo -n "9f4a6530e6ce8d00b77548ed0ad00344cd7724f83ca0bf9a8f0ad9ea4c366b41" | xxd -r -ps > salt.bin
+$ hexdump -Cv salt.bin 
+00000000  9f 4a 65 30 e6 ce 8d 00  b7 75 48 ed 0a d0 03 44  |.Je0.....uH....D|
+00000010  cd 77 24 f8 3c a0 bf 9a  8f 0a d9 ea 4c 36 6b 41  |.w$.<.......L6kA|
+00000020
+
+# 2. 将 salt.bin 和 boot1.img 合并到一起计算 sha256 哈希
+$ cat salt.bin boot1.img | sha256sum
+e355127406fbce41f1cd044e6ab06aff4c24a36e9984bceb3cc59d3f14a66be1  -
+```
+
+
+
+从上面可以看到，将 Salt 的内容添加到原始镜像的签名再计算 SHA256 哈希，确实得到了 Hash Descriptor 中的 Digest 值。
+
+各种安全算法中所谓的加盐操作，实际上就是将一个随机的二进制数据添加到需要计算的数据前面，然后再对数据进行所需要的操作。
+
+## 4. 总结
+
+### 1. avbtool 子命令
+
+本文主要演示了 avbtool 的 3 个子命令：
+
+- `add_hash_footer`
+- `info_image`
+- `erase_footer`
+
+
+
+#### `add_hash_footer`
+
+`add_hash_footer` 用于处理原始的 boot.img，生成 AVB 需要的数据，包括 VBMeta 和 AVB Footer
+
+```bash
+avbtool add_hash_footer \
+	--image boot.img \
+	--partition_size 67108864 \
+	--partition_name boot \
+	--key external/avb/test/data/testkey_rsa2048.pem \
+	--algorithm SHA256_RSA2048 \
+	--prop com.android.build.boot.os_version:13 \
+	--prop com.android.build.boot.fingerprint:Android/aosp_panther/panther:13/TQ2A.230405.003.E1/rocky12021421:userdebug/test-keys \
+	--prop com.android.build.boot.security_patch:2023-04-05 \
+	--rollback_index 1680652800
+```
+
+
+
+#### `info_image`
+
+`info_image` 用于查看镜像中的 AVB 数据，主要是 VBMeta 元数据
+
+```
+$ avbtool info_image --image out/target/product/panther/boot.img 
+Footer version:           1.0
+Image size:               67108864 bytes
+Original image size:      24981504 bytes
+VBMeta offset:            24981504
+VBMeta size:              1664 bytes
+--
+Minimum libavb version:   1.0
+Header Block:             256 bytes
+Authentication Block:     320 bytes
+Auxiliary Block:          1088 bytes
+Public key (sha1):        cdbb77177f731920bbe0a0f94f84d9038ae0617d
+Algorithm:                SHA256_RSA2048
+Rollback Index:           1680652800
+Flags:                    0
+Rollback Index Location:  0
+Release String:           'avbtool 1.2.0'
+Descriptors:
+    Hash descriptor:
+      Image Size:            24981504 bytes
+      Hash Algorithm:        sha256
+      Partition Name:        boot
+      Salt:                  9f4a6530e6ce8d00b77548ed0ad00344cd7724f83ca0bf9a8f0ad9ea4c366b41
+      Digest:                e355127406fbce41f1cd044e6ab06aff4c24a36e9984bceb3cc59d3f14a66be1
+      Flags:                 0
+    Prop: com.android.build.boot.os_version -> '13'
+    Prop: com.android.build.boot.fingerprint -> 'Android/aosp_panther/panther:13/TQ2A.230405.003.E1/rocky12021421:userdebug/test-keys'
+    Prop: com.android.build.boot.security_patch -> '2023-04-05'
+```
+
+
+
+#### `erase_footer`
+
+`erase_footer` 用于移除镜像中的 AVB 数据，包括 VBMeta, AVB Footer 和中间填充的数据，恢复原始镜像。
+
+```
+$ avbtool erase_footer --image boot1.img 
+```
+
+
+
+### 2. boot.img 镜像格式
+
+当使用 avbtool 对原始的 boot.img 镜像执行 `add_hash_footer` 操作时，主要发生了以下变化：
+
+1. 写入原始未经处理的镜像 boot.img
+2. 将原始镜像 boot.img 计算得到的 VBMeta 元数据存放在原始镜像结束的地方（4K 对齐)
+3. 将新镜像填充到指定大小（例如 64M 大小）
+4. 在新镜像的最后 64 字节直接写入 AVB Footer 内容
+
+> 注：所有操作都按照 4K 页面对齐进行
+
+
+
+所以，最终的 boot.img 格式如下：
+
+```bash
+boot.img layout：
++----------------+  <-- 0
+|                |
+|   Boot Image   |
+|                |
++----------------+  <-- original_image_size
+|   VBMeta       |  <-- vbmeta_offset
+|   (64KB max)   |
++----------------+
+|                |
+|   Padding      |
+|                |
++----------------+  <-- Last 4KB offset
+|   (4KB)        |
+|   AVB Footer   |  <-- Last 64 bytes
++----------------+  <-- partition_size (64MB)
+```
+
+
+
+总体来说，使用 `add_hash_footer` 操作的镜像处理后包含以下 3 块数据：
+
+- Original Data: 原始分区镜像
+- VBMeta: AVB 元数据 (VBMeta)，位置从原始镜像结束开始
+- AVB Footer: AVB Footer 数据，最后一个 4K 页面的最后 64 个字节
+
+本文的内容除了分析 boot.img 之外，也适合任何其它基于 `add_hash_footer` 操作的镜像，例如 dtbo.img，或者 radio.img 这类小分区镜像。因为较大分区(如 system, vendor, product 等)镜像会使用 `add_hashtree_footer` 操作。
+
+## 5. 其它
+
+我创建了一个 Android AVB 讨论群，主要讨论 Android 设备的 AVB 验证问题。
+
+我还几个 Android OTA 升级讨论群，主要讨论 Android 设备的 OTA 升级话题。
+
+欢迎您加群和我们一起交流，请在加我微信时注明“Android AVB 交流”或“Android OTA 交流”。
+
+仅限 Android 相关的开发者参与~
+
+> 公众号“洛奇看世界”后台回复“wx”获取个人微信。
+
