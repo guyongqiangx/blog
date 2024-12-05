@@ -174,18 +174,33 @@ Descriptors:
 所以，最终的 system.img 格式如下：
 
 ```bash
-system.img layout：
-+----------------+  <-- 0
-|                |
-|   Boot Image   |
-|                |
-+----------------+  <-- original_image_size
-|    VBMeta      |  <-- vbmeta_offset
-|    (64KB max)  |
-+----------------+
-|   AVB Footer   |  <-- Last 4KB
-|    (4KB)       |
-+----------------+  <-- partition_size (64MB)
+system.img layout (4K aligned):
++--------------------------------+ 0x0
+|      Original System Image     |
+|      (system partition)        |
++--------------------------------+ original_image_size
+|                                |
+|      Hash Tree                 |
+|      (Merkle Tree)             |
+|                                |
++--------------------------------+ tree_offset + tree_size
+|                                |
+|      FEC Data                  | (Optional)
+|                                |
++--------------------------------+ fec_offset + fec_size
+|      AVB VBMeta                |
+|      - Header                  |
+|      - Authentication Block    |
+|      - Hashtree Descriptor     |
+|      - Properties              |
++--------------------------------+ vbmeta_offset + vbmeta_size
+|                                |
+|      Padding                   |
+|                                |
++--------------------------------+  <-- Last 4KB offset
+|      (4KB)                     |
+|      AVB Footer                |  <-- Last 64 bytes
++--------------------------------+  <-- partition_size
 ```
 
 
@@ -427,22 +442,32 @@ e355127406fbce41f1cd044e6ab06aff4c24a36e9984bceb3cc59d3f14a66be1  -
 所以，最终的 boot.img 格式如下：
 
 ```bash
-boot.img layout：
-+----------------+  <-- 0
-|                |
-|   Boot Image   |
-|                |
-+----------------+  <-- original_image_size
-|   VBMeta       |  <-- vbmeta_offset
-|   (64KB max)   |
-+----------------+
-|                |
-|   Padding      |
-|                |
-+----------------+  <-- Last 4KB offset
-|   (4KB)        |
-|   AVB Footer   |  <-- Last 64 bytes
-+----------------+  <-- partition_size (64MB)
++--------------------------------+ 0x0
+|      Original System Image     |
+|      (system partition)        |
++--------------------------------+ original_image_size
+|                                |
+|      Hash Tree                 |
+|      (Merkle Tree)             |
+|                                |
++--------------------------------+ tree_offset + tree_size
+|                                |
+|      FEC Data                  | (Optional)
+|                                |
++--------------------------------+ fec_offset + fec_size
+|      AVB VBMeta                |
+|      - Header                  |
+|      - Authentication Block    |
+|      - Hashtree Descriptor     |
+|      - Properties              |
++--------------------------------+ vbmeta_offset + vbmeta_size
+|                                |
+|      Padding                   |
+|                                |
++--------------------------------+  <-- Last 4KB offset
+|      (4KB)                     |
+|      AVB Footer                |  <-- Last 64 bytes
++--------------------------------+  <-- partition_size
 ```
 
 
