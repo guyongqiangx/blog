@@ -332,3 +332,96 @@ ECDSA 签名时，不需要像 RSA 那样要对哈希进行填充，因此更简
 
 使用公钥经过 ECDSA 算法解密，将解密数据和下载中计算得到的 SHA256 哈希进行比较。
 
+
+
+## 6. OTA 包签名和验证的 key
+
+### 6.1 OTA 包签名使用的 key
+
+在使用 `ota_from_target_files` 制作升级包时，通过 `-k` 参数指定用于签名的 key。
+
+如果没有指定 `-k` 参数，则使用签名文件 input target 包中的 `META/misc_info.txt` 中指定的 key，或使用系统默认的测试 key 文件：`build/make/target/product/security/testkey`，如下： 
+
+
+
+1. `ota_from_target_files.py` 中关于 key 的参数注释：
+
+![1733669907051](./images-20240802-Android Update Engine 分析（三四）OTA 签名都支持哪些算法/1733669907051.png)
+
+> 代码：https://xrefandroid.com/android-14.0.0_r21/xref/build/tools/releasetools/ota_from_target_files.py#38
+
+
+
+2. `ota_from_target_files.py` 中关于默认 key 的处理
+
+![1733670667730](./images-20240802-Android Update Engine 分析（三四）OTA 签名都支持哪些算法/1733670667730.png)
+
+> 代码: https://xrefandroid.com/android-14.0.0_r21/xref/build/tools/releasetools/ota_from_target_files.py#1369
+
+
+
+根据前面的线索，我们可以 find 和 grep 的方式在 out 目录下很容易就找到了签名使用的 key，例如：
+
+```bash
+android-13.0.0_r41$ find out -type f -iname misc_info.txt | xargs grep -n default_system_dev_certificate --color=auto
+out/target/product/panther/misc_info.txt:16:default_system_dev_certificate=build/make/target/product/security/testkey
+out/target/product/panther/obj/PACKAGING/target_files_intermediates/aosp_panther-target_files-eng.rocky/META/misc_info.txt:16:default_system_dev_certificate=build/make/target/product/security/testkey
+out/dist/misc_info.txt:16:default_system_dev_certificate=build/make/target/product/security/testkey
+```
+
+这里我默认编译了 AOSP 的 panther 设备，里面签名使用的就是 testkey:
+
+```
+default_system_dev_certificate=build/make/target/product/security/testkey
+```
+
+
+
+所以，如果没有特别指定签名的 key，则使用系统默认的 testkey 文件进行签名:
+
+- build/target/product/security/testkey
+
+
+
+### 6.2 OTA 包验证使用的 key
+
+前一节说了签名使用的 key，那验证时使用的 key 又是从哪里来的呢？
+
+我翻了下代码，在 `platform_constants_android.cc`文件中定义了常量 `kUpdateCertificatesPath`，使用 `/system/etc/security/otacerts.zip` 进行验证，如下：
+
+
+
+1. 指定使用 `/system/etc/security/otacerts.zip`
+
+![1733672211676](./images-20240802-Android Update Engine 分析（三四）OTA 签名都支持哪些算法/1733672211676.png)
+
+常量 `kUpdateCertificatesPath` 被用来初始化 `update_certificates_path_` 变量：
+
+![1733672699113](./images-20240802-Android Update Engine 分析（三四）OTA 签名都支持哪些算法/1733672699113.png)
+
+
+
+而后者，在 `update_engine` 中多处被使用，其中最重要的就是用于 `DownloadAction` 
+
+![1733672891080](./images-20240802-Android Update Engine 分析（三四）OTA 签名都支持哪些算法/1733672891080.png)
+
+以及创建 Payload 验证器:
+
+![1733672982961](./images-20240802-Android Update Engine 分析（三四）OTA 签名都支持哪些算法/1733672982961.png)
+
+
+
+总结一下，对于 OTA 包签名，
+
+
+
+进一步，在对 payload 进行签名时，如果没有提供签名用的 key，则默认从 `build/target/product/security/testkey.pk8` 文件中导出一个 RSA 的私钥用于签名，如下：
+
+```bash
+# 如果没有指定签名使用的 key, 则基于 testkey.pk8 生成一个临时 key 用于签名
+$ openssl pkcs8 -in build/target/product/security/testkey.pk8 -inform DER -nocrypt -out /tmp/key-temp.key
+```
+
+
+
+> 机器里/system/etc/security/otacerts.zip必须与target包,里面SYSTEM\etc\security\otacerts.zip里面的公钥以及OS包路径 META-INF\com\android\otacert下的公钥信息一致
