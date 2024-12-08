@@ -1,4 +1,4 @@
-## 20240802-Android Update Engine 分析（三三）OTA 签名都支持哪些算法?
+## 20240802-Android Update Engine 分析（三四）OTA 签名都支持哪些算法?
 
 - 本文为洛奇看世界(guyongqiangx)原创，转载请注明出处。
 - 原文链接：
@@ -125,7 +125,7 @@
 
 第1步，计算待签名数据的哈希值
 
-- 具体的哈希算法可以通过参数指定，可以是 SHA256, SHA512等
+- 具体的哈希算法可以通过参数指定，可以是 MD5, SHA256, SHA512等
 
 第2步，对哈希结果进行 BER 编码，并使用进行填充
 
@@ -205,11 +205,130 @@ EC(Elliptic Curve，椭圆曲线)算法理论提出很多年了，但直到最�
 
 #### ECDSA 验签
 
-第 1 步，对验证数据进行哈希，获取哈希值
+第 1 步，对验证数据进行解密，获取哈希值
 
 第 2 步，提取签名中的 R 和 s，通过其它方法获取 R  的坐标
 
-第 3 步，提取的x坐标x1与签名中的r进行比较
+第 3 步，提取的 x 坐标 x1与签名中的 r 进行比较
+
+通过这些步骤，接收者可以验证签名是否由对应的私钥持有者生成，从而确保消息的完整性和不可否认性。
 
 
+
+## 4. OTA 签名代码分析
+
+制作升级包时，是什么时候进行签名的呢？
+
+在[《Android Update Engine分析（八）升级包制作脚本分析》](https://blog.csdn.net/guyongqiangx/article/details/82871409)一文中总结过升级包 update.zip 生成的步骤，不清楚的可以再回到这篇复习一下。
+
+在[《Android Update Engine分析（十一） 更新 payload 签名》](https://blog.csdn.net/guyongqiangx/article/details/122597314)中详细跟踪分析 payload 的签名流程。
+
+总体上讲，`delta_generator` 中的签名代码实现位于：
+
+- `system/update_engine/payload_generator/payload_signer.h`
+
+- `system/update_engine/payload_generator/payload_signer.cc`
+
+> 在线代码：http://aospxref.com/android-14.0.0_r2/xref/system/update_engine/payload_generator/payload_signer.cc
+
+
+
+从头文件 `payload_signer.h` 中可以看到，跟签名(sign)相关的函数有三个，分别是：
+
+- `SignHash()`
+- `SignHashWithKeys()`
+- `SignPayload()`
+
+查看函数代码就会发现，`SignPayload()` 内部通过 `SignHashWithKeys()` 来实现，而对于后者，又是通过调用 `SignHash()` 来实现。
+
+因此，最终关于签名的函数就只有一个，即：`SignHash()`
+
+关于 `SignHash()` 的粗略注释如下：
+
+### 4.1 RSA 签名
+
+![1727274390190](C:\Work\github\blog\draft\Android Update Engine 分析\images-20240802-Android Update Engine 分析（三四）OTA 签名都支持哪些算法\01-SignHash.png)
+
+从这里的代码中看不出来支持哪些 RSA 长度的算法，但我们不妨看下 SHA256 哈希的填充函数：`PadRSASHA256Hash()`
+
+密码学标准中，对 RSA 签名，要求对数据先进行哈希操作，获取哈希结果，然后根据 RSA 密钥强度(长度)，对哈希结果进行填充。
+
+- 对于 RSA2048，在用 RSA Key 加密前需要将哈希数据填充到 256 字节；
+
+- 对于 RSA4096，在用 RSA Key 加密前，需要将哈希数据填充到 512 字节；
+
+![ab43245dcf017475552d69d6d3b8d62](C:\Work\github\blog\draft\Android Update Engine 分析\images-20240802-Android Update Engine 分析（三四）OTA 签名都支持哪些算法\02-PadRSASHA256Hash.png)
+
+### 4.2 ECDSA 签名
+
+![4996986f37ca9a949b76d6b0edf7e8f](C:\Work\github\blog\draft\Android Update Engine 分析\images-20240802-Android Update Engine 分析（三四）OTA 签名都支持哪些算法\03-ECDSA-Signing.png)
+
+与 RSA 签名比起来，ECDSA 签名的步骤相对少一些，直接对 SHA256 的哈希结果进行 ECDSA 的加密。
+
+特别留意的是，不论是 RSA2048/RSA4096 还是 ECDSA 签名结果，这里最后都转换成小端字节序。
+
+## 5. OTA 验签代码分析
+
+对于 `delta_generator` 工具，当传入 payload 文件和公钥 public key 时，会使用这个公钥去验证 payload 中的签名，命令如下：
+
+```shell
+delta_generator --in_file=payload.bin --public_key=key-pub.key
+```
+
+在 [《Android Update Engine 分析（十二） 验证 payload 签名》](https://blog.csdn.net/guyongqiangx/article/details/122634221)中有对使用 `delta_generator` 工具验证签名的流程进行详细分析。
+
+
+
+除了 `delta_generator` 可以验证签名外，实际上在 OTA 升级过程中，接收完 metadata 以及整个 payload 数据后，也会验证相应的签名。
+
+验证签名的代码位于：
+
+- `system/update_engine/payload_consumer/payload_verifier.h`
+- `system/update_engine/payload_consumer/payload_verifier.cc`
+
+> 在线代码：http://aospxref.com/android-14.0.0_r2/xref/system/update_engine/payload_consumer/payload_verifier.cc
+
+### 5.1 升级验证签名的时机
+
+前面简略提到，在 OTA 升级过程中，在接收完 metadata 以及整个 payload 数据后，会验证相应签名。
+
+#### metadata 的签名
+
+关于 metadata 的验证流程大概是这样的：
+
+在升级开始后，`update_engine` 服务端进程会根据应用程传入的地址参数，从远程服务器获取 payload 数据，每收到一小段数据，就会调用 `DeltaPerformer::Write()` 函数进行处理。
+
+`DeltaPerformer::Write()` 会不断检查当前下载数据的进度，当已经接收到完整的 payload 头部的 metadata 后，就会调用函数 `DeltaPerformer::ParsePayloadMetadata()` 解析 metadata，其中一个操作就是使用函数 `PayloadMetadata::ValidateMetadataSignature()` 去验证 metadata 的签名。
+
+在`PayloadMetadata::ValidateMetadataSignature()`中，实际上是调用 `PayloadVerifier::VerifyRawSignature()`或`PayloadVerifier::VerifySignature()` 进行操作，从而验证 metadata 签名。
+
+![1727279796327](C:\Work\github\blog\draft\Android Update Engine 分析\images-20240802-Android Update Engine 分析（三四）OTA 签名都支持哪些算法\04-ValidateMetadataSignature.png)
+
+> 在线代码: http://aospxref.com/android-14.0.0_r2/xref/system/update_engine/payload_consumer/payload_metadata.cc#156
+
+#### payload 签名
+
+对于整个 payload 数据，一边下载数据，一边对接收到的数据累积计算哈希，等到全部的 payload 都接收完，整个 payload 的哈希也计算出来了。
+
+此时，在 `DownloadAction::TransferComplete()`中，调用 `VerifyPayload()` 函数校验整个 payload 的哈希：
+
+![1727281274073](C:\Work\github\blog\draft\Android Update Engine 分析\images-20240802-Android Update Engine 分析（三四）OTA 签名都支持哪些算法\05-VerifyPayload.png)
+
+在这里的 `VerifyPayload()`函数内部，调用函数`PayloadVerifier::VerifySignature()`完成签名的检查。
+
+
+
+### 5.2 RSA 验签
+
+在下载 OTA 的过程中，会不断计算 payload 数据的 SHA256 哈希，当数据 payload 下载完毕，我们同时也就拿到整个 payload 哈希了。
+
+因此这里的 RSA 验签时，直接使用 RSA 的公钥解密签名数据，将解密后的数据和填充后的 SHA256 哈希进行比较即可。
+
+![be6f3d558b0ddf3155c358f554ce184](C:\Work\github\blog\draft\Android Update Engine 分析\images-20240802-Android Update Engine 分析（三四）OTA 签名都支持哪些算法\06-VErifyRawSignature-RSA.png)
+
+### 5.3 ECDSA 验签
+
+ECDSA 签名时，不需要像 RSA 那样要对哈希进行填充，因此更简单直接：
+
+使用公钥经过 ECDSA 算法解密，将解密数据和下载中计算得到的 SHA256 哈希进行比较。
 
