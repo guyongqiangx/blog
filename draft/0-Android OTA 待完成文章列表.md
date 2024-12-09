@@ -16,6 +16,11 @@
 - [ ] 20231022-Android Update Engine 分析（二十八）OTA 降级之 override timestam
 - [ ] 20230929-Android Update Engine 分析（二十九）OTA 降级限制之 security patch level
 - [ ] 20231008-Android Update Engine 分析（三十）检查点 CheckPoint 是如何实现的？
+- [ ] 20231008-Android Update Engine 分析（三五）userdebug 和 user 版本可以互相升级吗？
+- [ ] 20231008-Android Update Engine 分析（三六）system 分区中的 otacerts.zip 有什么作用？
+- [ ] 20231008-Android Update Engine 分析（三七）升级包中 META-INF 文件夹下的 otacert 有什么作用？
+- [ ] 20231008-Android Update Engine 分析（三八）Android 设备上哪些分区可以升级？
+- [ ] 20231008-Android Update Engine 分析（三九）Android 设备上如何升级分区表？
 - [ ] OTA 的流式更新是如何实现的？
 - [ ] 如何只升级部分分区？partial_update
 - 升级后如何同步两个槽位？
