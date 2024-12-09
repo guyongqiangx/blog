@@ -1,7 +1,7 @@
 ## 20240802-Android Update Engine 分析（三四）OTA 签名都支持哪些算法?
 
 - 本文为洛奇看世界(guyongqiangx)原创，转载请注明出处。
-- 原文链接：
+- 原文链接：https://blog.csdn.net/guyongqiangx/article/details/144339219
 
 
 ## 0. 背景
@@ -11,6 +11,86 @@
 
 
 限于签名的算法理论太过于抽象，本篇不讨论签名算法细节，但会总结一些签名操作。以及 Android OTA 包支持的签名算法。
+
+
+
+本文主要分析 Update Engine 中支持的签名算法，以及这些算法的操作实现(不涉及原理部分)，并总结签名和验签使用的 key。
+
+
+
+
+
+> 核心代码[《Android Update Engine 分析》](https://blog.csdn.net/guyongqiangx/category_12140296.html)系列，文章列表：
+>
+> - [Android Update Engine分析（一）Makefile](https://blog.csdn.net/guyongqiangx/article/details/77650362)
+>
+> - [Android Update Engine分析（二）Protobuf和AIDL文件](https://blog.csdn.net/guyongqiangx/article/details/80819901)
+>
+> - [Android Update Engine分析（三）客户端进程](https://blog.csdn.net/guyongqiangx/article/details/80820399)
+>
+> - [Android Update Engine分析（四）服务端进程](https://blog.csdn.net/guyongqiangx/article/details/82116213)
+>
+> - [Android Update Engine分析（五）服务端核心之Action机制](https://blog.csdn.net/guyongqiangx/article/details/82226079)
+>
+> - [Android Update Engine分析（六）服务端核心之Action详解](https://blog.csdn.net/guyongqiangx/article/details/82390015)
+>
+> - [Android Update Engine分析（七） DownloadAction之FileWriter](https://blog.csdn.net/guyongqiangx/article/details/82805813)
+>
+> - [Android Update Engine分析（八）升级包制作脚本分析](https://blog.csdn.net/guyongqiangx/article/details/82871409)
+>
+> - [Android Update Engine分析（九） delta_generator 工具的 6 种操作](https://blog.csdn.net/guyongqiangx/article/details/122351084)
+>
+> - [Android Update Engine分析（十） 生成 payload 和 metadata 的哈希](https://blog.csdn.net/guyongqiangx/article/details/122393172)
+>
+> - [Android Update Engine分析（十一） 更新 payload 签名](https://blog.csdn.net/guyongqiangx/article/details/122597314)
+>
+> - [Android Update Engine分析（十二） 验证 payload 签名](https://blog.csdn.net/guyongqiangx/article/details/122634221)
+>
+> - [Android Update Engine分析（十三） 提取 payload 的 property 数据](https://blog.csdn.net/guyongqiangx/article/details/122646107)
+>
+> - [Android Update Engine分析（十四） 生成 payload 数据](https://blog.csdn.net/guyongqiangx/article/details/122753185)
+>
+> - [Android Update Engine分析（十五） FullUpdateGenerator 策略](https://blog.csdn.net/guyongqiangx/article/details/122767273)
+>
+> - [Android Update Engine分析（十六） ABGenerator 策略](https://blog.csdn.net/guyongqiangx/article/details/122886150)
+>
+> - [Android Update Engine分析（十七）10 类 InstallOperation 数据的生成和应用](https://blog.csdn.net/guyongqiangx/article/details/122942628)
+>
+> - [Android Update Engine分析（十八）差分数据到底是如何更新的？](https://blog.csdn.net/guyongqiangx/article/details/129464805)
+>
+> - [Android Update Engine分析（十九）Extent 到底是个什么鬼？](https://blog.csdn.net/guyongqiangx/article/details/132389438)
+>
+> - [Android Update Engine分析（二十）为什么差分包比全量包小，但升级时间却更长？](https://blog.csdn.net/guyongqiangx/article/details/132343017)
+>
+> - [Android Update Engine分析（二一）Android A/B 的更新过程](https://blog.csdn.net/guyongqiangx/article/details/132536383)
+>
+> - [Android Update Engine分析（二二）OTA 降级限制之 timestamp](https://blog.csdn.net/guyongqiangx/article/details/133191750)
+>
+> - [Android Update Engine分析（二三）如何在升级后清除用户数据？](https://blog.csdn.net/guyongqiangx/article/details/133274277)
+>
+> - [Android Update Engine分析（二四）制作降级包时，到底发生了什么？](https://blog.csdn.net/guyongqiangx/article/details/133421556)
+>
+> - [Android Update Engine分析（二五）升级状态 prefs 是如何保存的？](https://blog.csdn.net/guyongqiangx/article/details/133421560)
+>
+> - [Android Update Engine分析（二六）OTA 更新后不切换 Slot 会怎样？](https://blog.csdn.net/guyongqiangx/article/details/133691683)
+>
+> - [Android Update Engine分析（二七）如何实现 OTA 更新但不切换 Slot？](https://blog.csdn.net/guyongqiangx/article/details/133849661)
+>
+> - [Android Update Engine分析（二八）payload.bin 文件还能再压缩吗？](https://blog.csdn.net/guyongqiangx/article/details/138014834)
+>
+> - [Android Update Engine分析（二九）如何进行连续多个版本的升级？](https://blog.csdn.net/guyongqiangx/article/details/138849767)
+>
+> - [Android Update Engine分析（三十）有了A/B系统，为什么还要 Recovery？](https://blog.csdn.net/guyongqiangx/article/details/140345412)
+>
+> - [Android Update Engine分析（三一）Android 能在升级时新增分区吗?](https://blog.csdn.net/guyongqiangx/article/details/140508309)
+>
+> - [Android Update Engine分析（三二）Android 的槽位切换是如何实现的?](https://blog.csdn.net/guyongqiangx/article/details/140759462)
+>
+> - [Android Update Engine分析（三三）Android 设备上到底有哪些可以运行的系统？](https://blog.csdn.net/guyongqiangx/article/details/144328241)
+>
+> - [Android Update Engine分析（三四）OTA 签名都支持哪些算法?](https://blog.csdn.net/guyongqiangx/article/details/144339219)
+
+> 如果您已经订阅了本专栏，请务必加我微信，拉你进“动态分区 & 虚拟分区专栏 VIP 答疑群”。
 
 
 
@@ -346,7 +426,7 @@ ECDSA 签名时，不需要像 RSA 那样要对哈希进行填充，因此更简
 
 1. `ota_from_target_files.py` 中关于 key 的参数注释：
 
-![1733669907051](./images-20240802-Android Update Engine 分析（三四）OTA 签名都支持哪些算法/1733669907051.png)
+![1733669907051](images-20240802-Android Update Engine 分析（三四）OTA 签名都支持哪些算法/07-package_key.png)
 
 > 代码：https://xrefandroid.com/android-14.0.0_r21/xref/build/tools/releasetools/ota_from_target_files.py#38
 
@@ -354,7 +434,7 @@ ECDSA 签名时，不需要像 RSA 那样要对哈希进行填充，因此更简
 
 2. `ota_from_target_files.py` 中关于默认 key 的处理
 
-![1733670667730](./images-20240802-Android Update Engine 分析（三四）OTA 签名都支持哪些算法/1733670667730.png)
+![1733670667730](images-20240802-Android Update Engine 分析（三四）OTA 签名都支持哪些算法/08-default-key.png)
 
 > 代码: https://xrefandroid.com/android-14.0.0_r21/xref/build/tools/releasetools/ota_from_target_files.py#1369
 
@@ -393,35 +473,76 @@ default_system_dev_certificate=build/make/target/product/security/testkey
 
 1. 指定使用 `/system/etc/security/otacerts.zip`
 
-![1733672211676](./images-20240802-Android Update Engine 分析（三四）OTA 签名都支持哪些算法/1733672211676.png)
+![1733672211676](images-20240802-Android Update Engine 分析（三四）OTA 签名都支持哪些算法/09-update-certificate-path.png)
 
 常量 `kUpdateCertificatesPath` 被用来初始化 `update_certificates_path_` 变量：
 
-![1733672699113](./images-20240802-Android Update Engine 分析（三四）OTA 签名都支持哪些算法/1733672699113.png)
+![1733672699113](images-20240802-Android Update Engine 分析（三四）OTA 签名都支持哪些算法/10-update-certificate-path-2.png)
 
 
 
 而后者，在 `update_engine` 中多处被使用，其中最重要的就是用于 `DownloadAction` 
 
-![1733672891080](./images-20240802-Android Update Engine 分析（三四）OTA 签名都支持哪些算法/1733672891080.png)
+![1733672891080](images-20240802-Android Update Engine 分析（三四）OTA 签名都支持哪些算法/11-download-action.png)
 
 以及创建 Payload 验证器:
 
-![1733672982961](./images-20240802-Android Update Engine 分析（三四）OTA 签名都支持哪些算法/1733672982961.png)
+![1733672982961](images-20240802-Android Update Engine 分析（三四）OTA 签名都支持哪些算法/13-payload-verifier.png)
 
 
 
-总结一下，对于 OTA 包签名，
+## 7. 总结
+
+### 7.1 签名算法
+
+在支持的签名上，到 Android 14 (版本号 android-14.0.0_r2) 为止，Android OTA 包签名支持的算法包括：
+
+- 使用 SHA256 哈希算法，基于 PKCS v1.5 填充的 RSA2048 和 RSA4096 签名算法
+- 使用 SHA256 算法，基于 NIST P-256 曲线的 ECDSA 签名算法
+
+上面两条基本上囊括了签名算法的主要细节，如果还希望再简要一些就是：
+
+- RSA2048 签名
+- RSA4096 签名
+- ECDSA 签名
+
+### 7.2 签名升级包使用的 key
+
+在使用 `ota_from_target_files` 工具制作升级包时，通过 `-k` 参数指定用于签名的 key。
+
+如果没有特别指定签名的 key，则使用系统默认的 testkey 文件进行签名:
+
+- build/target/product/security/testkey
 
 
 
-进一步，在对 payload 进行签名时，如果没有提供签名用的 key，则默认从 `build/target/product/security/testkey.pk8` 文件中导出一个 RSA 的私钥用于签名，如下：
-
-```bash
-# 如果没有指定签名使用的 key, 则基于 testkey.pk8 生成一个临时 key 用于签名
-$ openssl pkcs8 -in build/target/product/security/testkey.pk8 -inform DER -nocrypt -out /tmp/key-temp.key
-```
+### 7.3 验证升级包的 key
 
 
 
-> 机器里/system/etc/security/otacerts.zip必须与target包,里面SYSTEM\etc\security\otacerts.zip里面的公钥以及OS包路径 META-INF\com\android\otacert下的公钥信息一致
+Update Engine 启动后，使用设备上的 `/system/etc/security/otacerts.zip` 证书验证下载的升级包，也使用这个证书验证 payload 中 metadata 和 payload 升级包自身的签名。
+
+
+
+所以，制作升级包时，设备上 `/system/etc/security/otacerts.zip` 必须与升级包签名使用的证书一致，即与升级包 `META-INF\com\android\otacert` 文件的公钥必须一致。
+
+
+
+## 8. 其它
+
+到目前为止，我写过 Android OTA 升级相关的话题包括：
+
+- 基础入门：《Android A/B 系统》系列
+- 核心模块：《Android Update Engine 分析》 系列
+- 动态分区：《Android 动态分区》 系列
+- 虚拟 A/B：《Android 虚拟 A/B 分区》系列
+- 升级工具：《Android OTA 相关工具》系列
+
+更多这些关于 Android OTA 升级相关文章的内容，请参考[《Android OTA 升级系列专栏文章导读》](https://blog.csdn.net/guyongqiangx/article/details/129019303)。
+
+如果您已经订阅了动态分区和虚拟分区付费专栏，请务必加我微信，备注订阅账号，拉您进“动态分区 & 虚拟分区专栏 VIP 答疑群”。我会在方便的时候，回答大家关于 A/B 系统、动态分区、虚拟分区、各种 OTA 升级和签名的问题。
+
+我有几个 Android OTA 升级讨论群，里面现在有小几百的朋友，主要讨论手机，车机，电视，机顶盒，平板等各种设备的 OTA 升级话题，如果您从事 OTA 升级工作，欢迎加群一起交流，请在加我微信时注明“Android OTA 交流”。此群仅限 Android OTA 开发者参与~
+
+> 公众号“洛奇看世界”后台回复“wx”获取个人微信。
+
