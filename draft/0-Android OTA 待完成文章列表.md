@@ -37,17 +37,18 @@
 - [Android Update Engine分析（三一）Android 能在升级时新增分区吗?](https://blog.csdn.net/guyongqiangx/article/details/140508309)
 - [Android Update Engine分析（三二）Android 的槽位切换是如何实现的?](https://blog.csdn.net/guyongqiangx/article/details/140759462)
 - [Android Update Engine分析（三三）Android 设备上到底有哪些可以运行的系统？](https://blog.csdn.net/guyongqiangx/article/details/144328241)
-- [Android Update Engine分析（三四）OTA 签名都支持哪些算法?](https://blog.csdn.net/guyongqiangx/article/details/144339219)
-- [ ] 20231022-Android Update Engine 分析（二八）OTA 降级之 override timestam
-- [ ] 20230929-Android Update Engine 分析（二九）OTA 降级限制之 security patch level
-- [ ] 20231008-Android Update Engine 分析（三十）检查点 CheckPoint 是如何实现的？
-- [ ] 20231008-Android Update Engine 分析（三五）userdebug 和 user 版本可以互相升级吗？
-- [ ] 20231008-Android Update Engine 分析（三六）system 分区中的 otacerts.zip 有什么作用？
-- [ ] 20231008-Android Update Engine 分析（三七）升级包中 META-INF 文件夹下的 otacert 有什么作用？
-- [ ] 20231008-Android Update Engine 分析（三八）Android 设备上哪些分区可以升级？
-- [ ] 20231008-Android Update Engine 分析（三九）Android 设备上如何升级分区表？
-- [ ] Android Update Engine 分析（四零）如何只升级部分分区？
-- [ ] Android Update Engine 分析（四一）只升级部分分区的后续解决方案
+- [ ] [Android Update Engine分析（三四）OTA 签名都支持哪些算法?](https://blog.csdn.net/guyongqiangx/article/details/144339219)
+- [ ] 20241215-Android Update Engine分析（三五）OTA 包自身是如何被签名的？
+- [ ] 20231022-Android Update Engine分析（二八）OTA 降级之 override timestam
+- [ ] 20230929-Android Update Engine分析（二九）OTA 降级限制之 security patch level
+- [ ] 20231008-Android Update Engine分析（三十）检查点 CheckPoint 是如何实现的？
+- [ ] 20231008-Android Update Engine分析（三五）userdebug 和 user 版本可以互相升级吗？
+- [ ] 20231008-Android Update Engine分析（三六）system 分区中的 otacerts.zip 有什么作用？
+- [ ] 20231008-Android Update Engine分析（三七）升级包中 META-INF 文件夹下的 otacert 有什么作用？
+- [ ] 20231008-Android Update Engine分析（三八）Android 设备上哪些分区可以升级？
+- [ ] 20231008-Android Update Engine分析（三九）Android 设备上如何升级分区表？
+- [ ] Android Update Engine分析（四零）如何只升级部分分区？
+- [ ] Android Update Engine分析（四一）只升级部分分区的后续解决方案
 - [ ] OTA 的流式更新是如何实现的？
 - [ ] 如何只升级部分分区？partial_update
 - 升级后如何同步两个槽位？
