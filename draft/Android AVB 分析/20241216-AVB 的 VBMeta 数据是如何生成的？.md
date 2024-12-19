@@ -494,13 +494,19 @@ typedef struct AvbVBMetaImageHeader {
 
   公钥数据的格式在 |AvbRSAPublicKeyHeader| 结构体中描述。
 
-- 描述符从"辅助数据"块的起始位置偏移 |descriptors_offset| 开始，占用 |descriptors_size| 字节。每个描述符都作为带有标签和后续字节数的|AvbDescriptor| 存储。可以通过遍历这些数据直到用完 |descriptors_size| 来确定描述符的数量。
+- 描述符从"辅助数据"(Auxiliary data)块的起始位置偏移 |descriptors_offset| 开始，占用 |descriptors_size| 字节。每个描述符都作为带有标签和后续字节数的|AvbDescriptor| 存储。可以通过遍历这些数据直到用完 |descriptors_size| 来确定描述符的数量。
 
 - "验证数据"(Authentication data)和"辅助数据"(Auxiliary data)的大小必须能被 64 整除，这是为了确保正确对齐。
 
 - 描述符(Descriptor)是存储在 vbmeta 镜像中的自由格式块，与镜像的其他部分一样，要经过相同的完整性检查。
   常用描述符包括：
 
+  - AvbHashDescriptor
+  - AvbHashtreeDescriptor
+  - AvbPropertyDescriptor
+  - AvbKernelCmdlineDescriptor
+  - AvbChainPartitionDescriptor
+  
 - AvbVBMetaImageHeader 结构体是有版本控制的，请参见 |required_libavb_version_major| 和 |required_libavb_version_minor| 字段。这表示验证头部所需的最低 libavb 版本，具体取决于所使用的功能（如算法、描述符）。注意，即使是由 1.4 版本的 avbtool 生成的，如果没有使用 1.0 版本之后引入的功能，这个版本号也可能是 1.0。
 
 
