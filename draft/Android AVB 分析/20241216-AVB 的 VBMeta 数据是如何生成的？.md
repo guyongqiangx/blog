@@ -27,6 +27,8 @@ boot.img layout：
 
 
 
+## boot.img 中 VBMeta 数据的生成
+
 使用 avbtool 处理 boot image 的命令如下：
 
 ```bash
@@ -62,7 +64,118 @@ avbtool add_hash_footer \
 
 
 
+system.img 文件布局:
+
+```
+system.img layout (4K aligned):
++--------------------------------+ 0x0
+|      System Image     |
+|      (system partition)        |
++--------------------------------+ original_image_size
+|                                |
+|      Hash Tree                 |
+|      (Merkle Tree)             |
+|                                |
++--------------------------------+ tree_offset + tree_size
+|                                |
+|      FEC Data                  | (Optional)
+|                                |
++--------------------------------+ fec_offset + fec_size
+|      AVB VBMeta                |
+|      - Header                  |
+|      - Authentication Block    |
+|      - Hashtree Descriptor     |
+|      - Properties              |
++--------------------------------+ vbmeta_offset + vbmeta_size
+|                                |
+|      Padding                   |
+|                                |
++--------------------------------+  <-- Last 4KB offset
+|      (4KB)                     |
+|      AVB Footer                |  <-- Last 64 bytes
++--------------------------------+  <-- partition_size
+```
+
+
+
+我们在前面《AVB 的哈希数据到底是如何生成的？》以及《AVB 的 FEC 数据到底是如何生成的？》分别分析了 hash tree 数据和 FEC 数据的生成。
+
+但还没有触及 boot.img 和 system.img 中共同的 VBMeta 数据，本文专门针对 VBMeta 数据的生成进行分析。
+
+这个 VBMeta 数据时整个 AVB 机制的核心，既可以位于镜像内部(如 boot.img 和 system.img 内部的 VBMeta)，也可以单独出来生成 vbmeta.img 这样的镜像文件。
+
+
+
+
+
+## system.img 中 VBMeta 数据的生成
+
+![1734682022603](images-20241216-AVB 的 VBMeta 数据是如何生成的？/1734682022603.png)
+
+## vbmeta.img 镜像的生成
+
+![1734681240464](images-20241216-AVB 的 VBMeta 数据是如何生成的？/1734681240464.png)
+
+搜索 log，给镜像添加 VBMeta 数据的命令有以下几条：
+
+```bash
+# boot.img
+avbtool add_hash_footer \
+	--image boot.img \
+	--partition_size 67108864 \
+	--partition_name boot \
+	--key external/avb/test/data/testkey_rsa2048.pem \
+	--algorithm SHA256_RSA2048 \
+	--prop com.android.build.boot.os_version:13 \
+	--prop com.android.build.boot.fingerprint:Android/aosp_panther/panther:13/TQ2A.230405.003.E1/rocky12021421:userdebug/test-keys \
+	--prop com.android.build.boot.security_patch:2023-04-05 \
+	--rollback_index 1680652800
+
+# system.img
+avbtool add_hashtree_footer \
+	--partition_size 886812672 \
+	--partition_name system \
+	--image aosp_panther-target_files-eng.rocky/IMAGES/system.img \
+	--salt 6902f6b436dd8f08a2ecd512d4576a03325e14db8e6b1bb72b68d22f20a6a6d3 \
+	--hash_algorithm sha256 \
+	--prop com.android.build.system.os_version:13 \
+	--prop com.android.build.system.fingerprint:Android/aosp_panther/panther:13/TQ2A.230405.003.E1/rocky12021421:userdebug/test-keys \
+	--prop com.android.build.system.security_patch:2023-04-05
+
+# vbmeta_vendor.img
+avbtool make_vbmeta_image \
+	--output IMAGES/vbmeta_vendor.img \
+	--key external/avb/test/data/testkey_rsa2048.pem \
+	--algorithm SHA256_RSA2048 \
+	--include_descriptors_from_image IMAGES/vendor.img \
+	--padding_size 4096 \
+	--rollback_index 1680652800
+
+# vbmeta.img, with chain partitions
+avbtool make_vbmeta_image \
+	--output IMAGES/vbmeta.img \
+	--key external/avb/test/data/testkey_rsa4096.pem \
+	--algorithm SHA256_RSA4096 \
+	--chain_partition boot:2:out/soong/.temp/avb-rdtlqkfe.avbpubkey \
+	--chain_partition init_boot:4:out/soong/.temp/avb-heg356oe.avbpubkey \
+	--include_descriptors_from_image IMAGES/vendor_boot.img \
+	--include_descriptors_from_image IMAGES/vendor_kernel_boot.img \
+	--include_descriptors_from_image IMAGES/vendor_dlkm.img \
+	--include_descriptors_from_image IMAGES/dtbo.img \
+	--include_descriptors_from_image IMAGES/pvmfw.img \
+	--chain_partition vbmeta_system:1:out/soong/.temp/avb-er20eabz.avbpubkey \
+	--chain_partition vbmeta_vendor:3:out/soong/.temp/avb-bn_8e20u.avbpubkey \
+	--padding_size 4096 \
+	--rollback_index 1680652800
+```
+
+
+
+
+
 所以，实际生成 VBMeta 数据的操作就是 `_generate_vbmeta_blob()` 函数了。
+
+## `_generate_vbmeta_blob()` 函数注释
 
 `_generate_vbmeta_blob()` 函数注释:
 
@@ -394,7 +507,7 @@ avbtool add_hash_footer \
 
 
 
-### AvbVBMetaHeader 
+## AvbVBMetaHeader  数据结构解析
 
 AvbVBMetaHeader 主要包含一些 AVB 的元数据，详细结构定义，请参考头文件:
 
@@ -506,7 +619,7 @@ typedef struct AvbVBMetaImageHeader {
   - AvbPropertyDescriptor
   - AvbKernelCmdlineDescriptor
   - AvbChainPartitionDescriptor
-  
+
 - AvbVBMetaImageHeader 结构体是有版本控制的，请参见 |required_libavb_version_major| 和 |required_libavb_version_minor| 字段。这表示验证头部所需的最低 libavb 版本，具体取决于所使用的功能（如算法、描述符）。注意，即使是由 1.4 版本的 avbtool 生成的，如果没有使用 1.0 版本之后引入的功能，这个版本号也可能是 1.0。
 
 
@@ -517,54 +630,9 @@ typedef struct AvbVBMetaImageHeader {
 
 
 
+## VBMeta 数据解析实战
 
+### boot.img 解析
 
-system.img 文件布局:
+### vbmeta.img 解析
 
-```
-system.img layout (4K aligned):
-+--------------------------------+ 0x0
-|      System Image     |
-|      (system partition)        |
-+--------------------------------+ original_image_size
-|                                |
-|      Hash Tree                 |
-|      (Merkle Tree)             |
-|                                |
-+--------------------------------+ tree_offset + tree_size
-|                                |
-|      FEC Data                  | (Optional)
-|                                |
-+--------------------------------+ fec_offset + fec_size
-|      AVB VBMeta                |
-|      - Header                  |
-|      - Authentication Block    |
-|      - Hashtree Descriptor     |
-|      - Properties              |
-+--------------------------------+ vbmeta_offset + vbmeta_size
-|                                |
-|      Padding                   |
-|                                |
-+--------------------------------+  <-- Last 4KB offset
-|      (4KB)                     |
-|      AVB Footer                |  <-- Last 64 bytes
-+--------------------------------+  <-- partition_size
-```
-
-
-
-我们在前面《AVB 的哈希数据到底是如何生成的？》以及《AVB 的 FEC 数据到底是如何生成的？》分别分析了 hash tree 数据和 FEC 数据的生成。
-
-但还没有触及 boot.img 和 system.img 中共同的 VBMeta 数据，本文专门针对 VBMeta 数据的生成进行分析。
-
-这个 VBMeta 数据时整个 AVB 机制的核心，既可以位于镜像内部(如 boot.img 和 system.img 内部的 VBMeta)，也可以单独出来生成 vbmeta.img 这样的镜像文件。
-
-
-
-## boot.img 中 VBMeta 数据的生成
-
-
-
-## system.img 中 VBMeta 数据的生成
-
-## vbmeta.img 镜像的生成
