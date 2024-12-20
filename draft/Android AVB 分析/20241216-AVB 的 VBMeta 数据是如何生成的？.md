@@ -1,33 +1,50 @@
 # 20241216-AVB 的 VBMeta 数据是如何生成的？
 
-前面几篇分析了 boot.img 和 system.img 的布局，分别如下：
+## 1. 导读
+
+前面几篇分析了 boot.img 和 system.img 的布局，以及 system.img 中的 hashtree 和 FEC 数据，对于最重要的 VBMeta 数据还没有涉及。本篇重点分析下 VBMeta 数据的生成以及结构。
 
 
 
-boot.img 文件布局
-
-```
-boot.img layout：
-+----------------+  <-- 0
-|                |
-|                |
-|   Boot Image   |
-|                |
-|                |
-+----------------+  <-- original_image_size
-|   VBMeta       |  <-- vbmeta_offset
-|   (64KB max)   |
-+----------------+
-|   Padding      |
-+----------------+  <-- Last 4KB offset
-|   (4KB)        |
-|   AVB Footer   |  <-- Last 64 bytes
-+----------------+  <-- partition_size (64MB)
-```
+编译一个全新的 Android, 并将 log 保存下来，搜索 log，就可以找到编译中使用 avbtool 给镜像添加 VBMeta 数据的命令。
 
 
 
-## boot.img 中 VBMeta 数据的生成
+例如，我这里基于 `android-13.0.0_r41` 的源码，编译 Google Pixel 7 ("panther") 设备的镜像中，通过 "`grep avbtool` " 找到了不少使用 avbtool 处理镜像的命令。
+
+> 这里再次将我编译 Android 的命令张贴如下：
+>
+> ```bash
+> # prepare android-13.0.0_r41
+> $ repo init -u https://android.googlesource.com/platform/manifest -b android-13.0.0_r41
+> $ repo sync
+> 
+> # prepare Pixel 7("panther") binaries
+> $ wget https://dl.google.com/dl/android/aosp/google_devices-panther-tq2a.230405.003.e1-2c3467dd.tgz
+> $ tar -zxf google_devices-panther-tq2a.230405.003.e1-2c3467dd.tgz
+> $ ./extract-google_devices-panther.sh
+> 
+> # build
+> $ source build/envsetup.sh
+> $ lunch aosp_panther-userdebug
+> $ make dist -j128 2>&1 | tee make-dist-20241202.log
+> ```
+>
+> 为了后面的操作方便，我这里将所有的编译 log 都保存到文件 `make-dist-20241202.log` 中了。
+
+
+
+本文主要就 3 类带 VBMeta 数据处理的命令进行分析，分别是：
+
+- boot.img，代表了 avbtool 使用 `add_hash_footer` 操作对小镜像生成 hash footer 的处理
+- system.im，代表了 avbtool 使用 `add_hashtree_footer` 操作对大镜像生成 hashtree footer 的处理
+- vbmeta.img，代表了 avbtool 使用 `make_vbmeta_image` 从多个镜像中提取 vbmeta 数据到单独文件的处理
+
+
+
+> 本文基于 android-13.0.0_r41 的代码进行分析。
+
+## 2. boot 分区中的 VBMeta
 
 使用 avbtool 处理 boot image 的命令如下：
 
@@ -62,75 +79,11 @@ avbtool add_hash_footer \
 
 > 在线代码：https://xrefandroid.com/android-13.0.0_r83/xref/external/avb/avbtool.py#add_hash_footer
 
+## 3. system 分区中的 VBMeta
 
-
-system.img 文件布局:
-
-```
-system.img layout (4K aligned):
-+--------------------------------+ 0x0
-|      System Image     |
-|      (system partition)        |
-+--------------------------------+ original_image_size
-|                                |
-|      Hash Tree                 |
-|      (Merkle Tree)             |
-|                                |
-+--------------------------------+ tree_offset + tree_size
-|                                |
-|      FEC Data                  | (Optional)
-|                                |
-+--------------------------------+ fec_offset + fec_size
-|      AVB VBMeta                |
-|      - Header                  |
-|      - Authentication Block    |
-|      - Hashtree Descriptor     |
-|      - Properties              |
-+--------------------------------+ vbmeta_offset + vbmeta_size
-|                                |
-|      Padding                   |
-|                                |
-+--------------------------------+  <-- Last 4KB offset
-|      (4KB)                     |
-|      AVB Footer                |  <-- Last 64 bytes
-+--------------------------------+  <-- partition_size
-```
-
-
-
-我们在前面《AVB 的哈希数据到底是如何生成的？》以及《AVB 的 FEC 数据到底是如何生成的？》分别分析了 hash tree 数据和 FEC 数据的生成。
-
-但还没有触及 boot.img 和 system.img 中共同的 VBMeta 数据，本文专门针对 VBMeta 数据的生成进行分析。
-
-这个 VBMeta 数据时整个 AVB 机制的核心，既可以位于镜像内部(如 boot.img 和 system.img 内部的 VBMeta)，也可以单独出来生成 vbmeta.img 这样的镜像文件。
-
-
-
-
-
-## system.img 中 VBMeta 数据的生成
-
-![1734682022603](images-20241216-AVB 的 VBMeta 数据是如何生成的？/1734682022603.png)
-
-## vbmeta.img 镜像的生成
-
-![1734681240464](images-20241216-AVB 的 VBMeta 数据是如何生成的？/1734681240464.png)
-
-搜索 log，给镜像添加 VBMeta 数据的命令有以下几条：
+使用 avbtool 处理 system image 的命令如下：
 
 ```bash
-# boot.img
-avbtool add_hash_footer \
-	--image boot.img \
-	--partition_size 67108864 \
-	--partition_name boot \
-	--key external/avb/test/data/testkey_rsa2048.pem \
-	--algorithm SHA256_RSA2048 \
-	--prop com.android.build.boot.os_version:13 \
-	--prop com.android.build.boot.fingerprint:Android/aosp_panther/panther:13/TQ2A.230405.003.E1/rocky12021421:userdebug/test-keys \
-	--prop com.android.build.boot.security_patch:2023-04-05 \
-	--rollback_index 1680652800
-
 # system.img
 avbtool add_hashtree_footer \
 	--partition_size 886812672 \
@@ -141,7 +94,41 @@ avbtool add_hashtree_footer \
 	--prop com.android.build.system.os_version:13 \
 	--prop com.android.build.system.fingerprint:Android/aosp_panther/panther:13/TQ2A.230405.003.E1/rocky12021421:userdebug/test-keys \
 	--prop com.android.build.system.security_patch:2023-04-05
+```
 
+由于 system.img 的 VBMeta 数据随后会单独提取到 vbmeta.img 中，所以这里并没有传入私钥数据对 system.img 的 vbmeta 数据进行签名。
+
+
+
+处理 system image 实际上交由 `add_hashtree_footer()` 函数来完成的，在 `add_hashtree_footer()` 中，主要进行了以下处理：
+
+0. 准备工作，包括：
+   1. 检查需要的 AVB 版本；
+   2. 根据传入的 partition size，预估 hashtree 和 fec 数据的大小，来检查镜像文件的 max size;
+   3. 如果来的文件中已经包含了 AVBFooter 和 VBMeta 数据，则移除这些数据，恢复原始的 boot.img 镜像数据
+1. 使用传入的随机盐 salt 和哈希算法计算生成镜像的 hashtree 数据;
+2. 使用生成的 hashtree 数据相关信息更新 AvbHashtreeDescritpor;
+3. 将 hashtree 数据添加到镜像中；
+4. 基于原始的镜像内容和以及 hashtree 数据生成 FEC 数据，更新 AvbHashtreeDescriptor，并将 FEC 数据更新到镜像中；
+5. 使用更新的 AvbHashtreeDescriptor 描述符生成 VBMeta 数据；
+6. 如果需要单独保存 VBMeta 数据，则将其输出到单独的文件中；
+
+原始的代码如下：
+
+![1734682022603](images-20241216-AVB 的 VBMeta 数据是如何生成的？/1734682022603.png)
+
+## 4. vbmeta.img 镜像
+
+搜索编译生成的 log，使用 avbtool 生成的 vbmeta 相关镜像包括以下两类：
+
+1. 从 vendor.img 中提取单独的 vbmeta 到文件 vbmeta_vendor.img 中；
+2. 基于多个文件的 vbmeta 数据，生成单独的 vbmeta 分区镜像 vbmeata.img
+
+
+
+这两个命令分别如下：
+
+```bash
 # vbmeta_vendor.img
 avbtool make_vbmeta_image \
 	--output IMAGES/vbmeta_vendor.img \
@@ -171,13 +158,27 @@ avbtool make_vbmeta_image \
 
 
 
+生成单独 vbmeta 数据镜像实际上交由 `make_vbmeta_image()` 函数来完成的，在 `make_vbmeta_image()` 中，主要进行了以下处理：
+
+1. 编译所有需要提取的镜像，获取 libavb 的最高版本号；
+2. 收集所有镜像的描述符 descriptor 信息，生成 vbmeta 数据并签名；
+3. 将签名后的 vbmeta 数据输出到单独的镜像中，和 boot 以及 system 分区中的 vbmata 数据不同的是，在单独的 vbmeta 中不会写入 AVB Footer 数据。
+
+> AVB Footer 数据的作用是用来定位 VBMeta 数据，对于单独的 vbmeta 镜像，起始位置就已经是 VBMeta 数据了，所以不再需要 AVB Footer 来定位。
 
 
-所以，实际生成 VBMeta 数据的操作就是 `_generate_vbmeta_blob()` 函数了。
 
-## `_generate_vbmeta_blob()` 函数注释
+部分处理的原始代码如下：
 
-`_generate_vbmeta_blob()` 函数注释:
+![1734681240464](images-20241216-AVB 的 VBMeta 数据是如何生成的？/1734681240464.png)
+
+
+
+从上面的三个操作 `add_hash_footer`, `add_hashtree_footer` 和 `make_vbmeta_image` 可以看到，实际生成 VBMeta 数据的操作在 `_generate_vbmeta_blob()` 函数中完成。
+
+## 5. `_generate_vbmeta_blob()` 函数
+
+我们这里对 `_generate_vbmeta_blob()` 函数详细注释，觉得太啰嗦的可以忽略过，直到需要的时候再回来查看:
 
 ```python
   def _generate_vbmeta_blob(self, algorithm_name, key_path,
@@ -487,7 +488,7 @@ avbtool make_vbmeta_image \
 
 总结一下`_generate_vbmeta_blob()` 函数中的操作：
 
-这个函数用于生成 VBMeta 数据，对于 VBMeta 数据，主要包含 3 部分，按顺序依次为：
+这个函数用于生成 VBMeta 数据，对于生成的 VBMeta 数据，主要包含 3 部分，按顺序依次为：
 
 1. AvbVBMetaHeader
 2. Authentication Data Block
@@ -507,7 +508,7 @@ avbtool make_vbmeta_image \
 
 
 
-## AvbVBMetaHeader  数据结构解析
+## 6. AvbVBMetaHeader  数据解析
 
 AvbVBMetaHeader 主要包含一些 AVB 的元数据，详细结构定义，请参考头文件:
 
