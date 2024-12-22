@@ -1,0 +1,6 @@
+- [ ] Android AVB 的各种描述符分析
+- [ ] Android AVB 代码结构分析
+- [ ] Android AVB libavb 库分析
+- [ ] Android AVB boot 分区是如何验证的？
+- [ ] Android AVB 中的 dm-verity 原理分析
+- [ ] Android AVB system 分区是如何挂载的？
