@@ -111,7 +111,7 @@ Descriptors:
 
 在 `add_hashtree_footer()` 函数中, 先通过调用 `calc_fec_data_size()` 根据分区大小 partition_size，和 FEC 可以纠正数据块的能力 fec_num_roots 来预估 FEC 数据的大小:
 
-![](./images-20241215-AVB 的 FEC 数据到底是如何生成的？/max_fec_size.png)
+![](./images-20241215-Android AVB 分析（六）FEC 数据到底是如何生成的？/max_fec_size.png)
 
 > 在线代码: https://xrefandroid.com/android-13.0.0_r83/xref/external/avb/avbtool.py#3629
 
@@ -121,7 +121,7 @@ Descriptors:
 
 在 `calc_fec_data_size()` 函数内部包装了对 fec 工具的调用：
 
-![calc_fec_data_size](./images-20241215-AVB 的 FEC 数据到底是如何生成的？/calc_fec_data_size.png)
+![calc_fec_data_size](./images-20241215-Android AVB 分析（六）FEC 数据到底是如何生成的？/calc_fec_data_size.png)
 
 > 在线代码: https://xrefandroid.com/android-13.0.0_r83/xref/external/avb/avbtool.py#calc_fec_data_size
 
@@ -138,7 +138,7 @@ $ fec --print-fec-size 879616000 --roots 2
 
 在 `add_hashtree_footer()` 函数中, 在生成了 hashtree 数据后，调用 `generate_fec_data()` 生成 FEC 数据:
 
-![call_generate_fec_data](./images-20241215-AVB 的 FEC 数据到底是如何生成的？/call_generate_fec_data.png)
+![call_generate_fec_data](./images-20241215-Android AVB 分析（六）FEC 数据到底是如何生成的？/call_generate_fec_data.png)
 
 > 在线代码: https://xrefandroid.com/android-13.0.0_r83/xref/external/avb/avbtool.py#3760
 
@@ -148,7 +148,7 @@ FEC 可以纠正的数据内容包括，原始的镜像数据，以及基于镜�
 
 进一步查看 `generate_fec_data()`函数，不过是对 fec 工具的调用包装：
 
-![generate_fec_data](./images-20241215-AVB 的 FEC 数据到底是如何生成的？/generate_fec_data.png)
+![generate_fec_data](./images-20241215-Android AVB 分析（六）FEC 数据到底是如何生成的？/generate_fec_data.png)
 
 > 在线代码：https://xrefandroid.com/android-13.0.0_r83/xref/external/avb/avbtool.py#generate_fec_data
 

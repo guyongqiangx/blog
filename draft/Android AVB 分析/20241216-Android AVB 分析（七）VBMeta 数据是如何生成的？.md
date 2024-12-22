@@ -75,7 +75,7 @@ avbtool add_hash_footer \
 
 原始的代码如下：
 
-![1734575048014](images-20241216-AVB 的 VBMeta 数据是如何生成的？/1734575048014.png)
+![1734575048014](images-20241216-Android AVB 分析（七）VBMeta 数据是如何生成的？/1734575048014.png)
 
 > 在线代码：https://xrefandroid.com/android-13.0.0_r83/xref/external/avb/avbtool.py#add_hash_footer
 
@@ -115,7 +115,7 @@ avbtool add_hashtree_footer \
 
 原始的代码如下：
 
-![1734682022603](images-20241216-AVB 的 VBMeta 数据是如何生成的？/1734682022603.png)
+![1734682022603](images-20241216-Android AVB 分析（七）VBMeta 数据是如何生成的？/1734682022603.png)
 
 ## 4. vbmeta.img 镜像
 
@@ -170,7 +170,7 @@ avbtool make_vbmeta_image \
 
 部分处理的原始代码如下：
 
-![1734681240464](images-20241216-AVB 的 VBMeta 数据是如何生成的？/1734681240464.png)
+![1734681240464](images-20241216-Android AVB 分析（七）VBMeta 数据是如何生成的？/1734681240464.png)
 
 
 
@@ -627,13 +627,19 @@ typedef struct AvbVBMetaImageHeader {
 
 所以一个完整的 VBMeta 内容布局大概是这样：
 
-![AvbVBMetaImageHeader](images-20241216-AVB 的 VBMeta 数据是如何生成的？/AvbVBMetaImageHeader.png)
+![AvbVBMetaImageHeader](images-20241216-Android AVB 分析（七）VBMeta 数据是如何生成的？/AvbVBMetaImageHeader.png)
+
+## 7. 其它
+
+我创建了一个 Android AVB 讨论群，主要讨论 Android 设备的 AVB 验证问题。
+
+我还几个 Android OTA 升级讨论群，主要讨论 Android 设备的 OTA 升级话题。
+
+欢迎您加群和我们一起交流，请在加我微信时注明“Android AVB 交流”或“Android OTA 交流”。
+
+仅限 Android 相关的开发者参与~
+
+> 公众号“洛奇看世界”后台回复“wx”获取个人微信。
 
 
-
-## VBMeta 数据解析实战
-
-### boot.img 解析
-
-### vbmeta.img 解析
 

@@ -301,7 +301,7 @@ def calc_hash_level_offsets(image_size, block_size, digest_size):
 
 如果使用 sha256 计算每个 block (4096) 的哈希值，每个 sha256 的哈希值长度为 32 字节，各层有以下结果：
 
-![hash tree data](./images-20241213-AVB 的 hashtree 是如何生成的？/avb-hashtree-data-example.png)
+![hash tree data](./images-20241213-Android AVB 分析（五）哈希树到底是如何生成的？/avb-hashtree-data-example.png)
 
 
 
@@ -315,7 +315,7 @@ def calc_hash_level_offsets(image_size, block_size, digest_size):
 
 > 特别注意，hashtree 在存放时，最顶层的数据在前面，最底层的数据在最后面。
 
-![avb hash tree layout example](./images-20241213-AVB 的 hashtree 是如何生成的？/avb-hashtree-layout-example.png)
+![avb hash tree layout example](./images-20241213-Android AVB 分析（五）哈希树到底是如何生成的？/avb-hashtree-layout-example.png)
 
 
 
@@ -529,7 +529,7 @@ Descriptors:
 
 整个镜像和 hashtree 布局如下：
 
-![avb hash tree layout example](./images-20241213-AVB 的 hashtree 是如何生成的？/avb-hashtree-layout-example.png)
+![avb hash tree layout example](./images-20241213-Android AVB 分析（五）哈希树到底是如何生成的？/avb-hashtree-layout-example.png)
 
 ## 7. 其它
 

@@ -130,7 +130,7 @@ Descriptors:
 
 主要部分和上一篇[《AVB 数据实战之 boot.img》]()的基本一样，但又略有不同，多了 Hashtree 和 FEC 相关的信息，如下：
 
-![](images-20241204-system.img 到底包含了哪些数据？/system-image-info.png)
+![](images-20241204-Android AVB 分析（四）system.img 到底包含了哪些数据？/system-image-info.png)
 
 这里的数据重点如下：
 

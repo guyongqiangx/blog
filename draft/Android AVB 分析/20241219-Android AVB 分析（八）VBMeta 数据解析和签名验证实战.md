@@ -64,7 +64,7 @@ rocky@guyongqiangx:/public/rocky/android-13.0.0_r41$ hexdump -Cv -s $((67108864-
 04000000
 ```
 
-![avb-footer-in-boot](./images-20241219-硬核之 VBMeta 数据解析和签名验证实战/avb-footer-in-boot.png)
+![avb-footer-in-boot](./images-20241219-Android AVB 分析（八）VBMeta 数据解析和签名验证实战/avb-footer-in-boot.png)
 
 解析结果：
 
@@ -99,11 +99,11 @@ VBMeta size:              1664 bytes
 
 在上一篇中，我们介绍过 VBMeta 的布局，如下：
 
-![vbmeta-layout](./images-20241219-硬核之 VBMeta 数据解析和签名验证实战/vbmeta-layout.png)
+![vbmeta-layout](./images-20241219-Android AVB 分析（八）VBMeta 数据解析和签名验证实战/vbmeta-layout.png)
 
 基于 boot.img 标注的 VBMeta 数据如下：
 
-![vbmeta-in-boot](./images-20241219-硬核之 VBMeta 数据解析和签名验证实战/vbmeta-in-boot.png)
+![vbmeta-in-boot](./images-20241219-Android AVB 分析（八）VBMeta 数据解析和签名验证实战/vbmeta-in-boot.png)
 
 经过标注，对 VBMeta 数据的布局理解更加深刻。
 
