@@ -1,4 +1,4 @@
-- [ ] Android AVB 的各种描述符分析
+- [ ] 20241226-Android AVB 分析（九）VBMeta 会包含哪些描述符？
 - [ ] Android AVB 代码结构分析
 - [ ] Android AVB libavb 库分析
 - [ ] Android AVB boot 分区是如何验证的？
