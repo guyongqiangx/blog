@@ -168,7 +168,11 @@ cc_library_host_static: libavb_host_sysdeps
 >
 > 如果你写代码，想学习下 google 的项目都是如何做单元测试的，可以参考下 avb 下 unittest 的相关内容，相信我，肯定会有所收获。
 
-## 3. libavb 源码
+## 3. libavb 库
+
+关于 libavb 库，官方是这么介绍的：
+
+libavb 库在设备端执行所有验证操作。例如，它首先加载 vbmeta 分区，检查签名，然后继续加载启动分区以进行验证。该库旨在用于 bootloader 和 Android 内部。它有一个简单的系统依赖性抽象（参见 avb_sysdeps.h），以及bootloader 或操作系统预期要实现的操作（参见avb_ops.h）。验证的主要入口点是avb_slot_verify()。
 
 ### libavb 源码结构
 
@@ -255,6 +259,24 @@ AvbSlotVerifyResult avb_slot_verify(AvbOps* ops,
 ### libavb 库的移植
 
 由于 Android Verified Boot 在系统启动和运行中有多个地方需要调用 libavb 库，例如各厂家自己的 bootloader 或者启动中的 RTOS 小系统，因此 libavb 被设计成高度可移植的函数。
+
+
+
+总体上，关于 libavb 的可移植性，官方文档是这么介绍的：
+
+libavb 代码的目的是在加载 Android 或其他操作系统的 bootloader 中被使用。建议的方法是将 libavb 头文件和 C 文件复制到 bootloader 中，并适当集成。
+
+随着时间的推移，libavb/代码库将会不断发展，因此集成应尽可能不具侵入性。意图是保持库的 API 稳定，但在必要时会进行更改。关于可移植性，该库旨在高度可移植，能够在小端和大端架构以及 32 位和 64 位上工作。它还旨在在没有标准 C 库和运行时的非标准环境中运行。
+
+> 关于这段话中的 “集成应尽可能不具侵入性”，原文是 "integration should be as non-invasive as possible"，主要是指集成或代码修改时，尽量减少对现有系统或代码的干扰和影响。一句话来说，就是尽量不要修改现有代码。
+
+如果设置了 `AVB_ENABLE_DEBUG` 预处理器符号，代码将包含有用的调试信息和运行时检查。量产编译时不应使用此符号。`AVB_COMPILATION` 预处理器符号仅在编译库时设置。代码必须编译成一个单独的库。
+
+使用编译后的 libavb 库的应用程序必须仅包含 libavb/libavb.h 文件（该文件将包含所有公共接口），并且不应设置 `AVB_COMPILATION` 预处理器符号。这是为了确保将来可能会发生变化的内部代码（例如 `avb_sha.[ch]`和 `avb_rsa.[ch]`）不会对应用程序代码可见。
+
+> 关于可移植性的原文请参考 Portability 一节:
+>
+> https://android.googlesource.com/platform/external/avb/+/android-13.0.0_r83/README.md#portability
 
 
 
