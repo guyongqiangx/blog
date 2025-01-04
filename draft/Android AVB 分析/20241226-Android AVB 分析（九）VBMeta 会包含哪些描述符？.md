@@ -1,4 +1,4 @@
-# 20241226-Android AVB 分析（九）VBMeta 会包含哪些描述符和公钥？
+# 20241226-Android AVB 分析（九）Auxiliary Data 包含了哪些描述符和公钥？
 
 ## 1. 前言
 
