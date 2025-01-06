@@ -113,6 +113,7 @@ int do_avb_init(struct cmd_tbl *cmdtp, int flag, int argc, char *const argv[])
 	if (avb_ops)
 		avb_ops_free(avb_ops);
 
+    /* 初始化 AvbOps */
 	avb_ops = avb_ops_alloc(mmc_dev);
 	if (avb_ops)
 		return CMD_RET_SUCCESS;
@@ -139,12 +140,14 @@ AvbOps *avb_ops_alloc(int boot_device)
 {
 	struct AvbOpsData *ops_data;
 
+    /* 给 AvbOpsData 分配内存 */
 	ops_data = avb_calloc(sizeof(struct AvbOpsData));
 	if (!ops_data)
 		return NULL;
 
 	ops_data->ops.user_data = ops_data;
 
+    /* 使用预定义的分区 IO 操作初始化 AvbOps 结构体 */
 	ops_data->ops.read_from_partition = read_from_partition;
 	ops_data->ops.write_to_partition = write_to_partition;
 	ops_data->ops.validate_vbmeta_public_key = validate_vbmeta_public_key;
@@ -168,12 +171,13 @@ AvbOps *avb_ops_alloc(int boot_device)
 
 ### 2.3 命令 `avb verify`
 
-对于 `avb verify` 命令，实际上调用的是 `do_avb_verify_part()`函数，由于这个函数比较长，这里不再截图，直接贴代码：
+对于 `avb verify` 命令，具体操作由 `do_avb_verify_part()`函数实现：
 
 ```c
 int do_avb_verify_part(struct cmd_tbl *cmdtp, int flag,
 		       int argc, char *const argv[])
 {
+    /* 指定请求的分区列表,NULL 结尾的字符串数组: {"boot", NULL} */
 	const char * const requested_partitions[] = {"boot", NULL};
 	AvbSlotVerifyResult slot_result;
 	AvbSlotVerifyData *out_data;
@@ -186,6 +190,7 @@ int do_avb_verify_part(struct cmd_tbl *cmdtp, int flag,
 	bool unlocked = false;
 	int res = CMD_RET_FAILURE;
 
+    /* 参数检查 */
 	if (!avb_ops) {
 		printf("AVB is not initialized, please run 'avb init <id>'\n");
 		return CMD_RET_FAILURE;
@@ -194,15 +199,18 @@ int do_avb_verify_part(struct cmd_tbl *cmdtp, int flag,
 	if (argc < 1 || argc > 2)
 		return CMD_RET_USAGE;
 
+    /*
+     * 如果不使用 A/B 分区，传入一个空字符串（例如 ""，而不是 NULL）
+     * 对于 A/B 分区，传入带下划线的槽位。例如，使用 "_a" 表示第一个 slot。
+     * 主要是用来和分区名字一起拼接成完整的分区名，如 "vbmeta" + "_a" = "vbmeta_a"。
+     */
 	if (argc == 2)
 		slot_suffix = argv[1];
 
 	printf("## Android Verified Boot 2.0 version %s\n",
 	       avb_version_string());
 
-    /*
-     * 1. 获取设备的 unlock 状态
-     */
+    /* 获取设备的 unlock 状态 */
 	ret = avb_ops->read_is_device_unlocked(avb_ops, &unlocked);
 	if (ret != AVB_IO_RESULT_OK) {
 		printf("Can't determine device lock state, err = %d\n",
@@ -211,16 +219,20 @@ int do_avb_verify_part(struct cmd_tbl *cmdtp, int flag,
 	}
 
     /*
-     * 2. 调用 avb_slot_verify() 对 boot 分区进行 verify boot 验证
+     * 执行分区槽位校验
      */
 	slot_result =
 		avb_slot_verify(avb_ops,
-				requested_partitions,
-				slot_suffix,
-				unlocked,
+				requested_partitions, /* {"boot", NULL} */
+				slot_suffix, /* "_a" */
+				unlocked, /* unlocked: true; locked: false */
 				AVB_HASHTREE_ERROR_MODE_RESTART_AND_INVALIDATE,
 				&out_data);
 
+    /*
+     * 检查验证结果
+     * 验证成功时，使用返回数据 out_data 更新 AVB_BOOTARGS 环境变量
+     */
 	/*
 	 * LOCKED devices with custom root of trust setup is not supported (YELLOW)
 	 */
@@ -236,6 +248,9 @@ int do_avb_verify_part(struct cmd_tbl *cmdtp, int flag,
 		else
 			boot_state = AVB_GREEN;
 
+        /*
+         * 设置设备的 boot state，并追加到 out_data->cmdline 中
+         */
 		/* export boot state to AVB_BOOTARGS env var */
 		extra_args = avb_set_state(avb_ops, boot_state);
 		if (extra_args)
@@ -244,6 +259,7 @@ int do_avb_verify_part(struct cmd_tbl *cmdtp, int flag,
 		else
 			cmdline = out_data->cmdline;
 
+        /* 使用 cmdline 更新 AVB_BOOTARGS 环境变量 */
 		env_set(AVB_BOOTARGS, cmdline);
 
 		res = CMD_RET_SUCCESS;
@@ -259,6 +275,16 @@ int do_avb_verify_part(struct cmd_tbl *cmdtp, int flag,
 ```
 
 
+
+对于一个设备，在签名验证成功的前提下，有 3 种状态：
+
+- `yellow`：如果设备处于 `LOCKED` 状态且使用了可由用户设置的信任根
+- `green`：如果设备处于 `LOCKED` 状态且未使用可由用户设置的信任根
+- `orange`：如果设备处于`UNLOCKED`状态
+
+根据这里的提示，显然在 u-boot 中实现的代码不支持 yellow 状态。
+
+在验证成功后，使用验证返回的数据设置 AVB_BOOTARGS 环境变量。
 
 ## 3. avb_slot_verify 函数
 
