@@ -1,24 +1,62 @@
-# 20250105-Android AVB 分析（一一）bootloader 是如何进行 verify boot 检查的？
+# 20250105-Android AVB 分析（十一）bootloader 是如何进行 verify boot 检查的？
+
+## 1. 导读
 
 上一篇[《Android AVB 分析（十）AVB 有哪些相关的源码？》](https://blog.csdn.net/guyongqiangx/article/details/144936814)中分析了 AVB 源码结构，本篇正式深入 AVB 源码，看看在 bootloader 中是如何使用 libavb 进行 verify boot 检查验证的。
 
 
 
-对于 bootloader 中的启动验证，这一块属于厂家自己的代码，因为各个厂家的 bootloader 都可能不一样, 有的用 u-boot，有的基于 UEFI，有的可能是私有的 bootloader。而 Android 官方只要求集成 libavb 完成验证即可。
+在整个启动过程中的验证是这样链接的：
+
+1. 生成一对非对称秘钥(包括公钥和私钥，既可以是 RSA 秘钥，也可以是椭圆算法秘钥)
+
+2. 使用非对称秘钥的私钥对 bootloader 签名，对应的用于验证签名的公钥存储到芯片的 ROM 或 OTP 区域中；
+
+3. 芯片上电后，ROM 使用这个不可更改的公钥验证 bootloader 签名，验证通过后启动并跳转到 bootloader；
+
+4. bootloader 中用固化在自身代码，或保存在芯片安全存储区域的不可更改的公钥去验证下一级的镜像，例如 AVB 中的 vbmeta 分区镜像；
+
+   (AVB 在启动时实际上从 vbmeta 中提取公钥用于验证自身的签名；然后再将固化在 u-boot 中的公钥和从 vbmeta 中提取的公钥进行比较，二者一样确保 vbmeta 中的公钥合法才继续下一步启动流程。通过这种方式就确保了 vbmeta 也是通过合法的秘钥认证的。)
+
+5. vbmeta 中的秘钥验证通过后，再用其描述符中的 hash 去检查 boot 和其他分区，确保 boot 等分区没有被更改后，再从 boot 分区启动 linux，然后进入下一级验证。
 
 
 
-## 2. u-boot 中的 verify boot 命令
+对于芯片 ROM 对 bootloader 代码的签名验证，以及 bootloader 起来后如何处理代码并调用 libavb 验证 vbmeta，这一块属于厂家自己的代码，因为各个厂家的 bootloader 都可能不一样, 有的用 u-boot，有的基于 UEFI，有的可能是私有的 bootloader。
 
-没有办法公开分享不开源的 bootloader 源码，只能以公开的 u-boot 源码进行分析，看看 u-boot 中是如何使用 libavb 进行启动验证的。
+但有一点相同的是，各厂家都按照 Android 官方要求集成 libavb 库，调用 `avb_slot_verify()` 函数完成验证，并根据验证结果执行相应的动作。
+
+
+
+我在这里以公开的 u-boot 源码进行分析，看看 u-boot 中是如何使用 libavb 进行启动验证的。这一块处理虽然各家的代码不完全一样，但是操作都要满足 Android 要求，所以原理和行为都是一致的。
 
 > 本文基于写作时最新的 u-boot 源码进行分析: v2025.01-rc6
 >
 > - https://github.com/u-boot/u-boot/tree/v2025.01-rc6
 >
-> 并参考 u-boot 关于 AVB 2.0 的参考文档:
+> 参考 u-boot 关于 AVB 2.0 的参考文档:
 >
 > - https://docs.u-boot.org/en/latest/android/avb2.html
+
+本文由于分析 u-boot 源码，所以篇幅比较长。
+
+第 2 节主要分析 u-boot 中 verify boot 相关的两个命令
+
+第 3 节分析 libavb 的 `avb_slot_verify()` 函数实现
+
+第 4 节分析 libavb 的 `load_and_verify_vbmeta()` 函数
+
+第 5 节简要概述 libavb 中的一些其他函数
+
+第 6 节总结 verify boot 中的主要流程
+
+第 7 节就一些特别的知识点进行说明
+
+
+
+如果觉得查看源码注释太繁琐，可以直接跳转到第 6 节查看总结，以及第 7 节查看特别说明。
+
+## 2. u-boot 中的 verify boot 命令
 
 虽然是基于 u-boot 最新的源码分析，但实际上 u-boot 中集成的 libavb 库并不是最新的 v1.3 版，而是 v1.1 版本。
 
@@ -34,6 +72,14 @@ u-boot-v2025.01$ grep -n AVB_VERSION_MAJOR -C 2 lib/libavb/avb_version.h
 所以本文基于 u-boot 中的 libavb v1.1 版本的代码进行分析。
 
 后面看情况再决定是否跟踪分析 libavb v1.1, v1.2 和 v1.3 版本的变更。
+
+
+
+关于 u-boot 中如何打开和编译 libavb 相关的代码，如何运行 AVB 相关的命令，请参考 u-boot 自带的文档。
+
+>[《Android Verified Boot 2.0》](https://docs.u-boot.org/en/latest/android/avb2.html#android-verified-boot-2-0)
+>
+>- https://docs.u-boot.org/en/latest/android/avb2.html
 
 
 
@@ -76,7 +122,7 @@ avb verify [slot_suffix] - run verification process using hash data
 
 ### 2.2 命令 `avb init`
 
-对于 `avb init` 命令，实际上调用的是 `do_avb_init`函数：
+avb 所有相关的命令都位于 `cmd/avb.c` 文件的 `cmd_avb` 数组中：
 
 ```c
 static struct cmd_tbl cmd_avb[] = {
@@ -95,6 +141,8 @@ static struct cmd_tbl cmd_avb[] = {
 #endif
 };
 ```
+
+对于 `avb init` 命令，实际上调用的是 `do_avb_init`函数。
 
 
 
@@ -172,7 +220,7 @@ AvbOps *avb_ops_alloc(int boot_device)
 
 ### 2.3 命令 `avb verify`
 
-对于 `avb verify` 命令，具体操作由 `do_avb_verify_part()`函数实现：
+同样，对于 `avb verify` 命令，查看 `cmd/avb.c` 文件的 `cmd_avb` 数组，具体操作由 `do_avb_verify_part()`函数实现：
 
 ```c
 /* avb verify _a */
@@ -291,11 +339,15 @@ int do_avb_verify_part(struct cmd_tbl *cmdtp, int flag,
 - `green`：如果设备处于 `LOCKED` 状态且未使用可由用户设置的信任根
 - `orange`：如果设备处于`UNLOCKED`状态
 
-根据这里的提示，显然在 u-boot 中实现的代码不支持 yellow 状态。
+根据这里`do_avb_verify_part()`函数中的提示，显然在 u-boot 中实现的代码不支持 yellow 状态。
+
+
+
+你实际使用的 bootloader 对 boot state 的处理和可能跟 u-boot 中的处理不一样，具体以你的代码指示的行为为准。
 
 ## 3. avb_slot_verify 函数
 
-从前面的分析看到，如果在命令行调用 `avb verify _a`，则会以下面的参数调用 `avb_slot_verify()` 函数：
+从前面的分析看到，如果如果在 u-boot 中执行命令 `"avb verify _a"`，则会以下面的参数调用 `avb_slot_verify()` 函数：
 
 ```c
 slot_result =
@@ -318,7 +370,7 @@ AvbSlotVerifyResult avb_slot_verify(AvbOps* ops,
                                     AvbSlotVerifyData** out_data);
 ```
 
-其头文件`avb_slot_verify.h`中关于函数的注释就是非常好的说明文档。
+其头文件`libavb/avb_slot_verify.h`中关于函数的注释就是非常好的说明文档。
 
 我这里将这部分注释用 AI 翻译成中文，供参考：
 
@@ -687,7 +739,7 @@ fail:
 
 
 
-总结一下，Android Verified Boot (AVB) 的核心验证函数的 `avb_verify_slot()` 做了以下操作：
+总结一下，Android Verified Boot (AVB) 的验证函数的 `avb_verify_slot()` 做了以下操作：
 
 1. 初始化和参数检查，给必要的数据结构分配内存
 2. 加载并验证 vbmeta 分区数据
@@ -722,10 +774,13 @@ androidboot.veritymode=enforcing
 
 
 
-这个函数的源码比较长，我啰嗦一点，将源码注释粘贴在这里:
+所以，实际上 `load_and_verify_vbmeta()`函数才是整个验证的核心。这个函数的源码比较长，为了比较好理解整个验证的逻辑，建议配合下面这张 VBMeta 的数据结构图一起查看。
+
+![vbmeta-layout](./images-20250105-Android AVB 分析（十一）bootloader 是如何进行 verify boot 检查的？/vbmeta-layout.png)
+
+我啰嗦一点，将 `load_and_verify_vbmeta()` 函数的源码注释粘贴在这里:
 
 ```c
-
 static AvbSlotVerifyResult load_and_verify_vbmeta(
     AvbOps* ops,
     const char* const* requested_partitions,
@@ -1569,7 +1624,7 @@ out:
 
 1. 解析分区镜像的 AVB Footer
 
-  通过解析分区最后 64 字节的 AVB Footer，获取 vbmeta 数据的 offset 和 size 信息。如果是 vbmeta 分区，没有 AVB Footer 数据，则 offset 为 0， size 为 64K。
+   通过解析分区最后 64 字节的 AVB Footer，获取 vbmeta 数据的 offset 和 size 信息。如果是 vbmeta 分区，没有 AVB Footer 数据，则 offset 为 0， size 为 64K。
 
 2. 读取分区的 vbmeta 数据
 
@@ -1619,47 +1674,286 @@ out:
 
 9. 提取 vbmeta 中的 rollback index 以及 vbmeta 校验的算法并返回。
 
+以上就是 vbmeta 数据的校验过程了。
+
+
+
+> 关于 Auxiliary Data Block (辅助数据块)中关于各种描述符和公钥数据的解析细节，请参考文章：[《Android AVB 分析（九）Auxiliary Data 包含了哪些描述符和公钥？》](https://blog.csdn.net/guyongqiangx/article/details/144753748)
+
+## 5. 其它函数
+
+ 上一节分析了`load_and_verify_vbmeta()`函数，代码特别长，在 `load_and_verify_vbmeta()` 中也调用了一些其他函数，这里只是大致总结这些函数的功能，而不再对代码逐行分析。
+
+这些函数包括两类:
+
+- AVB 的 AvbOps 中的基础操作
+
+  - `read_from_partition()`
+
+  - `validate_public_key_for_partition()`
+
+  - `validate_vbmeta_public_key()`
+
+  - `read_rollback_index()`
+
+- avb_slot_verify 中的辅助函数
+  - `avb_vbmeta_image_verify()`
+  - `load_requested_partitions()`
+  - `load_and_verify_hash_partition()`
+  - `read_persistent_digest()`
+
+
+
+### read_from_partition()
+
+从指定的分区指定位置开始，读取指定大小的数据。
+
+例如，从 boot 分区读取倒数 64 字节的 AVB Footer，或根据 AVB Footer 解析的信息读取 vbmeta 数据。
+
+
+
+### validate_public_key_for_partition()
+
+当设备上打开选项 AVB_SLOT_VERIFY_FLAGS_NO_VBMETA_PARTITION 进行验证时，意味着没有 vbmeta 分区，此时对 boot 这样的分区进行检查，此时可能每个分区签名用的 key 都不一样，所以使用 `validate_public_key_for_partition()` 函数来验证各个分区自己的 key。
+
+在 u-boot 集成的 libavb 函数中没有提供实现，因为 u-boot 下默认是验证 vbmeta 分区。
+
+
+
+### validate_vbmeta_public_key()
+
+检查默认验证 vbmeta 使用的 key。
+
+最常用的是将 u-boot 中硬编码的公钥 key 数据和从 vbmeta 中提取的公钥进行比较，确保用于 vbmeta 验证的公钥是合法的。
+
+
+
+### read_rollback_index()
+
+u-boot 调用 optee 的 TA 操作读取存储在设备安全区域中的 rollback index 数值。
+
+实际上，rollback index 以及设备的 lock 状态数据都存放在 eMMC 设备的 rpmb 分区。
+
+
+
+### avb_vbmeta_image_verify()
+
+从 vbmeta 的辅助数据块中提取用于验证的公钥数据和验证算法(例如：SHA256_RSA4096)。
+
+对 VBMeta 的 Header 和 Auxiliary Data Block(辅助数据块)按照指定的验证算法计算哈希，并将结果与 Authentication Data Block(验证数据块)的哈希值进行比较。
+
+使用计算得到的哈希和公钥验证 VBMeta Header 和 Auxiliary Data Block 两块数据的签名。
+
+
+
+特别注意的是，这里签名验证通过只能表示 VBMeta Header 和 Auxiliary Data Block 两块数据确实是使用当前的公钥签名的。
+
+但问题在于，并不能保证用于签名的公钥自己是合法的。所以，随后还需要检查公钥的合法性。
+
+
+
+### load_requested_partitions()
+
+将指定的 `requested_partitions[]` 列表中的分区数据读取到 `slot_data->loaded_partitions[]` 中，返回给外层调用函数使用。
+
+
+
+### load_and_verify_hash_partition()
+
+解析作为参数传入的 AvbHashDescriptor，读取对应分区的内容数据，基于 AvbHashDescriptor 中的随机盐 salt 值和 hash 算法，计算整个分区数据的哈希值，并和 AvbHashDescriptor  中的哈希值进行比较。
+
+同时，将验证分区的数据保存到 `slot_data->loaded_partitions[]` 中，返回给外层调用函数使用。
+
+
+
+## 6. 总结
+
+在 u-boot 中，关于 AVB 的集成，参考 u-boot 关于 AVB 2.0 的文档:
+
+- https://docs.u-boot.org/en/latest/android/avb2.html
+
+在 u-boot 最新的 v2005.01 的代码中，集成的仍然是较老的 libavb v1.1 版本代码。尽管版本不是最新的，但总体上基本功能仍然一致。
+
+
+
+对于没有 A/B  槽位(slot)的系统，验证 Verify Boot，执行如下命令:
+
+```bash
+=> avb init 1
+=> avb verify
+```
+
+对于有 Android A/B 系统存在两个槽位(a/b)的情况，执行如下命令验证指定的槽位：
+
+```bash
+=> avb init 1
+=> avb verify _a
+```
+
+
+
+如果如果在 u-boot 中执行命令 `"avb verify _a"`，则会以下面的参数调用 `avb_slot_verify()` 函数：
+
+```c
+slot_result =
+    avb_slot_verify(avb_ops,
+            requested_partitions, /* {"boot", NULL} */
+            slot_suffix,          /* "_a" */
+            unlocked,             /* locked: false; unlocked: true */
+            AVB_HASHTREE_ERROR_MODE_RESTART_AND_INVALIDATE,
+            &out_data);
+```
+
+总体上，函数的 `avb_verify_slot()` 做了以下操作：
+
+1. 初始化和参数检查，给必要的数据结构分配内存
+2. 加载并验证 vbmeta 分区数据
+   - 根据标志决定是否使用 vbmeta 分区。
+   - 如果没有 vbmeta 分区，根据请求的分区表，遍历分区进行加载和验证。
+   - 如果有 vbmeta 分区，加载和验证 "vbmeta" 分区。
+3. 管理 dm-verity 的错误处理模式
+4. 构建和处理 androidboot 命令行参数, 替换命令行中的变量。
+5. 返回验证结果
+
+对于 AVB 验证产生的命令行参数，下面是我从手上某个平台运行时拿到的结果:
+
+```bash
+androidboot.verifiedbootstate=orange
+androidboot.vbmeta.device=PARTUUID=ea9a93fe-0a41-6d74-d352-af528d30d057
+androidboot.vbmeta.avb_version=1.2
+androidboot.vbmeta.device_state=unlocked
+androidboot.vbmeta.hash_alg=sha256
+androidboot.vbmeta.size=11840
+androidboot.vbmeta.digest=f11da2b715.....5b360980dd63
+androidboot.vbmeta.invalidate_on_error=yes
+androidboot.veritymode=enforcing
+```
+
+在 `avb_verify_slot()` 函数中，具体进行分区数据验证的是 `load_and_verify_vbmeta()`函数。
+
+因此，函数 `load_and_verify_vbmeta()` 才是真正的干活验证 vbmeta 数据的那个人。
+
+
+
+阅读函数 `load_and_verify_vbmeta()` 时建议配合 VBMeta 的布局图会更容易理解：
+
+![vbmeta-layout](./images-20250105-Android AVB 分析（十一）bootloader 是如何进行 verify boot 检查的？/vbmeta-layout.png)
+
+
+
+`load_and_verify_vbmeta()` 函数加载某个分区的 vbmeta，检查验证 vbmeta 数据的签名，以及 vbmeta 所携带的 rollback index 以及各种描述符，主要的操作如下：
+
+1. 解析分区镜像的 AVB Footer
+
+   通过解析分区最后 64 字节的 AVB Footer，获取 vbmeta 数据的 offset 和 size 信息。如果是 vbmeta 分区，没有 AVB Footer 数据，则 offset 为 0， size 为 64K。
+
+2. 读取分区的 vbmeta 数据
+
+   如果是读取 vbmeta 分区的数据，但分区不存在，此时尝试读取 boot 分区的 vbmeta 数据
+
+3. 验证 vbmeta 数据的签名
+
+   提取 vbmeta 数据中的公钥，使用这个公钥验证 vbmeta 数据的签名，并返回从 vbmeta 中提取的公钥数据
+
+4. 检查 vbmeta 数据的公钥
+
+   如果调用 load_and_verify_vbmeta() 时传递了明文的公钥，则将传递下来的公钥和 vbmeta 数据中提取的公钥进行比较，以确认 vbmeta 中用于签名的公钥是合法的。
+
+   如果调用 load_and_verify_vbmeta() 时没有传递明文的公钥，则提取 vbmeta 中的公钥元数据(pk_metadata)
+   ，并将公钥数据(pk_data) 和公钥元数据(pk_metadata) 一起提交给 validate_public_key_for_partition() 函数或 validate_vbmeta_public_key() 进行检查。
+
+   在 u-boot 中，实现了 validate_vbmeta_public_key()，实际上就是将 vbmeta 中提取的公钥同 u-boot 代码中硬编码的不可更改的公钥进行对比，以确保 vbmeta 中签名使用的公钥是合法的。
+
+5. 检查 vbmeta 的 rollback index 值
+
+   读取存储在设备的安全存储区的 rollback index 值，并和 vbmeta 中的 rollback index 进行比较，必须确保 vbmeta 中的数据始终不会低于设备安全存储上的值，确保设备不会发生回滚。
+
+   因为黑客完全有可能刷机将系统镜像替换成旧版本的系统。
+
+   旧版本的系统也是用合法的秘钥签名的，所以验证签名没有问题，但是 rollback 的检查会杜绝这种情况的发生。
+
+6. 检查 verification disabled 标志
+
+   检查 vbmeta 头部数据中的 AVB_VBMETA_IMAGE_FLAGS_VERIFICATION_DISABLED 标识。如果设置了 verification disabled 标志, 则不会再进一步解析各种描述符，直接退出函数并返回。
+
+7. 遍历处理 vbmeta 中的各种 descriptor 描述符
+
+   遍历 vbmeta 中的所有 descriptor 描述符，并逐个进行处理
+
+   - AvbHashDescriptor，调用 load_and_verify_hash_partition() 读取分区数据，使用描述符中的随机盐 salt 和 hash 算法去计算分区数据的 hash，将计算的 hash 和描述符中的 hash 进行比较。
+
+   - AvbChainPartitionDescriptor，提取描述符中的分区名称和公钥数据，使用提取的公钥数据，验证对应分区的 vbmeta 数据。
+     例如，链式分区描述符指定了 dtbo 分区以及验证公钥，则提取公钥，并使用这个公钥去验证 dtbo 分区的 vbmeta 数据。
+
+     链式分区描述符只能存在于 vbmeta 分区中。
+
+   - AvbKernelCmdlineDescriptor，提取描述符中的命令行参数，并根据 vbmeta 和描述符中的 flags，决定是否和已有的命令行参数拼接在一起。
+
+   - AvbHashtreeDescriptor，如果描述符中的 root digest 没有设置，则从设备的安全存储中读取相应的 root digest 值，并通过 kernel 命令行传递给 Android 系统。
+
+   - AvbPropertyDescriptor，无操作。
+
+8. 提取 vbmeta 中的 rollback index 以及 vbmeta 校验的算法并返回。
+
 
 
 以上就是 vbmeta 数据的校验过程了。
 
 
 
->  有几点需要特别说明：
->
-> 1. vbmeta 分区和 vbmeta 数据
->
->    在 vbmeta 校验中，经常会提到 vbmeta 分区和 vbmeta 数据。
->
->    在 AVB 中，每一个经过 avbtool 处理过的分区镜像都在尾部包含了 vbmeta 数据，用于 Android 的启动时验证(Verify Boot)。
->
->    然后，avbtool 会进一步将多个分区的 vbmeta 数据提取出来，汇总到一起生成一个新的 vbmeta 数据，并将这个 vbmeta 数据保存到一个单独的名为 "vbmeta" 的分区中。
->
->    
->
-> 2. 为什么要使用 validate_vbmeta_public_key() 验证公钥？
->    这一步是必须的，如果黑客修改了整个 vbmeta 的内容，用他自己的私钥签名，并将公钥存放在 vbmeta 数据中，此时从 vbmeta 中提取公钥验证签名是没问题的，因为 vbmeta 就是用这个公钥对应的私钥来签名的。但问题是，在这种情况下，用来验证签名的公钥本身就是非法的了。
->
->    所以，必须使用一个 vbmeta 数据之外的可以信任的公钥要检查 vbmeta 中的公钥数据。
->
->    最简单的方式就是将公钥数据硬编码内嵌在 bootloader 中，只要 bootloader 是经过安全检查授权的，那 bootloader 内部的公钥就是值得信任的。
->
->    
->
-> 3. 为什么要用 rollback 去避免回滚发生？
->    使用 rollback 的目的就是避免版本回滚。
->    在 Android 早期发生过这样的事情。某个版本的 Android 存在漏洞，黑客可以通过这个漏洞提取用户隐私数据，如密码。然后 Android 在新版本上把这个漏洞修复了。如果黑客使将 Android 系统重新降级回到旧版本，则可以再次利用系统漏洞提取用户隐私数据。
->
->    rollback 就是一个计数器，每一个版本都有一个 rollback 计数值，如果旧版本的 rollback 为 5， 则新版本的 rollback 应该比 5 大，例如可以是 6,7,8 等等任意的值。
->
->    这样在升级时，系统检查 rollback index，如果比 5 小，说明是将系统升级(回滚)到旧版本，此时会拒绝升级。
->    如果在系统启动时，系统检查 rollback index，如果比 5 小，说明是将系统升级(回滚)到旧版本，此时会拒绝启动。
+> 关于 Auxiliary Data Block (辅助数据块)中关于各种描述符和公钥数据的解析细节，请参考文章：[《Android AVB 分析（九）Auxiliary Data 包含了哪些描述符和公钥？》](https://blog.csdn.net/guyongqiangx/article/details/144753748)
+
+## 7. 特别说明
+
+### 7.1 vbmeta 分区和 vbmeta 数据
+
+在 vbmeta 校验中，经常会提到 vbmeta 分区和 vbmeta 数据。
+
+在 AVB 中，每一个经过 avbtool 处理过的分区镜像都在尾部包含了 vbmeta 数据，用于 Android 的启动时验证(Verify Boot)。
+
+然后，avbtool 会进一步将多个分区的 vbmeta 数据提取出来，汇总到一起生成一个新的 vbmeta 数据，并将这个 vbmeta 数据保存到一个单独的名为 "vbmeta" 的分区中。
 
 
 
-好了，到现在为止，`avb_slot_verify()` 的流程就分析完了。
+### 7.2 为什么要使用 validate_vbmeta_public_key() 验证公钥？
 
-实际上，在 `load_and_verify_vbmeta()` 中还调用了很多其它 libavb 中的函数，但这些函数的功能都比较简单，这里不再展开进行详细分析。
+这一步是必须的，如果黑客修改了整个 vbmeta 的内容，用他自己的私钥签名，并将公钥存放在 vbmeta 数据中，此时从 vbmeta 中提取公钥验证签名是没问题的，因为 vbmeta 就是用这个公钥对应的私钥来签名的。但问题是，在这种情况下，用来验证签名的公钥本身就是非法的了。
+
+所以，必须使用一个 vbmeta 数据之外的可以信任的公钥要检查 vbmeta 中的公钥数据。
+
+最简单的方式就是将公钥数据硬编码内嵌在 bootloader 中，只要 bootloader 是经过安全检查授权的，那 bootloader 内部的公钥就是值得信任的。
+
+
+
+### 7.3 为什么要用 rollback index 去防止回滚？
+
+使用 rollback 的目的就是避免版本回滚。
+
+在 Android 早期发生过这样的事情。某个版本的 Android 存在漏洞，黑客可以通过这个漏洞提取用户隐私数据，如密码。然后 Android 在新版本上把这个漏洞修复了。如果黑客使将 Android 系统重新降级回到旧版本，则可以再次利用系统漏洞提取用户隐私数据。
+
+rollback 就是一个计数器，每一个版本都有一个 rollback 计数值，如果旧版本的 rollback 为 5， 则新版本的 rollback 应该比 5 大，例如可以是 6,7,8 等等任意的值。
+
+这样在升级时，系统检查 rollback index，如果比 5 小，说明是将系统升级(回滚)到旧版本，此时会拒绝升级。
+
+如果在系统启动时，系统检查 rollback index，如果比 5 小，说明是将系统升级(回滚)到旧版本，此时会拒绝启动。
+
+
+
+## 8. 其它
+
+我创建了一个 Android AVB 讨论群，主要讨论 Android 设备的 AVB 验证问题。
+
+我还有几个 Android OTA 升级讨论群，主要讨论 Android 设备的 OTA 升级话题。
+
+欢迎您加群和我们一起交流，请在加我微信时注明“Android AVB 交流”或“Android OTA 交流”。
+
+仅限 Android 相关的开发者参与~
+
+> 公众号“洛奇看世界”后台回复“wx”获取个人微信。
+
+
+
+
 
 
 
