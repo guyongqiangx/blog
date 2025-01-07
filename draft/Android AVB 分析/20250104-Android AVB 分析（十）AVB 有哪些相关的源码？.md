@@ -598,7 +598,7 @@ AVB 代码的核心是 libavb 库，整个 libavb 库为了 `avb_slot_verify()` 
 
 我创建了一个 Android AVB 讨论群，主要讨论 Android 设备的 AVB 验证问题。
 
-我还几个 Android OTA 升级讨论群，主要讨论 Android 设备的 OTA 升级话题。
+我还有几个 Android OTA 升级讨论群，主要讨论 Android 设备的 OTA 升级话题。
 
 欢迎您加群和我们一起交流，请在加我微信时注明“Android AVB 交流”或“Android OTA 交流”。
 
