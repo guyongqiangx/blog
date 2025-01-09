@@ -2,7 +2,7 @@
 
 ## 1. 前言
 
-在上一篇[《AVB 数据实战之 boot.img》]()中分析了使用 `add_hash_footer` 操作的 boot.img 镜像的格式。
+在上一篇[《Android AVB 分析（三）boot.img 到底包含了哪些数据？》](https://blog.csdn.net/guyongqiangx/article/details/144479713)中分析了使用 `add_hash_footer` 操作的 boot.img 镜像的格式。
 
 本篇进一步分析 `add_hashtree_footer` 操作的 system.img 镜像的格式。
 
@@ -22,7 +22,7 @@
 
 ## 2. 环境
 
-具体的环境搭建，请参考[《AVB 数据实战之 boot.img》]()第二节中关于环境搭建的内容。
+具体的环境搭建，请参考[《Android AVB 分析（三）boot.img 到底包含了哪些数据？》](https://blog.csdn.net/guyongqiangx/article/details/144479713)第二节中关于环境搭建的内容。
 
 这里就基于其生成的 system.img 进行分析分析。
 
