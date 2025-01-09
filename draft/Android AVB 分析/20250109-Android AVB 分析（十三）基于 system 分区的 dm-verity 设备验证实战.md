@@ -187,7 +187,7 @@ Root hash:              e2b0749496127b3b0dd589ea54bf6ccb113fa05d587b1e361a55d3bc
 Command successful.
 ```
 
-
+![1736442641228](./images-20250109-Android AVB 分析（十三）基于 system 分区的 dm-verity 设备验证实战/1736442641228.png)
 
 上面 log 信息的内容很丰富，值得详细查看。
 
