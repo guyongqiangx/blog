@@ -121,7 +121,7 @@ veritysetup -v --debug format data_partition.img hash_partition.img
 
 在 Android 的 system 分区处理中，对于 hashtree 的生成还带有随机盐 salt 参数，而且对于 FEC，使用 `--roots 2`指定编码方式，以及 FEC 数据不带有 footer 信息。
 
-所以，我们这里可以使用下面这个命令同时生成 system-bare.img 镜像的 hashtree 和 FEC 数据：
+所以，我们这里可以使用下面这个命令，携带 salt 参数并同时生成 system-bare.img 镜像的 hashtree 和 FEC 数据：
 
 ```bash
 veritysetup -v --debug \
@@ -195,6 +195,62 @@ Command successful.
 
 
 
+特别说明：
+
+对于使用 `--no-superblock` 选项与不使用该选项的差别在于，默认不使用该选项生成的 hash 数据会在前面生成一个 verity superblock 结构(512 bytes)，然后为这个结构分配一个 4096 字节的 block 存储。
+
+下面是一个具体的例子，我们可以看到 `system-bare-hash-with-superblock.bin` 文件比 `system-bare-hash.bin` 大 4096 bytes, 并且在前 4096 bytes 中存放两个一个 verity superblock 结构：
+
+```bash
+$ ls -lh
+-rw------- 1 rocky users 6.7M Jan 10 00:43 system-bare-fec.bin
+-rw------- 1 rocky users 6.6M Jan 16 10:38 system-bare-hash-with-superblock.bin
+-rw------- 1 rocky users 6.6M Jan 10 15:56 system-bare-hash.bin
+-rw-r--r-- 1 rocky users 833M Jan 10 00:42 system-bare.img
+-rw-r--r-- 1 rocky users 846M Jan 10 00:03 system.img
+$ hexdump -C -n 4096 system-bare-hash-with-superblock.bin
+00000000  76 65 72 69 74 79 00 00  01 00 00 00 01 00 00 00  |verity..........|
+00000010  50 f0 76 56 f2 77 40 a9  b2 db 45 f2 4f ae 73 af  |P.vV.w@...E.O.s.|
+00000020  73 68 61 32 35 36 00 00  00 00 00 00 00 00 00 00  |sha256..........|
+00000030  00 00 00 00 00 00 00 00  00 00 00 00 00 00 00 00  |................|
+00000040  00 10 00 00 00 10 00 00  4e 40 03 00 00 00 00 00  |........N@......|
+00000050  20 00 00 00 00 00 00 00  69 02 f6 b4 36 dd 8f 08  | .......i...6...|
+00000060  a2 ec d5 12 d4 57 6a 03  32 5e 14 db 8e 6b 1b b7  |.....Wj.2^...k..|
+00000070  2b 68 d2 2f 20 a6 a6 d3  00 00 00 00 00 00 00 00  |+h./ ...........|
+00000080  00 00 00 00 00 00 00 00  00 00 00 00 00 00 00 00  |................|
+*
+00001000
+```
+
+
+
+具体的 verity superblock 结构请参考：
+
+- https://gitlab.com/cryptsetup/cryptsetup/-/wikis/DMVerity
+
+我这里直接将这个数据结构粘贴如下：
+
+```c
+  struct verity_sb {
+  uint8_t  signature[8];    /* "verity\0\0" */
+  uint32_t version;         /* superblock version, 1 */
+  uint32_t hash_type;       /* 0 - Chrome OS, 1 - normal */
+  uint8_t  uuid[16];        /* UUID of hash device */
+  uint8_t  algorithm[32];   /* hash algorithm name */
+  uint32_t data_block_size; /* data block in bytes */
+  uint32_t hash_block_size; /* hash block in bytes */
+  uint64_t data_blocks;     /* number of data blocks */
+  uint16_t salt_size;       /* salt size */
+  uint8_t  _pad1[6];
+  uint8_t  salt[256];       /* salt */
+  uint8_t  _pad2[168];
+} __attribute__((packed));
+```
+
+Android 上 avbtool 处理 system.img 等分区生成 hashtree 数据时不带 verity superblock 数据，因此我们这里手动验证时需要添加 `-no-superblock` 选项。
+
+
+
 ### 检查 hashtree 数据
 
 为了确保一样，我们再单独计算下 system.img 中 hashtree 数据的 md5 值。
@@ -263,7 +319,7 @@ $ md5sum system-bare-fec.bin
 
 
 
-重点的重点来了，我们基于:
+重点的重点来了，我们将要基于:
 
 - 原始分区镜像 `system-bare.img` ，
 - 哈希树数据镜像 `system-bare-hash.bin`， 
@@ -273,7 +329,7 @@ $ md5sum system-bare-fec.bin
 
 
 
-为了验证 hash 检查，以及 FEC 恢复的能力，我们将做 3 个映射实验。
+为了验证 hash 检查，以及 FEC 纠错的能力，我们将做 3 个映射实验。
 
 1. 正常的不带 FEC 的 dm-verity 映射;
 2. 破坏 3 bits 后不带 FEC 的 dm-verity 映射；
@@ -570,6 +626,46 @@ $ dd if=system-bare.img bs=1 skip=$((0x2d000)) count=463 | md5sum
 $ sudo umount system
 $ sudo veritysetup close system-verity
 ```
+
+
+
+### 检查环境是否支持 FEC 功能
+
+#### 1. 检查 dm-verity 驱动是否支持 FEC
+
+根据官方文档：
+
+- https://gitlab.com/cryptsetup/cryptsetup/-/wikis/DMVerity
+
+在 dm-verity 的 v1.3 以后才支持 FEC 特性，可以通过 `dmsetup targets` 查看 dm 各个组件的当前版本：
+
+```bash
+$ sudo dmsetup targets
+verity           v1.5.0
+multipath        v1.13.0
+striped          v1.6.0
+linear           v1.4.0
+error            v1.5.0
+```
+
+
+
+#### 2. 检查系统是否支持 FEC
+
+如果 dm-verity 驱动支持 FEC，下一步要检查的就是系统是否打开了 FEC 功能。
+
+> 当我在服务器(Ubuntu 20.04.4)上验证 FEC 功能时，无论如何都失败，调整计算各种参数，翻阅各种文档，甚至还去查看了 dm driver 代码，前后搞了好几天仍然不能成功。简直让人奔溃~
+>
+> 后来，将所有问题和操作提交给 chatGPT 检查，才发现是我用于实验的系统不支持 FEC:
+>
+> ```bash
+> $ grep -E "CONFIG_DM_VERITY|CONFIG_DM_VERITY_FEC" /boot/config-$(uname -r)
+> CONFIG_DM_VERITY=m
+> CONFIG_DM_VERITY_VERIFY_ROOTHASH_SIG=y
+> # CONFIG_DM_VERITY_FEC is not set
+> ```
+>
+> 所以，建议你在实验前，也记得检查下系统是否支持 FEC 特性。
 
 
 
