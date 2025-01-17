@@ -1,5 +1,7 @@
 # 20250110-Android AVB 分析（十三）基于 system 分区的 dm-verity 设备验证实战
 
+## 1. 准备工作
+
 在上一篇[《Android AVB 分析（十二）嵌入式设备安全中的 dm-verity 简介》](https://blog.csdn.net/guyongqiangx/article/details/145042060)介绍 dm-verity 原理的时候，作者提供了一个 dm-verity 演示的例子。
 
 
@@ -50,7 +52,7 @@ Descriptors:
 
 分区的主要信息如下：
 
-![image-20250109235939997](./images-20250110-Android AVB 分析（十三）基于 system 分区的 dm-verity 设备验证实战/image-20250109235939997.png)
+![image-20250109235939997](images-20250110-Android AVB 分析（十三）基于 system 分区的 dm-verity 设备验证实战/01-system-image-info.png)
 
 > 在编译 Google Pixel 7 (“panther”)  时，system 分区镜像使用 Chain Partition 签名的方式，具体的签名信息位于 `vbmeta_system.img` 镜像中。
 >
@@ -69,7 +71,7 @@ drwxr-sr-x 32 rocky users      4096 Jan  9 23:27 ..
 $ cp system.img system-bare.img
 $ avbtool erase_footer --image system-bare.img
 $ avbtool info_image --image system-bare.img
-/local/public/users/rocky/android-13.0.0_r41/out/host/linux-x86/bin/avbtool: Given image does not look like a vbmeta image.
+/public/rocky/android-13.0.0_r41/out/host/linux-x86/bin/avbtool: Given image does not look like a vbmeta image.
 $ ls -al
 total 1718340
 drwxr-sr-x  2 rocky users      4096 Jan  9 23:52 .
@@ -107,7 +109,7 @@ $
 
 
 
-## 生成 system 镜像的 hashtree 和 FEC 数据
+## 2. 生成并验证 hashtree 和 FEC 数据
 
 在上一篇的示例中，我们看到作者用 veritysetup 工具的 format 命令生成了分区的 hashtree 数据：
 
@@ -187,17 +189,19 @@ Root hash:              e2b0749496127b3b0dd589ea54bf6ccb113fa05d587b1e361a55d3bc
 Command successful.
 ```
 
-![1736442641228](./images-20250110-Android AVB 分析（十三）基于 system 分区的 dm-verity 设备验证实战/1736442641228.png)
+![1736442641228](images-20250110-Android AVB 分析（十三）基于 system 分区的 dm-verity 设备验证实战/02-veritysetup-gen-hash-fec.png)
 
-上面 log 信息的内容很丰富，值得详细查看。
-
-重点中的重点，生成的 Root hash 和我们使用 `avbtool info_image` 看到的输出是一样的。
+由于命令行带有 `--debug` 参数，因此上面 log 信息的内容很丰富，值得详细查看。后面为了不占用过多篇幅，不再携带 `--debug` 参数，但在学习过程中，强烈建议带上 `--debug` 参数，从输出的 log 中学习更多细节。
 
 
 
-特别说明：
+这里啰嗦了半天，重点强调的是，手动通过 `veritysetup` 命令生成的 Root hash 和我们使用 `avbtool info_image` 看到的输出是一样的。
 
-对于使用 `--no-superblock` 选项与不使用该选项的差别在于，默认不使用该选项生成的 hash 数据会在前面生成一个 verity superblock 结构(512 bytes)，然后为这个结构分配一个 4096 字节的 block 存储。
+
+
+### 2.1 verity superblock 数据
+
+对于使用 `--no-superblock` 选项与不使用该选项的差别在于，默认不使用该选项生成的 hashtree 数据会在前面生成一个 verity superblock 结构(512 bytes)，然后为这个结构分配一个 4096 字节的 block 存储。
 
 下面是一个具体的例子，我们可以看到 `system-bare-hash-with-superblock.bin` 文件比 `system-bare-hash.bin` 大 4096 bytes, 并且在前 4096 bytes 中存放两个一个 verity superblock 结构：
 
@@ -251,9 +255,9 @@ Android 上 avbtool 处理 system.img 等分区生成 hashtree 数据时不带 v
 
 
 
-### 检查 hashtree 数据
+### 2.2 检查 hashtree 数据
 
-为了确保一样，我们再单独计算下 system.img 中 hashtree 数据的 md5 值。
+为了确保手动生成的 `system-bare-hash.bin` 和 system.img 镜像中的 hashtree 数据一样，我们再单独计算下 system.img 中 hashtree 数据的 md5 值。
 
 在 `avbtool info_image` 的输出中看到：
 
@@ -285,9 +289,9 @@ $ md5sum system-bare-hash.bin
 
 
 
-### 检查 FEC 数据
+### 2.3 检查 FEC 数据
 
-为了确保一样，我们再单独计算下 system.img 中 FEC 数据的 md5 值。
+为了确保手动生成的 `system-bare-fec.bin` 和 system.img 镜像中的 FEC 数据一样，我们再单独计算下 system.img 中 FEC 数据的 md5 值。
 
 在 `avbtool info_image` 的输出中看到：
 
@@ -319,7 +323,9 @@ $ md5sum system-bare-fec.bin
 
 
 
-重点的重点来了，我们将要基于:
+通过前面的几个步骤，我们已经成功生成了 system-bare.img 镜像的 hashtree 和 FEC 数据，并验证了和 system.img 中额内容一样。
+
+重点来了，我们将要基于以下数据:
 
 - 原始分区镜像 `system-bare.img` ，
 - 哈希树数据镜像 `system-bare-hash.bin`， 
@@ -337,65 +343,48 @@ $ md5sum system-bare-fec.bin
 
 
 
-### 正常的不带 FEC 的 dm-verity 映射
+## 3. 基本的 dm-verity 映射
+
+我们的第一个实验是基于原始数据 `system-bare.img` 和 hashtree 数据 `system-bare-hash.bin`，进行一个基本的 dm-verity 映射生成目标设备 `system-verity`:
+
+
+
+使用 `system-bare.img` 和 `system-bare-hash.bin` 创建名为 `system-verity` 的 dm-verity 设备：
 
 ```bash
-$ sudo veritysetup -v --debug \
->     --salt=6902f6b436dd8f08a2ecd512d4576a03325e14db8e6b1bb72b68d22f20a6a6d3 \
->     --no-superblock \
->     open /dev/mapper/system system-verity /dev/mapper/system-hash e2b0749496127b3b0dd589ea54bf6ccb113fa05d587b1e361a55d3bc0ea6f068
-# cryptsetup 2.2.2 processing "veritysetup -v --debug --salt=6902f6b436dd8f08a2ecd512d4576a03325e14db8e6b1bb72b68d22f20a6a6d3 --no-superblock open /dev/mapper/system system-verity /dev/mapper/system-hash e2b0749496127b3b0dd589ea54bf6ccb113fa05d587b1e361a55d3bc0ea6f068"
-# Running command open.
-# Allocating context for crypt device /dev/mapper/system-hash.
-# Trying to open and read device /dev/mapper/system-hash with direct-io.
-# Initialising device-mapper backend library.
-# Setting ciphertext data device to /dev/mapper/system.
-# Trying to open and read device /dev/mapper/system with direct-io.
-# Formatting device /dev/mapper/system-hash as type VERITY.
-# Crypto backend (OpenSSL 1.1.1f  31 Mar 2020) initialized in cryptsetup library version 2.2.2.
-# Detected kernel Linux 5.4.0-54-generic x86_64.
-# Setting ciphertext data device to /dev/mapper/system.
-# Trying to open and read device /dev/mapper/system with direct-io.
-# Activating volume system-verity by volume key.
-# dm version   [ opencount flush ]   [16384] (*1)
-# dm versions   [ opencount flush ]   [16384] (*1)
-# Detected dm-ioctl version 4.41.0.
-# Detected dm-verity version 1.5.0.
-# Device-mapper backend running with UDEV support enabled.
-# dm status system-verity  [ opencount noflush ]   [16384] (*1)
-# Trying to activate VERITY device system-verity using hash sha256.
-# Calculated device size is 1704560 sectors (RW), offset 0.
-# DM-UUID is CRYPT-VERITY-system-verity
-# Udev cookie 0xd4d9826 (semid 589886) created
-# Udev cookie 0xd4d9826 (semid 589886) incremented to 1
-# Udev cookie 0xd4d9826 (semid 589886) incremented to 2
-# Udev cookie 0xd4d9826 (semid 589886) assigned to CREATE task(0) with flags DISABLE_LIBRARY_FALLBACK         (0x20)
-# dm create system-verity CRYPT-VERITY-system-verity [ opencount flush ]   [16384] (*1)
-# dm reload system-verity  [ opencount flush readonly securedata ]   [16384] (*1)
-# dm resume system-verity  [ opencount flush readonly securedata ]   [16384] (*1)
-# system-verity: Stacking NODE_ADD (253,8) 0:6 0660 [trust_udev]
-# system-verity: Stacking NODE_READ_AHEAD 256 (flags=1)
-# Udev cookie 0xd4d9826 (semid 589886) decremented to 1
-# Udev cookie 0xd4d9826 (semid 589886) waiting for zero
-# Udev cookie 0xd4d9826 (semid 589886) destroyed
-# system-verity: Skipping NODE_ADD (253,8) 0:6 0660 [trust_udev]
-# system-verity: Processing NODE_READ_AHEAD 256 (flags=1)
-# system-verity (253:8): read ahead is 256
-# system-verity: retaining kernel read ahead of 256 (requested 256)
-# dm status system-verity  [ opencount noflush ]   [16384] (*1)
-# Verity volume system-verity status is V.
-# Releasing crypt device /dev/mapper/system-hash context.
-# Releasing device-mapper backend.
+$ sudo veritysetup -v --no-superblock \
+    --salt=6902f6b436dd8f08a2ecd512d4576a03325e14db8e6b1bb72b68d22f20a6a6d3 \
+    open system-bare.img system-verity system-bare-hash.bin \
+    e2b0749496127b3b0dd589ea54bf6ccb113fa05d587b1e361a55d3bc0ea6f068
 Command successful.
+$ 
+$ ls -lh /dev/mapper/
+total 0
+crw------- 1 root root 10, 236 Jan 17 10:49 control
+lrwxrwxrwx 1 root root       7 Jan 17 13:10 system-verity -> ../dm-4
 ```
 
 
 
+从上面 `/dev/mapper` 目录下的内容可以看到，`system-verity` 设备已经成功创建。
+
+
+
+可以使用 `dmsetup info` 或 `veritysetup status` 查看设备的详细信息：
+
 ```bash
-$ sudo veritysetup -v \
->     --salt=6902f6b436dd8f08a2ecd512d4576a03325e14db8e6b1bb72b68d22f20a6a6d3 \
->     --no-superblock \
->     status system-verity
+$ sudo dmsetup info system-verity
+Name:              system-verity
+State:             ACTIVE (READ-ONLY)
+Read Ahead:        256
+Tables present:    LIVE
+Open count:        0
+Event number:      0
+Major, minor:      252, 4
+Number of targets: 1
+UUID: CRYPT-VERITY-system-verity
+
+$ sudo veritysetup status system-verity
 /dev/mapper/system-verity is active.
   type:        VERITY
   status:      verified
@@ -404,57 +393,54 @@ $ sudo veritysetup -v \
   hash block:  4096
   hash name:   sha256
   salt:        6902f6b436dd8f08a2ecd512d4576a03325e14db8e6b1bb72b68d22f20a6a6d3
-  data device: /dev/mapper/system
+  data device: /dev/loop1
+  data loop:   /public/rocky/android-13.0.0_r41/temp-dm-verity/system-bare.img
   size:        1704560 sectors
   mode:        readonly
-  hash device: /dev/mapper/system-hash
+  hash device: /dev/loop0
+  hash loop:   /public/rocky/android-13.0.0_r41/temp-dm-verity/system-bare-hash.bin
   hash offset: 0 sectors
-Command successful.
+  root hash:   e2b0749496127b3b0dd589ea54bf6ccb113fa05d587b1e361a55d3bc0ea6f068
 ```
 
 
 
-我们试着验证一下：
+从 `veritysetup status` 的输出可以看到，在使用数据文件映射 `system-verity` 的过程中，将：
+
+- `system-bare.img` 挂载为 loop1 设备：`/dev/loop1`
+- `system-bare-hash.bin` 挂载为 loop0 设备: `/dev/loop0`
+
+当然，我们也可以通过 `losetup -a` 的输出来印证：
 
 ```bash
-$ sudo veritysetup -v --debug \
->     --salt=6902f6b436dd8f08a2ecd512d4576a03325e14db8e6b1bb72b68d22f20a6a6d3 \
->     --no-superblock \
->     verify /dev/mapper/system /dev/mapper/system-hash e2b0749496127b3b0dd589ea54bf6ccb113fa05d587b1e361a55d3bc0ea6f068
-# cryptsetup 2.2.2 processing "veritysetup -v --debug --salt=6902f6b436dd8f08a2ecd512d4576a03325e14db8e6b1bb72b68d22f20a6a6d3 --no-superblock verify /dev/mapper/system /dev/mapper/system-hash e2b0749496127b3b0dd589ea54bf6ccb113fa05d587b1e361a55d3bc0ea6f068"
-# Running command verify.
-# Allocating context for crypt device /dev/mapper/system-hash.
-# Trying to open and read device /dev/mapper/system-hash with direct-io.
-# Initialising device-mapper backend library.
-# Setting ciphertext data device to /dev/mapper/system.
-# Trying to open and read device /dev/mapper/system with direct-io.
-# Formatting device /dev/mapper/system-hash as type VERITY.
-# Crypto backend (OpenSSL 1.1.1f  31 Mar 2020) initialized in cryptsetup library version 2.2.2.
-# Detected kernel Linux 5.4.0-54-generic x86_64.
-# Setting ciphertext data device to /dev/mapper/system.
-# Trying to open and read device /dev/mapper/system with direct-io.
-# Checking volume  by volume key.
-# Trying to activate VERITY device [none] using hash sha256.
-# Verification of data in userspace required.
-# Hash verification sha256, data device /dev/mapper/system, data blocks 213070, hash_device /dev/mapper/system-hash, offset 0.
-# Using 3 hash levels.
-# Data device size required: 872734720 bytes.
-# Hash device size required: 6881280 bytes.
-# Verification of data area succeeded.
-# Verification of root hash succeeded.
-# Releasing crypt device /dev/mapper/system-hash context.
-# Releasing device-mapper backend.
-Command successful.
+$ sudo losetup -a
+/dev/loop1: [64515]:297011278 (/public/rocky/android-13.0.0_r41/temp-dm-verity/system-bare.img)
+/dev/loop0: [64515]:297011277 (/public/rocky/android-13.0.0_r41/temp-dm-verity/system-bare-hash.bin)
 ```
 
 
 
-试着挂载一下：
+我们也可以用 `veritysetup verify` 命令来验证 `system-bare.img` 的 hash 数据：
 
 ```bash
-$ sudo mount -t ext4 -o ro /dev/mapper/system-verity system
-$ cd system
-$ ls -lh
+$ sudo veritysetup -v --no-superblock \
+    --salt=6902f6b436dd8f08a2ecd512d4576a03325e14db8e6b1bb72b68d22f20a6a6d3 \
+    verify system-bare.img system-bare-hash.bin \
+    e2b0749496127b3b0dd589ea54bf6ccb113fa05d587b1e361a55d3bc0ea6f068
+Command successful.
+```
+
+> 更多关于 verify 检查的细节，建议使用 `--debug` 选项查看输出 log。
+
+
+
+试着挂载 `system-verity` 设备到 `system-bare` 目录：
+
+```bash
+$ mkdir system-bare
+$ sudo mount -t ext4 -o ro /dev/mapper/system-verity system-bare
+$ cd system-bare
+system-bare$ ls -lh
 total 116K
 drwxr-xr-x.  2 root      root   4.0K Jan  1  2009 acct
 drwxr-xr-x.  2 root      root   4.0K Jan  1  2009 apex
@@ -491,14 +477,16 @@ drwxr-xr-x.  2 root        2000 4.0K Jan  1  2009 vendor
 drwxr-xr-x.  2 root      root   4.0K Jan  1  2009 vendor_dlkm
 ```
 
-在这里我们成功地以 dm-verity 的方式挂载了 system-bare.img，并成功进入了 /system 目录，能够看到该目录下的所有文件。
+在这里我们成功地将 `system-bare.img` 以 dm-verity 的方式映射成名称为 `system-verity` 的 dm-verity 设备，并挂载到 `system-bare` 目录下。
+
+ 
 
 为了下一步的实验，我们查看一下 `init.environ.rc` 文件的相关信息：
 
 ```bash
-$ ls -al init.environ.rc 
+system-bare$ ls -al init.environ.rc 
 -rwxr-x---. 1 root 2000 463 Jan  1  2009 init.environ.rc
-rocky@guyongqiangx:/public/rocky/android-13.0.0_r41/temp-dm-verity/system$ sudo cat init.environ.rc 
+system-bare$ sudo cat init.environ.rc 
 # set up the global environment
 on early-init
     export ANDROID_BOOTLOGO 1
@@ -515,7 +503,7 @@ on early-init
     
     
     
-$ sudo hexdump -Cv init.environ.rc 
+system-bare$ sudo hexdump -Cv init.environ.rc 
 00000000  23 20 73 65 74 20 75 70  20 74 68 65 20 67 6c 6f  |# set up the glo|
 00000010  62 61 6c 20 65 6e 76 69  72 6f 6e 6d 65 6e 74 0a  |bal environment.|
 00000020  6f 6e 20 65 61 72 6c 79  2d 69 6e 69 74 0a 20 20  |on early-init.  |
@@ -546,9 +534,9 @@ $ sudo hexdump -Cv init.environ.rc
 000001b0  20 2f 6d 6e 74 2f 61 73  65 63 0a 20 20 20 20 0a  | /mnt/asec.    .|
 000001c0  20 20 20 20 0a 20 20 20  20 0a 20 20 20 20 0a     |    .    .    .|
 000001cf
-$ sudo md5sum init.environ.rc 
+system-bare$ sudo md5sum init.environ.rc 
 7ba9edb94ea97da98433bd12254800d6  init.environ.rc
-$ sudo /public/ygu/temp/fiemap_query init.environ.rc 
+system-bare$ sudo ../fiemap_query init.environ.rc 
 File: init.environ.rc
 Total extents: 1
 
@@ -569,11 +557,15 @@ $
 
 
 
+> 关于 `fiemap_query` 是一个强哥自己写的用于查询文件在磁盘上布局 FIEMPA 信息的小工具。
+>
+> 后续文章打算详细介绍 fiemap，并开源 `fiemap_query` 工具
+
 通过 `fiemap_query` 看到，`init.environ.rc` 文件占用 1 个 extent，这个 extent 的起始地址位于 0x2d000，大小为 0x1000 (4K)。
 
-有了这个 extent 的起始位置信息(0x2d000)，以及文件的长度(463)，我们就知道 `init.environ.rc` 位于镜像 system.img 的 0x2d000~0x2d000+463 的位置了。
+有了这个 extent 的起始位置信息(0x2d000)，以及文件的长度(463)，我们就知道 `init.environ.rc` 位于镜像 `system-bare.img` 的 0x2d000~0x2d000+463 的位置了。
 
-下面我们通过计算 system-bare.img 中，区域 0x2d000~0x2d000+463 的 md5 值来进行确认：
+下面我们通过计算 `system-bare.img` 中，区域 0x2d000~0x2d000+463 的 md5 值来进行确认：
 
 ```bash
 $ hexdump -Cv -s $((0x2d000)) -n 463 system-bare.img 
@@ -623,68 +615,38 @@ $ dd if=system-bare.img bs=1 skip=$((0x2d000)) count=463 | md5sum
 如果你希望卸载挂载，关闭 `system-verity` 设备，可以执行以下操作。
 
 ```bash
-$ sudo umount system
+$ sudo umount system-bare
 $ sudo veritysetup close system-verity
 ```
 
 
 
-### 检查环境是否支持 FEC 功能
+## 4. 破坏后的 dm-verity 映射
 
-#### 1. 检查 dm-verity 驱动是否支持 FEC
-
-根据官方文档：
-
-- https://gitlab.com/cryptsetup/cryptsetup/-/wikis/DMVerity
-
-在 dm-verity 的 v1.3 以后才支持 FEC 特性，可以通过 `dmsetup targets` 查看 dm 各个组件的当前版本：
-
-```bash
-$ sudo dmsetup targets
-verity           v1.5.0
-multipath        v1.13.0
-striped          v1.6.0
-linear           v1.4.0
-error            v1.5.0
-```
-
-
-
-#### 2. 检查系统是否支持 FEC
-
-如果 dm-verity 驱动支持 FEC，下一步要检查的就是系统是否打开了 FEC 功能。
-
-> 当我在服务器(Ubuntu 20.04.4)上验证 FEC 功能时，无论如何都失败，调整计算各种参数，翻阅各种文档，甚至还去查看了 dm driver 代码，前后搞了好几天仍然不能成功。简直让人奔溃~
->
-> 后来，将所有问题和操作提交给 chatGPT 检查，才发现是我用于实验的系统不支持 FEC:
->
-> ```bash
-> $ grep -E "CONFIG_DM_VERITY|CONFIG_DM_VERITY_FEC" /boot/config-$(uname -r)
-> CONFIG_DM_VERITY=m
-> CONFIG_DM_VERITY_VERIFY_ROOTHASH_SIG=y
-> # CONFIG_DM_VERITY_FEC is not set
-> ```
->
-> 所以，建议你在实验前，也记得检查下系统是否支持 FEC 特性。
-
-
-
-### 破坏 3 bits 后不带 FEC 的 dm-verity 映射
-
-现在，我手动修改 1 bit 的 system-bare.img 内容，修改后，system-bare.img 计算的哈希和原始内容计算的哈希就不匹配了，根据 dm-verity 的特性，当访问被修改的数据时，由于 hash 匹配不上，会报错。
+现在，我手动修改 3 bit 的 system-bare.img 内容，修改后，system-bare.img 计算的哈希和原始内容计算的哈希就不匹配了，根据 dm-verity 的特性，当访问被修改的数据时，由于 hash 匹配不上，会报错。
 
 
 
 那修改哪里的数据比较好呢？我们试着修改上一节中的文件 `init.envrion.rc`。
 
-这里我们将第一个位置的 '#'(0x23) 改为 '$'(0x24)，通过查看 0x23 和 0x24 的二进制模式，我们可以看到这里改变了3个 bit 位：
+这里我们的目的是将这个文件第一个位置的 '#'(0x23) 改为 '$'(0x24)，通过查看 0x23 和 0x24 的二进制模式，我们可以看到这里改变了3个 bit 位：
 
 ```bash
 0x23: 0010 0011
 0x24: 0010 0100
 ```
 
-修改前后的对比内容如下，这里 0x0002d000 位置的内容从 '#' 字符修改成了 '$'：
+具体的内容修改，我们通过 xxd 命令来完成:
+
+```bash
+echo -n "0002d000: 24 20" | xxd -r - system-bare-err3b.img
+```
+
+这个命令会将 system-bare-err3b.img 镜像的 0x0002d000 位置开始的两个字节数据修改为：`0x24` 和 `0x20`。
+
+
+
+整个修改和检查的过程如下，这里 0x0002d000 位置的内容从 '#' 变成了 '$'：
 
 ```bash
 $ cp system-bare.img system-bare-err3b.img
@@ -711,39 +673,22 @@ $ xxd -g 1 -c 16 -s $((0x2d000)) -l 64 system-bare-err3b.img
 
 
 
-好了，现在开始我们的验证：
+好了，现在开始我们的验证。
+
+基于错误数据镜像 `system-bare-err3b.img` 和 hashtree 文件 `system-bare-hash.bin` 创建名为 `system-err3b-verity` 的 dm-verity 映射：
 
 ```bash
-$ sudo losetup -f system-bare-err3b.img --show
-/dev/loop11
-$ echo "0 $(sudo blockdev --getsz /dev/loop11) linear /dev/loop11 0" | sudo dmsetup create system-err3b
-$ ls -lh /dev/mapper/
-total 0
-crw------- 1 root root 10, 236 Nov 27 18:28 control
-lrwxrwxrwx 1 root root       7 Jan 10 14:10 system -> ../dm-5
-lrwxrwxrwx 1 root root       7 Jan 10 14:50 system-err3b -> ../dm-9
-lrwxrwxrwx 1 root root       7 Jan 10 12:52 system-fec -> ../dm-7
-lrwxrwxrwx 1 root root       7 Jan 10 14:10 system-hash -> ../dm-6
-lrwxrwxrwx 1 root root       7 Jan 10 14:10 system-verity -> ../dm-8
-...
-```
-
-
-
-这里将修改后的设备设置为 `system-err3b-verity`。
-
-```bash
-$ sudo veritysetup -v \
->     --salt=6902f6b436dd8f08a2ecd512d4576a03325e14db8e6b1bb72b68d22f20a6a6d3 \
->     --no-superblock \
->     open /dev/mapper/system-err3b system-err3b-verity /dev/mapper/system-hash e2b0749496127b3b0dd589ea54bf6ccb113fa05d587b1e361a55d3bc0ea6f068
+$ sudo veritysetup -v --no-superblock \
+    --salt=6902f6b436dd8f08a2ecd512d4576a03325e14db8e6b1bb72b68d22f20a6a6d3 \
+    open system-bare-err3b.img system-err3b-verity system-bare-hash.bin \
+    e2b0749496127b3b0dd589ea54bf6ccb113fa05d587b1e361a55d3bc0ea6f068
 Verity device detected corruption after activation.
 Command successful.
 ```
 
 
 
-这里已经输出错误信息提示检测到错误了：
+这里的 log 信息已经提示检测到错误了： 
 
 ```bash
 Verity device detected corruption after activation.
@@ -751,19 +696,33 @@ Verity device detected corruption after activation.
 
 
 
-验证一下数据设备 `/dev/mapper/system-err3b` 的 hash 值：
+由于整个错误是在 dm-verity 驱动中处理，我们可以看下 `sudo dmesg` 的命令输出：
+
+![1737093572674](images-20250110-Android AVB 分析（十三）基于 system 分区的 dm-verity 设备验证实战/03-dm-verity-data-corrupted.png)
+
+在 dmesge 的输出中，我们看到错误信息：
+
+```bash
+device-mapper: verity: 7:3: data block 45 is corrupted
+```
+
+对于 block 45，其实际位置为：`4096 x 45 = 184320 = 0x2d000`，这是 `init.envron.rc` 文件所在的 block。
+
+
+
+我们也可以用 `veritysetup verity` 命令验证一下错误的数据文件`system-bare-err3b.img`：
 
 ```
-$ sudo veritysetup -v \
->     --salt=6902f6b436dd8f08a2ecd512d4576a03325e14db8e6b1bb72b68d22f20a6a6d3 \
->     --no-superblock \
->     verify /dev/mapper/system-err3b /dev/mapper/system-hash e2b0749496127b3b0dd589ea54bf6ccb113fa05d587b1e361a55d3bc0ea6f068
+$ sudo veritysetup -v --no-superblock \
+    --salt=6902f6b436dd8f08a2ecd512d4576a03325e14db8e6b1bb72b68d22f20a6a6d3 \
+    verify system-bare-err3b.img system-bare-hash.bin \
+    e2b0749496127b3b0dd589ea54bf6ccb113fa05d587b1e361a55d3bc0ea6f068
 Verification failed at position 184320.
 Verification of data area failed.
 Command failed with code -2 (no permission or bad passphrase).
 ```
 
-可以看到，这里已经提示在 184320 (0x2d000) 的位置验证失败了：
+可以看到，这里也提示在 184320 (0x2d000) 的位置验证失败了：
 
 ```bash
 Verification failed at position 184320.
@@ -774,12 +733,12 @@ Verification failed at position 184320.
 由于我们前面修改的内容是 `init.envrion.rc` 文件的第 1 个字节，具体数据文件的修改并不会影响到文件系统的挂载，所以我们这里试着挂载一下：
 
 ```bash
-$ mkdir system-err3b
+$ mkdir system-bare-err3b
 $ sudo mount -t ext4 -o ro /dev/mapper/system-err3b-verity system-err3b
-$ cd system-err3b
-system-err3b$ ls -al init.environ.rc 
+$ cd system-bare-err3b
+system-bare-err3b$ ls -al init.environ.rc 
 -rwxr-x---. 1 root 2000 463 Jan  1  2009 init.environ.rc
-system-err3b$ sudo /public/ygu/temp/fiemap_query init.environ.rc 
+system-err3b$ sudo ../fiemap_query init.environ.rc 
 File: init.environ.rc
 Total extents: 1
 
@@ -787,56 +746,13 @@ Extent Details:
 Logical      Physical     Length       Flags
 ----------------------------------------------
 0x0          0x2d000      0x1000       LAST 
-system-err3b$ sudo cat init.environ.rc 
+system-bare-err3b$ sudo cat init.environ.rc 
 cat: init.environ.rc: Input/output error
-system-err3b$ sudo hexdump -Cv init.environ.rc 
+system-bare-err3b$ sudo hexdump -Cv init.environ.rc 
 hexdump: init.environ.rc: Input/output error
 ```
 
-我们可以看到，我们使用 `ls` 命令查看文件的大小或使用 `fiemap_query` 查看文件布局都没有问题，因为这个访问的是文件 `init.environ.rc` 的 inode 信息。
-
-但是，当我们使用 `cat` 或 `hexdump` 尝试访问文件的内容时，提示 `Input/output error`
-
-查看 `dmesg` 信息可以看到更多输出:
-
-```bash
-system-err3b$ dmesg | tail -100
-[9255062.453222] device-mapper: verity: sha256 using implementation "sha256-generic"
-[9255126.155965] device-mapper: verity: sha256 using implementation "sha256-generic"
-[9255254.489430] EXT4-fs (dm-8): mounted filesystem without journal. Opts: (null)
-[9257694.684624] device-mapper: verity: sha256 using implementation "sha256-generic"
-[9257694.771419] verity_handle_err: 90 callbacks suppressed
-[9257694.771420] device-mapper: verity: 253:9: data block 45 is corrupted
-[9257694.772382] device-mapper: verity: 253:9: data block 45 is corrupted
-[9257694.772800] buffer_io_error: 192 callbacks suppressed
-[9257694.772801] Buffer I/O error on dev dm-10, logical block 45, async page read
-[9257694.772905] device-mapper: verity: 253:9: data block 45 is corrupted
-[9257694.772940] Buffer I/O error on dev dm-10, logical block 45, async page read
-[9257694.802617] device-mapper: verity: 253:9: data block 45 is corrupted
-[9257694.803766] device-mapper: verity: 253:9: data block 45 is corrupted
-[9257694.804327] Buffer I/O error on dev dm-10, logical block 45, async page read
-[9257694.804473] device-mapper: verity: 253:9: data block 45 is corrupted
-[9257694.804519] Buffer I/O error on dev dm-10, logical block 45, async page read
-[9257694.834544] device-mapper: verity: 253:9: data block 45 is corrupted
-[9257694.835782] device-mapper: verity: 253:9: data block 45 is corrupted
-[9257694.836339] Buffer I/O error on dev dm-10, logical block 45, async page read
-[9257694.836476] device-mapper: verity: 253:9: data block 45 is corrupted
-[9257694.836508] Buffer I/O error on dev dm-10, logical block 45, async page read
-[9257694.868029] device-mapper: verity: 253:9: data block 45 is corrupted
-[9257694.869379] Buffer I/O error on dev dm-10, logical block 45, async page read
-[9257694.869721] Buffer I/O error on dev dm-10, logical block 45, async page read
-[9257694.900878] Buffer I/O error on dev dm-10, logical block 45, async page read
-[9257694.901084] Buffer I/O error on dev dm-10, logical block 45, async page read
-[9257695.815017] device-mapper: verity: 253:9: reached maximum errors
-```
-
-这里提示：
-
-```bash
-Buffer I/O error on dev dm-10, logical block 45
-```
-
-对于 block 45，其起始位置就是: 45 x 4096 = 184320 = 0x2d000，也就是我们刚好修改的位置。
+使用 `ls` 命令查看文件的大小或使用 `fiemap_query` 查看文件布局没有问题，因为访问的是文件的 inode 信息。但是，当我们使用 `cat` 或 `hexdump` 尝试访问文件的内容时，提示 `Input/output error`
 
 
 
@@ -844,16 +760,542 @@ Buffer I/O error on dev dm-10, logical block 45
 
 
 
-### 破坏 3 bits 后带 FEC 的 dm-verity 映射
+## 5. 带 FEC 的 dm-verity 映射
 
-为了验证 FEC 的纠错功能，现在我们再次使用修改后的镜像生成 dm-verity 设备进行验证。
+### 5.1 检查环境是否支持 FEC 功能
+
+如果你跟着我的实验一步一步在你的本地验证，那务必在开始之前检查下你的环境是否支持 FEC 功能。
 
 
+
+#### 1. 检查 dm-verity 驱动是否支持 FEC
+
+根据官方文档：
+
+- https://gitlab.com/cryptsetup/cryptsetup/-/wikis/DMVerity
+
+在 dm-verity 的 v1.3 以后才支持 FEC 特性，可以通过 `dmsetup targets` 查看 dm 各个组件的当前版本：
 
 ```bash
-$ cp system-bare-err3b.img system-bare-err3b-fec.img 
-$ sudo losetup -f system-bare-err3b-fec.img --show
-/dev/loop12
-$ echo "0 $(sudo blockdev --getsz /dev/loop12) linear /dev/loop12 0" | sudo dmsetup create system-err3b-fec
+$ sudo dmsetup targets
+verity           v1.5.0
+multipath        v1.13.0
+striped          v1.6.0
+linear           v1.4.0
+error            v1.5.0
 ```
+
+
+
+#### 2. 检查系统是否支持 FEC
+
+如果 dm-verity 驱动支持 FEC，下一步要检查的就是系统是否打开了 FEC 功能。
+
+> 当我在服务器(Ubuntu 20.04.4)上验证 FEC 功能时，无论如何都失败，调整计算各种参数，翻阅各种文档，甚至还去查看了 dm driver 代码，前后搞了好几天仍然不能成功。简直让人奔溃~
+>
+> 后来，将所有问题和操作提交给 chatGPT 检查，才发现是我用于实验的系统不支持 FEC。
+>
+> 可以使用下面的方式检查你的系统是否支持 FEC:
+>
+> ```bash
+> $ grep -E "CONFIG_DM_VERITY|CONFIG_DM_VERITY_FEC" /boot/config-$(uname -r)
+> CONFIG_DM_VERITY=m
+> CONFIG_DM_VERITY_VERIFY_ROOTHASH_SIG=y
+> # CONFIG_DM_VERITY_FEC is not set
+> ```
+>
+> 建议你在实验前，也记得检查下系统是否支持 FEC 特性。
+
+
+
+### 5.2 带 FEC 的 dm-verity 映射
+
+
+
+为了验证 FEC 的纠错功能，将上一步中的错误数据文件 `system-bare-err3b.img` 复制成新的数据文件 `system-bare-err3b-fec.img` 用于生成带有 FEC 纠错功能的 dm-verity 设备进行验证。
+
+
+
+映射带 FEC 功能的 dm-verity 设备 `system-err3b-fec-verity`:
+
+```bash
+$ cp system-bare-err3b.img system-bare-err3b-fec.img
+$ sudo veritysetup -v --no-superblock \
+    --salt=6902f6b436dd8f08a2ecd512d4576a03325e14db8e6b1bb72b68d22f20a6a6d3 \
+    --fec-device=system-bare-fec.bin \
+    --fec-roots=2 \
+    open system-bare-err3b-fec.img system-err3b-fec-verity system-bare-hash.bin \
+    e2b0749496127b3b0dd589ea54bf6ccb113fa05d587b1e361a55d3bc0ea6f068
+Command successful.
+```
+
+
+
+查看下 `system-err3b-fec-verity` 设备的状态: 
+
+```bash
+$ sudo veritysetup status system-err3b-fec-verity
+/dev/mapper/system-err3b-fec-verity is active.
+  type:        VERITY
+  status:      verified
+  hash type:   1
+  data block:  4096
+  hash block:  4096
+  hash name:   sha256
+  salt:        6902f6b436dd8f08a2ecd512d4576a03325e14db8e6b1bb72b68d22f20a6a6d3
+  data device: /dev/loop5
+  data loop:   /public/rocky/android-13.0.0_r41/temp-dm-verity/system-bare-err3b-fec.img
+  size:        1704560 sectors
+  mode:        readonly
+  hash device: /dev/loop4
+  hash loop:   /public/rocky/android-13.0.0_r41/temp-dm-verity/system-bare-hash.bin
+  hash offset: 0 sectors
+  FEC device:  /dev/loop6
+  FEC offset:  0 sectors
+  FEC roots:   2
+  root hash:   e2b0749496127b3b0dd589ea54bf6ccb113fa05d587b1e361a55d3bc0ea6f068
+```
+
+从输出可以看到，FEC 数据基于 `/dev/loop6` 设备，这个 loop 设备实际上就是基于 `system-bare-fec.bin` 映射出来的，可以通过 `sudo losetup -l /dev/loop6` 印证。
+
+
+
+我们也可以使用 dmsetup 工具查看具体的状态和映射信息:
+
+```bash
+$ sudo dmsetup info system-err3b-fec-verity
+Name:              system-err3b-fec-verity
+State:             ACTIVE (READ-ONLY)
+Read Ahead:        256
+Tables present:    LIVE
+Open count:        0
+Event number:      0
+Major, minor:      252, 6
+Number of targets: 1
+UUID: CRYPT-VERITY-system-err3b-fec-verity
+
+$ sudo dmsetup table system-err3b-fec-verity
+0 1704560 verity 1 7:5 7:4 4096 4096 213070 0 sha256 e2b0749496127b3b0dd589ea54bf6ccb113fa05d587b1e361a55d3bc0ea6f068 6902f6b436dd8f08a2ecd512d4576a03325e14db8e6b1bb72b68d22f20a6a6d3 8 use_fec_from_device 7:6 fec_blocks 214750 fec_start 0 fec_roots 2
+```
+
+
+
+接下来，我们试着用 `veritysetup verify` 验证下数据：
+
+```bash
+$ sudo veritysetup -v --no-superblock \
+    --salt=6902f6b436dd8f08a2ecd512d4576a03325e14db8e6b1bb72b68d22f20a6a6d3 \
+    --fec-device=system-bare-fec.bin \
+    --fec-roots=2 \
+    verify system-bare-err3b-fec.img system-bare-hash.bin \
+    e2b0749496127b3b0dd589ea54bf6ccb113fa05d587b1e361a55d3bc0ea6f068
+Verification failed at position 184320.
+Verification of data area failed.
+Found 1 repairable errors with FEC device.
+Command successful.
+```
+
+在 184320 位置验证失败，但是发现了可以修复的错误，所以仍然验证通过。
+
+
+
+我们通过将设备挂载起来，查看具体的文件内容来验证下错误是否修复：
+
+```bash
+$ mkdir system-bare-err3b-fec
+$ sudo mount -t ext4 -o ro /dev/mapper/system-err3b-fec-verity system-bare-err3b-fec
+$ cd system-bare-err3b-fec/
+system-bare-err3b-fec$ ls -al init.environ.rc 
+-rwxr-x---. 1 root 2000 463 Jan  1  2009 init.environ.rc
+system-bare-err3b-fec$ sudo cat init.environ.rc 
+# set up the global environment
+on early-init
+    export ANDROID_BOOTLOGO 1
+    export ANDROID_ROOT /system
+    export ANDROID_ASSETS /system/app
+    export ANDROID_DATA /data
+    export ANDROID_STORAGE /storage
+    export ANDROID_ART_ROOT /apex/com.android.art
+    export ANDROID_I18N_ROOT /apex/com.android.i18n
+    export ANDROID_TZDATA_ROOT /apex/com.android.tzdata
+    export EXTERNAL_STORAGE /sdcard
+    export ASEC_MOUNTPOINT /mnt/asec
+    
+    
+    
+    
+system-bare-err3b-fec$ sudo md5sum init.environ.rc 
+7ba9edb94ea97da98433bd12254800d6  init.environ.rc
+system-bare-err3b-fec$ 
+```
+
+将这里的输出和第 3 节中原始 `init.environ.rc` 文件的信息进行对比，发现我们手动制造的 3 bit 错误已经通过 dm-verity 的 FEC 机制得到了修复。
+
+
+
+查看 dmesg 信息，也可以看到通过 verity-fec 纠正了 1 个错误。
+
+![1737096350366](images-20250110-Android AVB 分析（十三）基于 system 分区的 dm-verity 设备验证实战/04-dm-verity-fec-correct-data.png)
+
+
+
+我们再来检查下原始镜像数据在 184320 位置的内容：
+
+```bash
+$ xxd -g 1 -c 16 -s $((0x2d000)) -l 64 system-bare-err3b-fec.img
+0002d000: 24 20 73 65 74 20 75 70 20 74 68 65 20 67 6c 6f  $ set up the glo
+0002d010: 62 61 6c 20 65 6e 76 69 72 6f 6e 6d 65 6e 74 0a  bal environment.
+0002d020: 6f 6e 20 65 61 72 6c 79 2d 69 6e 69 74 0a 20 20  on early-init.  
+0002d030: 20 20 65 78 70 6f 72 74 20 41 4e 44 52 4f 49 44    export ANDROID
+```
+
+可以看到，尽管访问 `init.environ.rc` 数据时进行了纠错处理，但是并没有将纠错的数据写回原始镜像，而仅仅只是在运行时进行了纠错而已。
+
+
+
+`dm-verity` 的 FEC 通常设计为块级别保护，块大小为 4 KB（4096 字节）。这意味着：
+
+- **FEC 能纠正的最小单位是 1 个 4 KB 数据块**。
+- 如果一个数据块中超过其纠错能力（由 `fec_roots` 决定）的错误，则无法恢复。
+
+如果 `fec_roots=2`，在 4 KB 数据块内：
+
+- 最多可以纠正 **1 字节错误**。
+- 如果 1 字节中出现多位翻转（如 3 位错误），可能无法纠正。
+
+
+
+由于我们这里按照 `fec_roots=2` 来生成的 FEC 数据，所以可以纠正 1 个字节的错误信息。
+
+至于多于 1 个字节的错误能否纠正，大家可以仿照我上面的步骤，自行生成错误数据进行验证。
+
+
+
+`veritysetup` 工具的各种操作，只不过是将多个动作(计算 hashtree, fec 数据，映射 loop 设备，调用 dmsetup 映射 dm-verity) 打包到一起，包装成单个命令了。这样有助于屏蔽一些无关紧要的处理细节，例如将文件映射成 loop 设备，或者计算数据的 hash 和 FEC 等。
+
+## 6.  system 分区的 dm-verity 映射
+
+前面几节分别尝试了集中 dm-verity 映射，包括：
+
+1. 正常的不带 FEC 的 dm-verity 映射;
+2. 破坏 3 bits 后不带 FEC 的 dm-verity 映射；
+3. 破坏 3 bits 后带 FEC 的 dm-verity 映射；
+
+但这些都是基于单独的 hashtree 和 FEC 数据文件，和 Android 系统的具体情况有所不同。
+
+
+
+在 Android 系统上，所有的 hashtree 和 FEC，以及原始的数据都位于同一个镜像文件 system.img 上，所以本节我们就用 system.img 一个镜像将带有 FEC 纠错功能的 dm-verity 设备 `system-verity` 映射出来。
+
+
+
+回到本文一开始的 system.img 分区镜像信息，需要获取 hashtree 和 FEC 数据的 offset 和 size:
+
+```bash
+$ avbtool info_image --image system.img 
+...
+Descriptors:
+    Hashtree descriptor:
+      Version of dm-verity:  1
+      Image Size:            872734720 bytes
+      Tree Offset:           872734720
+      Tree Size:             6881280 bytes
+      Data Block Size:       4096 bytes
+      Hash Block Size:       4096 bytes
+      FEC num roots:         2
+      FEC offset:            879616000
+      FEC size:              6955008 bytes
+      Hash Algorithm:        sha256
+      Partition Name:        system
+      Salt:                  6902f6b436dd8f08a2ecd512d4576a03325e14db8e6b1bb72b68d22f20a6a6d3
+      Root Digest:           e2b0749496127b3b0dd589ea54bf6ccb113fa05d587b1e361a55d3bc0ea6f068
+      Flags:                 0
+    ...
+```
+
+通过这里的信息，可以得到以下 veritysetup 的参数：
+
+- `--data-block-size=4096` (`Data Block Size: 4096 bytes`)
+- `--hash-block-size=4096` (`Hash Block Size: 4096 bytes`)
+- `--data-blocks=213070`(`Image Size: 872734720 bytes`)
+- `--hash-offset=872734720` (`Tree Offset: 872734720`)
+- `--hash=sha256` (`Hash Algorithm: sha256`)
+- `--salt=6902f6...a6d3` (`Salt: 6902f6...a6d3`)
+- `--fec-offset=879616000` (`FEC offset: 879616000`)
+- `--fec-roots=2` (`FEC num roots: 2`)
+- `e2b074...f068` (`Root Digest: e2b074...f068`)
+
+
+
+有了上面这些参数，使用单个 `system.img` 映射的命令如下(为了方便查看，我把 debug 信息也贴上了)：
+
+```bash
+$ sudo veritysetup -v --debug \
+    --no-superblock \
+    --data-block-size=4096 \
+    --hash-block-size=4096 \
+    --data-blocks=213070 \
+    --hash-offset=872734720 \
+    --hash=sha256 \
+    --salt=6902f6b436dd8f08a2ecd512d4576a03325e14db8e6b1bb72b68d22f20a6a6d3 \
+    --fec-device=system.img \
+    --fec-offset=879616000 \
+    --fec-roots=2 \
+    open system.img system-verity system.img \
+    e2b0749496127b3b0dd589ea54bf6ccb113fa05d587b1e361a55d3bc0ea6f068
+# cryptsetup 2.7.0 processing "veritysetup -v --debug --no-superblock --data-block-size=4096 --hash-block-size=4096 --data-blocks=213070 --hash-offset=872734720 --hash=sha256 --salt=6902f6b436dd8f08a2ecd512d4576a03325e14db8e6b1bb72b68d22f20a6a6d3 --fec-device=system.img --fec-offset=879616000 --fec-roots=2 open system.img system-verity system.img e2b0749496127b3b0dd589ea54bf6ccb113fa05d587b1e361a55d3bc0ea6f068"
+# Running command open.
+# Allocating context for crypt device system.img.
+# Trying to open and read device system.img with direct-io.
+# Initialising device-mapper backend library.
+# Formatting device system.img as type VERITY.
+# Crypto backend (OpenSSL 3.0.13 30 Jan 2024 [default][legacy] [external libargon2]) initialized in cryptsetup library version 2.7.0.
+# Detected kernel Linux 6.8.12 x86_64.
+# Setting ciphertext data device to system.img.
+# Trying to open and read device system.img with direct-io.
+# Trying to open and read device system.img with direct-io.
+# Activating volume system-verity [keyslot -2] using key.
+# dm version   [ opencount flush ]   [16384] (*1)
+# dm versions   [ opencount flush ]   [16384] (*1)
+# Detected dm-ioctl version 4.48.0.
+# Detected dm-verity version 1.10.0.
+# Device-mapper backend running with UDEV support enabled.
+# dm status system-verity  [ opencount noflush ]   [16384] (*1)
+# Verifying VERITY device using hash sha256.
+# Activating VERITY device system-verity using hash sha256.
+# Allocating a free loop device (block size: 512).
+# Trying to open and read device /dev/loop0 with direct-io.
+# Attached loop device block size is 512 bytes.
+# Allocating a free loop device (block size: 512).
+# Trying to open and read device /dev/loop1 with direct-io.
+# Attached loop device block size is 512 bytes.
+# Calculated device size is 1704560 sectors (RW), offset 0.
+# Allocating a free loop device (block size: 512).
+# Trying to open and read device /dev/loop2 with direct-io.
+# Attached loop device block size is 512 bytes.
+# FEC and hash device is the same.
+# DM-UUID is CRYPT-VERITY-system-verity
+# Udev cookie 0xd4dd6d6 (semid 25) created
+# Udev cookie 0xd4dd6d6 (semid 25) incremented to 1
+# Udev cookie 0xd4dd6d6 (semid 25) incremented to 2
+# Udev cookie 0xd4dd6d6 (semid 25) assigned to CREATE task(0) with flags DISABLE_LIBRARY_FALLBACK         (0x20)
+# dm create system-verity CRYPT-VERITY-system-verity [ opencount flush ]   [16384] (*1)
+# dm reload   (252:4) [ opencount flush readonly securedata ]   [16384] (*1)
+# dm resume system-verity  [ opencount flush readonly securedata ]   [16384] (*1)
+# system-verity: Stacking NODE_ADD (252,4) 0:6 0660 [trust_udev]
+# system-verity: Stacking NODE_READ_AHEAD 256 (flags=1)
+# Udev cookie 0xd4dd6d6 (semid 25) decremented to 1
+# Udev cookie 0xd4dd6d6 (semid 25) waiting for zero
+# Udev cookie 0xd4dd6d6 (semid 25) destroyed
+# system-verity: Skipping NODE_ADD (252,4) 0:6 0660 [trust_udev]
+# system-verity: Processing NODE_READ_AHEAD 256 (flags=1)
+# system-verity (252:4): read ahead is 256
+# system-verity: retaining kernel read ahead of 256 (requested 256)
+# dm status system-verity  [ opencount noflush ]   [16384] (*1)
+# Verity volume system-verity status is V.
+# Releasing crypt device system.img context.
+# Releasing device-mapper backend.
+# Closed loop /dev/loop2 (system.img).
+# Closed loop /dev/loop1 (system.img).
+# Closed loop /dev/loop0 (system.img).
+Command successful.
+```
+
+
+
+使用 veritysetup 或 dmsetup 查看下状态信息:
+
+```bash
+$ sudo veritysetup status system-verity
+/dev/mapper/system-verity is active.
+  type:        VERITY
+  status:      verified
+  hash type:   1
+  data block:  4096
+  hash block:  4096
+  hash name:   sha256
+  salt:        6902f6b436dd8f08a2ecd512d4576a03325e14db8e6b1bb72b68d22f20a6a6d3
+  data device: /dev/loop1
+  data loop:   /public/rocky/android-13.0.0_r41/temp-dm-verity/system.img
+  size:        1704560 sectors
+  mode:        readonly
+  hash device: /dev/loop0
+  hash loop:   /public/rocky/android-13.0.0_r41/temp-dm-verity/system.img
+  hash offset: 1704560 sectors
+  FEC device:  /dev/loop2
+  FEC offset:  1718000 sectors
+  FEC roots:   2
+  root hash:   e2b0749496127b3b0dd589ea54bf6ccb113fa05d587b1e361a55d3bc0ea6f068
+$
+$ sudo dmsetup table system-verity
+0 1704560 verity 1 7:1 7:0 4096 4096 213070 213070 sha256 e2b0749496127b3b0dd589ea54bf6ccb113fa05d587b1e361a55d3bc0ea6f068 6902f6b436dd8f08a2ecd512d4576a03325e14db8e6b1bb72b68d22f20a6a6d3 8 use_fec_from_device 7:2 fec_blocks 214750 fec_start 214750 fec_roots 2
+```
+
+
+
+如果你有一个现成的 Android 设备，可以通过自带的 dmclt 命令查看下映射表
+
+```bash
+console:/ # dmctl list devices -v
+...
+system-verity        : 252:2
+  target#1: 0-2427824: verity, 1 252:0 252:0 4096 4096 303478 303478 sha1 de3446b6b2b4e86e9b941df4f7714824e4a60e29 21f2e10d1358ed8ac32df838ba446c3fe6bf883a 10 restart_on_corruption ignore_zero_blocks use_fec_from_device 252:0 fec_blocks 305869 fec_start 305869 fec_roots 2
+console:/ # 
+```
+
+
+
+在实际的 Android 设备上，`system-verity` 还多了两个参数：
+
+- `restart_on_corruption`
+  - 当发现损坏的块时重启系统。此选项与 `ignore_corruption` 不兼容，需要用户空间支持以避免重启循环。
+- `ignore_zero_blocks`
+  - 不要验证预期包含零的块，始终返回零。这可能对分区包含未使用且不保证包含零的块的情况有用。
+
+
+
+所以，如果要达成和 Android 设备上一样的映射，可以在前面的命令中包含这两个参数：
+
+```bash
+sudo veritysetup -v --debug \
+    --no-superblock \
+    --data-block-size=4096 \
+    --hash-block-size=4096 \
+    --data-blocks=213070 \
+    --hash-offset=872734720 \
+    --hash=sha256 \
+    --salt=6902f6b436dd8f08a2ecd512d4576a03325e14db8e6b1bb72b68d22f20a6a6d3 \
+    --fec-device=system.img \
+    --fec-offset=879616000 \
+    --fec-roots=2 \
+    --restart-on-corruption \
+    --ignore-zero-blocks \
+    open system.img system-verity system.img \
+    e2b0749496127b3b0dd589ea54bf6ccb113fa05d587b1e361a55d3bc0ea6f068
+```
+
+
+
+## 7. 总结
+
+本文基于 veritysetup 工具，手动生成 hashtree 和 FEC 数据，并挂载生成 dm-verity 设备。
+
+
+
+关于 DMVerity 以及 veritysetup 工具，请参考DMVerity 官方的 Wiki 和工具自带的 `--help` 帮助，以及 
+
+- DMVerity
+  - https://gitlab.com/cryptsetup/cryptsetup/-/wikis/DMVerity
+
+Linux 自带的 dm-verity 文档也是很重要的参考内容：
+
+- dm-verity
+  - https://docs.kernel.org/admin-guide/device-mapper/verity.html
+
+
+
+本文实战中的主要操作包括：
+
+1. 生成 hashtree 和 FEC 数据 
+
+```bash
+veritysetup -v --debug \
+	--salt=6902f6b436dd8f08a2ecd512d4576a03325e14db8e6b1bb72b68d22f20a6a6d3 \
+	--no-superblock \
+	--fec-roots=2 \
+	--fec-device=system-bare-fec.bin \
+	format system-bare.img system-bare-hash.bin
+```
+
+
+
+2. 不带有 FEC 纠错，直接使用原始镜像和 hashtree 数据进行映射
+
+```bash
+veritysetup -v --no-superblock \
+    --salt=6902f6b436dd8f08a2ecd512d4576a03325e14db8e6b1bb72b68d22f20a6a6d3 \
+    open system-bare.img system-verity system-bare-hash.bin \
+    e2b0749496127b3b0dd589ea54bf6ccb113fa05d587b1e361a55d3bc0ea6f068
+```
+
+
+
+3. 带有 FEC 纠错的 dm-verity 映射
+
+```bash
+veritysetup -v --no-superblock \
+    --salt=6902f6b436dd8f08a2ecd512d4576a03325e14db8e6b1bb72b68d22f20a6a6d3 \
+    --fec-device=system-bare-fec.bin \
+    --fec-roots=2 \
+    open system-bare-err3b-fec.img system-err3b-fec-verity system-bare-hash.bin \
+    e2b0749496127b3b0dd589ea54bf6ccb113fa05d587b1e361a55d3bc0ea6f068
+```
+
+
+
+4. 直接使用 Android 的 system.img 单个镜像进行映射
+
+```bash
+veritysetup -v --debug \
+    --no-superblock \
+    --data-block-size=4096 \
+    --hash-block-size=4096 \
+    --data-blocks=213070 \
+    --hash-offset=872734720 \
+    --hash=sha256 \
+    --salt=6902f6b436dd8f08a2ecd512d4576a03325e14db8e6b1bb72b68d22f20a6a6d3 \
+    --fec-device=system.img \
+    --fec-offset=879616000 \
+    --fec-roots=2 \
+    --restart-on-corruption \
+    --ignore-zero-blocks \
+    open system.img system-verity system.img \
+    e2b0749496127b3b0dd589ea54bf6ccb113fa05d587b1e361a55d3bc0ea6f068
+```
+
+
+
+对于 FEC 纠错机制，其运行在 linux 的 verity-fec 驱动层面，对上层用户是完全透明的。
+
+尽管访问出错的数据时进行了纠错处理，但是驱动并没有将纠错的数据写回原始镜像，而仅仅只是在运行时进行了纠错而已。
+
+
+
+通过手动实践明白了 dm-verity 设备是如何映射起来，FEC 纠错如何工作的之后，理解 Android 的代码就更容易了。因为 Android 代码创建 dm-verity 设备的目的无非就是将这些手动实践中使用各种数据的过程包装到代码中自动去执行而已。
+
+
+
+## 8. 思考题 & 练习
+
+本篇的实战基于 veritysetup 工具。
+
+实际上 `veritysetup` 工具的各种操作，只不过是将多个动作(计算 hashtree, fec 数据，映射 loop 设备，调用 dmsetup 映射 dm-verity) 打包到一起，包装成单个命令了。这样有助于屏蔽一些无关紧要的处理细节，例如将文件映射成 loop 设备，或者计算数据的 hash 和 FEC 等。
+
+
+
+建议你使用更原始的工具和命令，包括：
+
+- hexdump, xxd, dd, sha256sum
+- losetup
+- dmsetup
+
+等工具，将本文提到的映射操作再执行一遍，这样可以让你更好的理解整个 dm-verity 设备创建的底层操作以及 FEC 纠错功能。
+
+
+
+而对于 Android 中的 dm-verity 解析和映射代码，无非就是将这些操作用代码来实现。
+
+
+
+## 9. 其它
+
+我创建了一个 Android AVB 讨论群，主要讨论 Android 设备的 AVB 验证问题。
+
+我还有几个 Android OTA 升级讨论群，主要讨论 Android 设备的 OTA 升级话题。
+
+欢迎您加群和我们一起交流，请在加我微信时注明“Android AVB 交流”或“Android OTA 交流”。
+
+仅限 Android 相关的开发者参与~
+
+> 公众号“洛奇看世界”后台回复“wx”获取个人微信。
 
