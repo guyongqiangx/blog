@@ -1,4 +1,4 @@
-# 20250110-Android AVB 分析（十三）基于 system 分区的 dm-verity 设备验证实战
+# 20250110-Android AVB 分析（十三）dm-verity 设备是如何映射的？
 
 ## 1. 准备工作
 
@@ -52,7 +52,7 @@ Descriptors:
 
 分区的主要信息如下：
 
-![image-20250109235939997](images-20250110-Android AVB 分析（十三）基于 system 分区的 dm-verity 设备验证实战/01-system-image-info.png)
+![image-20250109235939997](images-20250110-Android AVB 分析（十三）dm-verity 设备是如何映射的？/01-system-image-info.png)
 
 > 在编译 Google Pixel 7 (“panther”)  时，system 分区镜像使用 Chain Partition 签名的方式，具体的签名信息位于 `vbmeta_system.img` 镜像中。
 >
@@ -189,7 +189,7 @@ Root hash:              e2b0749496127b3b0dd589ea54bf6ccb113fa05d587b1e361a55d3bc
 Command successful.
 ```
 
-![1736442641228](images-20250110-Android AVB 分析（十三）基于 system 分区的 dm-verity 设备验证实战/02-veritysetup-gen-hash-fec.png)
+![1736442641228](images-20250110-Android AVB 分析（十三）dm-verity 设备是如何映射的？/02-veritysetup-gen-hash-fec.png)
 
 由于命令行带有 `--debug` 参数，因此上面 log 信息的内容很丰富，值得详细查看。后面为了不占用过多篇幅，不再携带 `--debug` 参数，但在学习过程中，强烈建议带上 `--debug` 参数，从输出的 log 中学习更多细节。
 
@@ -698,7 +698,7 @@ Verity device detected corruption after activation.
 
 由于整个错误是在 dm-verity 驱动中处理，我们可以看下 `sudo dmesg` 的命令输出：
 
-![1737093572674](images-20250110-Android AVB 分析（十三）基于 system 分区的 dm-verity 设备验证实战/03-dm-verity-data-corrupted.png)
+![1737093572674](images-20250110-Android AVB 分析（十三）dm-verity 设备是如何映射的？/03-dm-verity-data-corrupted.png)
 
 在 dmesge 的输出中，我们看到错误信息：
 
@@ -935,7 +935,7 @@ system-bare-err3b-fec$
 
 查看 dmesg 信息，也可以看到通过 verity-fec 纠正了 1 个错误。
 
-![1737096350366](images-20250110-Android AVB 分析（十三）基于 system 分区的 dm-verity 设备验证实战/04-dm-verity-fec-correct-data.png)
+![1737096350366](images-20250110-Android AVB 分析（十三）dm-verity 设备是如何映射的？/04-dm-verity-fec-correct-data.png)
 
 
 
