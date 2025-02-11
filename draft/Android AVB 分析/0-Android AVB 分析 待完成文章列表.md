@@ -7,5 +7,5 @@
 - [ ] 20241226-Android AVB 分析（十四）fs_libavb 是做什么用的？
 - [ ] 20241226-Android AVB 分析（十五）system 分区是如何挂载的？
 - [ ] 20241226-Android AVB 分析（十六）关于 FEC 的原理
-- [ ] 20241226-Android AVB 分析（十七）Android 镜像中的 FEC，你想知道的一切
+- [ ] 20241226-Android AVB 分析（十七）Android 镜像中的 FEC 是如何工作的？
 - [ ] 20241226-Android AVB 分析（十八）Android 官方 FEC 文档解读
