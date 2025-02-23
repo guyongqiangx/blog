@@ -6,7 +6,7 @@
 - [ ] Android AVB system 分区是如何挂载的？
 - [ ] 20241226-Android AVB 分析（十四）fs_libavb 是做什么用的？
 - [ ] 20241226-Android AVB 分析（十五）system 分区是如何挂载的？
-- [ ] 20250222-Android AVB 分析（十六）4个例子彻底理解 FEC(Reed-Solomon) 的工作原理
+- [ ] 20250222-Android AVB 分析（十六）5 个例子彻底理解 FEC(Reed-Solomon) 的工作原理
 - [ ] 20250223-Android AVB 分析（十七）程序员的里德所罗门编码实战
 - [ ] 20241226-Android AVB 分析（十八）Android 镜像中的 FEC 是如何工作的？
 - [ ] 20241226-Android AVB 分析（十九）Android 官方 FEC 文档解读
