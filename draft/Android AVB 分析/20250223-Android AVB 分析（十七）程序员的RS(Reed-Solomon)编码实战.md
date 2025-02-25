@@ -1,4 +1,4 @@
-# 20250223-Android AVB 分析（十七）程序员的里德所罗门编码实战
+# 20250223-Android AVB 分析（十七）程序员的RS(Reed-Solomon)编码实战
 
 上一篇[《Android AVB 分析（十六）5个例子理解 FEC(Reed-Solomon) 的工作原理》]()中解释了 FEC 以及 RS(里德所罗门编码)的原理，并基于 Python 的 reedsolo 库提供了 5 个 RS 编码和解码的例子，分别是：
 
@@ -8,7 +8,9 @@
 - RS(255, 253) 纠错 2 字节失败
 - RS(255, 253) 纠错 2 字节成功
 
-我相信如果您阅读了这篇文章，并亲自去做了这几个实验，那一定会对 RS 编码有一个比较深入的了解。
+通过对原始数据进行编码生成 FEC，以及对错误数据进行纠正还原数据。
+
+我相信如果您阅读了这篇文章，并亲自去做了这几个实验，那一定会对 RS 编码有一个比较切身的了解。
 
 也可能你还希望有一些补充，所以我个人觉得以程序员实践的角度为出发点的本篇同样可以让你有些收获。
 
@@ -79,7 +81,7 @@
 
 增加更多的校验符号，你的消息在块中的空间就越少。
 
-![(255,223)](./images-20250223-Android AVB 分析（十七）程序员的里德所罗门编码实战/rs-block.png)
+![(255,223)](./images-20250223-Android AVB 分析（十七）程序员的RS(Reed-Solomon)编码实战/rs-block.png)
 
 (255,223)
 
@@ -268,7 +270,7 @@ Recovered: This is a test message
 
 为此，我们可以取 4 个原始数据包，为每个数据包添加 25%的校验位，然后将这 4 个原始数据包分散到 5 个新的数据包中，如下所示：
 
-![img](./images-20250223-Android AVB 分析（十七）程序员的里德所罗门编码实战/packetize.png)
+![img](./images-20250223-Android AVB 分析（十七）程序员的RS(Reed-Solomon)编码实战/packetize.png)
 
 
 
@@ -283,7 +285,7 @@ Recovered: This is a test message
 
 但如果第四个数据包丢失，情况将如下所示：
 
-![img](./images-20250223-Android AVB 分析（十七）程序员的里德所罗门编码实战/fixorized.png)
+![img](./images-20250223-Android AVB 分析（十七）程序员的RS(Reed-Solomon)编码实战/fixorized.png)
 
 
 
@@ -382,6 +384,20 @@ Recovered: This is a test message
 
 
 最后，上面提到的 `rscmd` 工具的 GitHub 页面可能有用。
+
+
+
+## 其它
+
+我创建了一个 Android AVB 讨论群，主要讨论 Android 设备的 AVB 验证问题。
+
+我还有几个 Android OTA 升级讨论群，主要讨论 Android 设备的 OTA 升级话题。
+
+欢迎您加群和我们一起交流，请在加我微信时注明“Android AVB 交流”或“Android OTA 交流”。
+
+仅限 Android 相关的开发者参与~
+
+> 公众号“洛奇看世界”后台回复“wx”获取个人微信。
 
 
 

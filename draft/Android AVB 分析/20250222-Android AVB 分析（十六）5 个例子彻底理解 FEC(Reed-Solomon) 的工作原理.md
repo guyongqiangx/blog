@@ -1,4 +1,4 @@
-# 20250222-Android AVB 分析（十六）5个例子理解 FEC(Reed-Solomon) 的工作原理
+# 20250222-Android AVB 分析（十六）5 个例子彻底理解 FEC(Reed-Solomon) 的工作原理
 
 网上介绍 FEC 工作原理的文章很多，大多数都是从理论的角度对 FEC 或者 RS(里德所罗门)编码的数学原理介绍，并没有太多关于 FEC 实战介绍的文章。所以即使看了 FEC 的数学原理，但对 FEC 到底是如何工作的还是不清楚，包括我自己也是这样。
 
@@ -196,7 +196,7 @@ r2_received = (1 * 1) + (2 * 2) + (7 * 3) + (4 * 4) + (5 * 5) = 67
 
 关于 RS 编码，最常见的是下面这个示意图：
 
-![img](./images-20250222-Android AVB 分析（十六）4个例子彻底理解 FEC(Reed-Solomon) 的工作原理/image004(1).jpg)
+![img](./images-20250222-Android AVB 分析（十六）5 个例子彻底理解 FEC(Reed-Solomon) 的工作原理/image004(1).jpg)
 
 这里提到的几个参数：m, n, k, t 你都清楚其意义吗？
 
@@ -214,7 +214,7 @@ r2_received = (1 * 1) + (2 * 2) + (7 * 3) + (4 * 4) + (5 * 5) = 67
 
 下面是我让 AI 整理的一些不同符号(symbol) 大小的应用场景(对错待核实):
 
-![image-20250223002012831](./images-20250222-Android AVB 分析（十六）4个例子彻底理解 FEC(Reed-Solomon) 的工作原理/image-20250223002012831.png)
+![image-20250223002012831](./images-20250222-Android AVB 分析（十六）5 个例子彻底理解 FEC(Reed-Solomon) 的工作原理/image-20250223002012831.png)
 
 **选择符号大小的关键因素**
 
@@ -848,4 +848,20 @@ ECC message: hexundump("""
 Error position: [0, 1]
 Done!
 ```
+
+
+
+## 4. 其它
+
+我创建了一个 Android AVB 讨论群，主要讨论 Android 设备的 AVB 验证问题。
+
+我还有几个 Android OTA 升级讨论群，主要讨论 Android 设备的 OTA 升级话题。
+
+欢迎您加群和我们一起交流，请在加我微信时注明“Android AVB 交流”或“Android OTA 交流”。
+
+仅限 Android 相关的开发者参与~
+
+> 公众号“洛奇看世界”后台回复“wx”获取个人微信。
+
+
 
