@@ -1,6 +1,6 @@
 # 20250223-Android AVB 分析（十七）程序员的RS(Reed-Solomon)编码实战
 
-上一篇[《Android AVB 分析（十六）5个例子理解 FEC(Reed-Solomon) 的工作原理》]()中解释了 FEC 以及 RS(里德所罗门编码)的原理，并基于 Python 的 reedsolo 库提供了 5 个 RS 编码和解码的例子，分别是：
+上一篇[《Android AVB 分析（十六）5个例子理解 FEC(Reed-Solomon) 的工作原理》](https://blog.csdn.net/guyongqiangx/article/details/145865175)中解释了 FEC 以及 RS(里德所罗门编码)的原理，并基于 Python 的 reedsolo 库提供了 5 个 RS 编码和解码的例子，分别是：
 
 - RS(255, 223) 编码实验
 - RS(255, 253) 编码实验
@@ -145,11 +145,7 @@
 
 对于 8 位符号，你可以使用两个多项式：
 
-- 1+x2+x3+x4+x81+*x*2+*x*3+*x*4+*x*8 (famously [used by the NASA Voyager missions](https://trs.jpl.nasa.gov/bitstream/handle/2014/34531/94-0881.pdf?sequence=1))
-  1+x2+x3+x4+x81+*x*2+*x*3+*x*4+*x*8 （因被 NASA 旅行者号任务使用而闻名）
-- 1+x+x2+x7+x81+*x*+*x*2+*x*7+*x*8
-
-
+![image-20250225231430368](./images-20250223-Android AVB 分析（十七）程序员的RS(Reed-Solomon)编码实战/image-20250225231430368.png)
 
 对于“原始元素”(primitive element)，您可以选取小于 255 的任何数字，只要它不能被 3、5 或 17 整除。这与在 8 位 R-S 中使用的伽罗瓦域的复杂性有关。在实践中，人们经常选择 11，但您也可以使用 7、8、13、14、16 或 19 等数字。我进行了一些基准测试，8、11 或 14 似乎都是最快的。如果您使用非 8 位符号大小，您必须使用其他数字（以及您可以在[这里找到的其他多项式](https://core.ac.uk/download/pdf/16697418.pdf)）。
 
