@@ -81,7 +81,7 @@
 
 增加更多的校验符号，你的消息在块中的空间就越少。
 
-![(255,223)](./images-20250223-Android AVB 分析（十七）程序员的RS(Reed-Solomon)编码实战/rs-block.png)
+![(255,223)](./images-20250223-Android AVB 分析（十七）程序员的FEC(Reed-Solomon)编码实战/rs-block.png)
 
 (255,223)
 
@@ -145,7 +145,7 @@
 
 对于 8 位符号，你可以使用两个多项式：
 
-![image-20250225231430368](./images-20250223-Android AVB 分析（十七）程序员的RS(Reed-Solomon)编码实战/image-20250225231430368.png)
+![image-20250225231430368](./images-20250223-Android AVB 分析（十七）程序员的FEC(Reed-Solomon)编码实战/image-20250225231430368.png)
 
 对于“原始元素”(primitive element)，您可以选取小于 255 的任何数字，只要它不能被 3、5 或 17 整除。这与在 8 位 R-S 中使用的伽罗瓦域的复杂性有关。在实践中，人们经常选择 11，但您也可以使用 7、8、13、14、16 或 19 等数字。我进行了一些基准测试，8、11 或 14 似乎都是最快的。如果您使用非 8 位符号大小，您必须使用其他数字（以及您可以在[这里找到的其他多项式](https://core.ac.uk/download/pdf/16697418.pdf)）。
 
@@ -266,7 +266,7 @@ Recovered: This is a test message
 
 为此，我们可以取 4 个原始数据包，为每个数据包添加 25%的校验位，然后将这 4 个原始数据包分散到 5 个新的数据包中，如下所示：
 
-![img](./images-20250223-Android AVB 分析（十七）程序员的RS(Reed-Solomon)编码实战/packetize.png)
+![img](./images-20250223-Android AVB 分析（十七）程序员的FEC(Reed-Solomon)编码实战/packetize.png)
 
 
 
@@ -281,7 +281,7 @@ Recovered: This is a test message
 
 但如果第四个数据包丢失，情况将如下所示：
 
-![img](./images-20250223-Android AVB 分析（十七）程序员的RS(Reed-Solomon)编码实战/fixorized.png)
+![img](./images-20250223-Android AVB 分析（十七）程序员的FEC(Reed-Solomon)编码实战/fixorized.png)
 
 
 
