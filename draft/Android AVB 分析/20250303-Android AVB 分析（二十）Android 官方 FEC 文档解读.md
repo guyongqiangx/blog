@@ -1,10 +1,10 @@
 
 
-# 20250226-Android AVB 分析（十九）Android 官方 FEC 文档解读
+# 20250303-Android AVB 分析（二十）Android 官方 FEC 文档解读
 
 ## 导读
 
-在上一篇[《Android AVB 分析（十八）Android 镜像中的 FEC 数据是如何计算出来的？》](https://blog.csdn.net/guyongqiangx/article/details/145865506) 中详细介绍了 Android 镜像中的 FEC 数据是如何生成的。
+在上两篇[《Android AVB 分析（十八）Android 镜像中的 FEC 数据是如何计算出来的？》](https://blog.csdn.net/guyongqiangx/article/details/145962808) 和[《Android AVB 分析（十九）Android 镜像中的 FEC 到底能纠正多少错误？》](https://blog.csdn.net/guyongqiangx/article/details/145972996)中详细介绍了 Android 镜像中的 FEC 数据是如何生成的。以及 Android 镜像中使用 FEC 对多达 6.63M 连续破坏数据的修复。
 
 但你可能还会觉得不过瘾，为啥采用 RS(255, 253) 编码，为啥不采用具有更强纠错的其它编码？采用 FEC 纠错的代价有多大？采用 FEC 对 Android 性能的影响有多大？
 
@@ -31,6 +31,9 @@
   - https://blog.csdn.net/guyongqiangx/article/details/145865276
 - [《Android AVB 分析（十八）Android 镜像中的 FEC 数据是如何计算出来的？》](https://blog.csdn.net/guyongqiangx/article/details/145865506) 
   - https://blog.csdn.net/guyongqiangx/article/details/145865506
+- [《Android AVB 分析（十九）Android 镜像中的 FEC 到底能纠正多少错误？》](https://blog.csdn.net/guyongqiangx/article/details/145972996)
+  - https://blog.csdn.net/guyongqiangx/article/details/145972996
+
 
 
 
@@ -68,7 +71,7 @@ Android 使用多层保护来确保用户安全。其中一层是验证启动(ve
 
 > 注：
 >
-> 将 robustness 翻译成"鲁棒性"是我个人相当不喜欢的翻译。
+> 将 robustness 叫做"鲁棒性"是我个人相当不喜欢的翻译。
 
 
 
@@ -94,24 +97,22 @@ Reed-Solomon 是最常用的纠错码家族之一，在 Linux 内核中易于获
 >
 > 一个完整的里德-所罗门（Reed-Solomon）编码可以通过以下参数来描述：
 >
-> **RS(n, k, t, m, d)**
->
 > - **n**：编码长度，即一个编码块中包含的符号总数。
-> - **k**：信息符号数，即原始数据中包含的符号数。
+>- **k**：信息符号数，即原始数据中包含的符号数。
 > - **t**：纠错能力，即编码能够纠正的最大符号错误数，计算公式为 `t=n-k`。
 > - **m**：符号大小，即每个符号的比特数，通常在有限域 `GF(2^m)` 中。
 > - **d**：最小距离，即任意两个有效码字之间的最小汉明距离，计算公式为 `d=n-k+1`。
->
+> 
 > 在大多数的默认情况下 `m=8`，即 8 bit (或 1 byte) 表示 1 个符号(symbol)。
 >
 > 另外，纠错能力 t 和 d 都可以通过 n, k 计算出来。
 >
 > - 在没有提供错误位置的情况下，通过冗余编码能够纠正多达 ⌊t/2⌋ 个未知错误
-> - 在提供了具体错误位置的情况下，通过冗余编码能够纠正多达 t 个已知错误，也称为擦除错误
->
+>- 在提供了具体错误位置的情况下，通过冗余编码能够纠正多达 t 个已知错误，也称为擦除错误
+> 
 > 
 >
-> 由于参数 t 和 d 可以通过计算得到，因此 **RS(n, k, t, m, d)** 通常简化记作 **RS(n, k)**，这就是为什么我们看到 RS(255, 223) 这种表示的原因。
+> 由于参数 t 和 d 可以通过计算得到，因此里德所罗门编码一般记作 **RS(n, k)**，这就是为什么我们看到 RS(255, 223) 这种表示的原因。
 
 
 
@@ -140,7 +141,7 @@ Reed-Solomon 是最常用的纠错码家族之一，在 Linux 内核中易于获
 
 
 
-[![img](./images-20250226-Android AVB 分析（二十）Android 官方 FEC 文档解读/image00.png)](https://blogger.googleusercontent.com/img/b/R29vZ2xl/AVvXsEjYjKU-SNGl6X2_nTGrtR6W6BCBwxsHRE9-pztVmrtxiAsDI6lvuem5GItCWp1p2bURbgFU_BLdR2_OPjSnyzoWV5Y4eSzU3fU08Uonn4WknWOBYp6M5EyRcs0o0Cq-4FF2gYIEIMK0FHjm/s1600/image00.png)
+[![img](./images-20250303-Android AVB 分析（二十）Android 官方 FEC 文档解读/image00.png)](https://blogger.googleusercontent.com/img/b/R29vZ2xl/AVvXsEjYjKU-SNGl6X2_nTGrtR6W6BCBwxsHRE9-pztVmrtxiAsDI6lvuem5GItCWp1p2bURbgFU_BLdR2_OPjSnyzoWV5Y4eSzU3fU08Uonn4WknWOBYp6M5EyRcs0o0Cq-4FF2gYIEIMK0FHjm/s1600/image00.png)
 
 附加的复杂性在于，基于块的存储损坏通常发生在整个块上，有时甚至跨越多个连续的块。由于里德-所罗门码只能从相对较短的编码块中的有限个损坏的字节中恢复，因此没有巨大的空间开销，简单的实现将不会非常有效。
 
@@ -149,6 +150,8 @@ Reed-Solomon 是最常用的纠错码家族之一，在 Linux 内核中易于获
 > 对 eMMC 存储来说，其内部底层多基于 Nand flash，这一类存储设备发生问题时，通常是 1 个 block 损坏导致整个 block 的数据丢失，如果连续的多个 block 损坏就更麻烦了。
 >
 > 对于 RS(255, 253) 这样的里德所罗门编码，单块编码的总大小为 255 字节，如果所有数据挨在一起，其能够纠错的最大长度 d=n-k+1=255-253+1=3，意味着损坏数据超过 3 字节就不能恢复了。1 个 4 KiB 的 block 可以包含多个编码块，因此 1 个 block 坏了那整个编码数据是完全没法恢复的。
+>
+> 因此，这里的结论是：简单的里德所罗门编码在纠错上对于存储设备可能不会非常有效。
 
 
 
@@ -160,13 +163,25 @@ Reed-Solomon 是最常用的纠错码家族之一，在 Linux 内核中易于获
 
 高效交织意味着将块中的每个字节映射到单独的里德-所罗门码，每个码覆盖对应 N 个源块中的 N 个字节。一种简单的交织方式，其中每个码覆盖连续的 N 个块，已经使我们能够从最多(255 - N) / 2 个块的损坏中恢复，例如，对于 RS(255, 223)，这意味着 64 KiB。
 
+> 将 RS(255, N) 的编码源数据的 N 个字节分别映射到 N 个源块上。
+>
+> 所以，对于 RS(255, 223) 来说，每个数据块取 1 个字节，则交织编码需要 223 个数据块，因此一个编码对应于连续的 223 块，这样够能从最多的 (255 - 223)/2 = 16 块的损坏中恢复，此时 4KiB x 16 = 64 KiB。
+>
+> 换句话说，如果按照 4KiB 大小进行交织，则 RS(255, 223) 可以从连续损坏的 64 KiB 数据中恢复。
+
 
 
 一个更好的解决方案是通过将每个代码扩展到整个分区来最大化相同代码覆盖的字节之间的距离，从而将 RS(255, N)代码在由 T 个块组成的分区上可以处理的连续损坏块的最大数量增加到⌈T/N⌉ × (255 - N) / 2。
 
+> 注:
+>
+> 更好的办法就是将交织编码扩散到整个文件中，如果编码为 RS(255, N)，则每个编码块就从整个分区的 1/N 中提取 1 个字节，如果分区总共有 T 块。则可以恢复的最大块数就是: ⌈T/N⌉x(255 - N) / 2。
+>
+> 例如 Android 中的 RS(255, 253) 编码，交织扩散到整个分区中，所以每次就从整个分区的 1/253 数据块中取 1 个字节来编码，如果分区一共有 T 块，此时就可以从 ⌈T/253⌉x(255 - 253) / 2 =  ⌈T/253⌉ 块中恢复。
 
 
-[![img](./images-20250226-Android AVB 分析（二十）Android 官方 FEC 文档解读/verified+boot+blog+post+interleaving.png)](https://blogger.googleusercontent.com/img/b/R29vZ2xl/AVvXsEgXF_yraduEfhZMijGSpFXtn3EmXDp00-6XrOACnCa4GZOQ3ZSE-a9qJ_H3WHnBipbtZpMxz_TBMLepzLhLwxS697eYLXM-7u7Aq_8AeOwiVTyQJGb-1ZNrfh4kYwKYQUzw8o-whP07uTiP/s1600/verified+boot+blog+post+interleaving.png)
+
+[![img](./images-20250303-Android AVB 分析（二十）Android 官方 FEC 文档解读/verified+boot+blog+post+interleaving.png)](https://blogger.googleusercontent.com/img/b/R29vZ2xl/AVvXsEgXF_yraduEfhZMijGSpFXtn3EmXDp00-6XrOACnCa4GZOQ3ZSE-a9qJ_H3WHnBipbtZpMxz_TBMLepzLhLwxS697eYLXM-7u7Aq_8AeOwiVTyQJGb-1ZNrfh4kYwKYQUzw8o-whP07uTiP/s1600/verified+boot+blog+post+interleaving.png)
 
 交织距离为 D，块大小为 B。
 
@@ -174,13 +189,49 @@ Reed-Solomon 是最常用的纠错码家族之一，在 Linux 内核中易于获
 
 交错的一个额外好处是，当与 dm-verity 已执行的完整性验证结合使用时，我们可以确切地知道每个代码中的错误位置。因为代码的每个字节覆盖不同的源块——我们可以使用现有的 dm-verity 元数据验证每个块的完整性——我们知道哪些字节包含错误。能够精确地定位擦除位置使我们能够将错误纠正性能有效加倍，最多达到⌈T/N⌉ × (255 - N)个连续块。
 
+> 注：
+>
+> FEC 交织编码与 dm-verity 结合时，可以通过检查数据的 hashtree 明确定位具体错误。因为每个 4K 对应于 1 个 hash 数据。某个 hash 错了，就能反推回那个 hash 对应的 4K 块，从而知道是哪一块错了。
+>
+> 在知道错误位置的前提下，纠错能力翻倍，从原来的 `⌈T/N⌉ × (255 - N) / 2` 变成 `⌈T/N⌉ × (255 - N)`
+
 
 
 对于约 2 GiB 的分区，有 524256 个 4 KiB 块和 RS(255, 253)，单个代码的字节之间的最大距离为 2073 块。因为每个代码可以从两个擦除中恢复，使用这种交织方法，我们可以从最多 4146 个连续损坏的块（约 16 MiB）中恢复。当然，如果编码数据本身损坏或我们丢失了任何单个代码覆盖的超过两个块，我们就无法再恢复。
 
+> 注：
+>
+> 对于 2 GiB 的分区:
+>
+> 总块数： 2 x 1024 x 1024 x 1024 / 4096 = 524288
+>
+> 这里对 2 GiB 的计算得到 524288，不清楚为什么原文提到是 524256 块，少了 22 块，笔误吗？我记得我以前核算过一次，就是 524256，但忘记当时是怎么计算的了。
+>
+> 对 2 GiB 进行 RS(255, 253) 编码，如果基于整个分区进行交织编码，则编码字节的距离为：
+>
+> 2 * 1024 * 1024 * 1024 / 4096 / 253 = 524288 / 253 = 2072.29 = 2073 块
+>
+> 所以，交织编码时，单个编码块中单个代码的字节之间的最大距离为 2073 块(t/2=2073 块)，对于使用了 dm-verity 技术，可以通过 hash 计算准确定位错误位置，因此此时可以最大纠正的数量为 t，即 t = 2073 * 2 = 4146，这相当于 4146 × 4096 = 16982016 = 16.196 M，可以近似看作 16 MiB。
+>
+> 总体来说，对于采用 RS(255, 253) 以及整个分区交织编码，损失大概为 2/253 = 0.8%，即每 1 GiB 大概需要 8M 用于存放 FEC 数据，但因此带来的收益就是可以纠正最高达 8M 大小数据的连续块错误。一般情况下，连续错误达到 8M 的概率非常小，因此这个收益已经相当可观了。
+>
+> 这里也提到，分区数据进行了交织，但是 FEC 数据并没有交织存放，我们在上一篇中检查过 FEC数据，对于每个交织后的数据块通过 RS(255, 253) 编码生成的 2 个字节的 FEC 数据是连续存放的。如果碰巧这两个字节的 FEC 被损坏了，那这一块数据就无法通过 FEC 纠错了。
+>
+> **问题 1**:
+>
+> 为什么在数据区一个编码块最大可以恢复 2 个字节的错误，但是如果 FEC 数据的 2 个字节坏了却不能纠错。这个原因是什么？有办法改进吗？
+>
+> **问题 2:**
+>
+> 为什么生成的 FEC 数据没有交织存放？
+
 
 
 在使基于块的存储错误纠正成为可能的同时，交织确实有副作用，使得解码速度变慢，因为我们需要读取多个分散在分区中的块来从错误中恢复，而不是读取单个块。幸运的是，当与 dm-verity 和固态存储结合使用时，这不是一个大问题，因为我们只有在块实际损坏时才需要解码，而这仍然相当罕见，即使我们必须纠正错误，随机访问读取也相对较快。
+
+> 注：
+>
+> 这里提到因为交织，使得解码速度变慢，因为每解码一块 255 字节的数据，需要读取 253 块原始数据(每块 1 字节)，以及 1 块 FEC 数据(2 字节）。但是，这里也提到了，只有当数据发生错误时才会去要读取磁盘数据解码，而数据损坏的概率很小，可以理解为平时一般都不用，所以这个解码速度慢的代价很低。
 
 
 
@@ -194,7 +245,21 @@ Reed-Solomon 是最常用的纠错码家族之一，在 Linux 内核中易于获
 
 我们为 dm-verity 开发的全新错误纠正功能，使得设备能够在典型 2-3 GiB 系统分区中，仅占用 0.8%的空间开销且不影响性能的情况下，从最多 16-24 MiB 的连续块丢失中恢复，无论这些块位于何处。这提高了运行 Android 7.0 的设备的安保性和可靠性。
 
+> 注：
+>
+> 采用 RS(255,253) 编码的代价是 0.8% 额外的空间，最多可以从每 1000M 从 8M 左右的连续错误中恢复。
+>
+> **问题 3:**
+>
+> 尝试评估下其他 RS 编码，例如 RS(255, 251) 的编码代价，以及纠错性能。
 
+
+
+> 注：
+>
+> 在已经接近于写完全文时才发现，谷歌官方实际上提供了一个本文的中文版本，如果你觉得本片中的翻译不太容易理解，可以去看下官方的中文版本，公众号"谷歌开发者" 2016年08月02日的推文，点击下面的链接直达官方中文版：
+>
+> - [《Android 7.0安全性大幅提升，要求严格强制执行验证启动》](https://mp.weixin.qq.com/s?__biz=MzAwODY4OTk2Mg==&mid=2652039085&idx=1&sn=5547b93749c8e7036d32110083713238&chksm=81800d1edd4b1d00c63640f3fb0f79883c2a536fecf49a5a1b533c00b815b925c7a33753c0cc#rd)
 
 ## 其它
 
