@@ -140,7 +140,7 @@ Reed-Solomon 是最常用的纠错码家族之一，在 Linux 内核中易于获
 
 
 
-[![img](./images-20250226-Android AVB 分析（十九）Android 官方 FEC 文档解读/image00.png)](https://blogger.googleusercontent.com/img/b/R29vZ2xl/AVvXsEjYjKU-SNGl6X2_nTGrtR6W6BCBwxsHRE9-pztVmrtxiAsDI6lvuem5GItCWp1p2bURbgFU_BLdR2_OPjSnyzoWV5Y4eSzU3fU08Uonn4WknWOBYp6M5EyRcs0o0Cq-4FF2gYIEIMK0FHjm/s1600/image00.png)
+[![img](./images-20250226-Android AVB 分析（二十）Android 官方 FEC 文档解读/image00.png)](https://blogger.googleusercontent.com/img/b/R29vZ2xl/AVvXsEjYjKU-SNGl6X2_nTGrtR6W6BCBwxsHRE9-pztVmrtxiAsDI6lvuem5GItCWp1p2bURbgFU_BLdR2_OPjSnyzoWV5Y4eSzU3fU08Uonn4WknWOBYp6M5EyRcs0o0Cq-4FF2gYIEIMK0FHjm/s1600/image00.png)
 
 附加的复杂性在于，基于块的存储损坏通常发生在整个块上，有时甚至跨越多个连续的块。由于里德-所罗门码只能从相对较短的编码块中的有限个损坏的字节中恢复，因此没有巨大的空间开销，简单的实现将不会非常有效。
 
@@ -166,7 +166,7 @@ Reed-Solomon 是最常用的纠错码家族之一，在 Linux 内核中易于获
 
 
 
-[![img](./images-20250226-Android AVB 分析（十九）Android 官方 FEC 文档解读/verified+boot+blog+post+interleaving.png)](https://blogger.googleusercontent.com/img/b/R29vZ2xl/AVvXsEgXF_yraduEfhZMijGSpFXtn3EmXDp00-6XrOACnCa4GZOQ3ZSE-a9qJ_H3WHnBipbtZpMxz_TBMLepzLhLwxS697eYLXM-7u7Aq_8AeOwiVTyQJGb-1ZNrfh4kYwKYQUzw8o-whP07uTiP/s1600/verified+boot+blog+post+interleaving.png)
+[![img](./images-20250226-Android AVB 分析（二十）Android 官方 FEC 文档解读/verified+boot+blog+post+interleaving.png)](https://blogger.googleusercontent.com/img/b/R29vZ2xl/AVvXsEgXF_yraduEfhZMijGSpFXtn3EmXDp00-6XrOACnCa4GZOQ3ZSE-a9qJ_H3WHnBipbtZpMxz_TBMLepzLhLwxS697eYLXM-7u7Aq_8AeOwiVTyQJGb-1ZNrfh4kYwKYQUzw8o-whP07uTiP/s1600/verified+boot+blog+post+interleaving.png)
 
 交织距离为 D，块大小为 B。
 
