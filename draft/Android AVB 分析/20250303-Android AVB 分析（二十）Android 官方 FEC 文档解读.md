@@ -4,7 +4,7 @@
 
 ## 导读
 
-在上两篇[《Android AVB 分析（十八）Android 镜像中的 FEC 数据是如何计算出来的？》](https://blog.csdn.net/guyongqiangx/article/details/145962808) 和[《Android AVB 分析（十九）Android 镜像中的 FEC 到底能纠正多少错误？》](https://blog.csdn.net/guyongqiangx/article/details/145972996)中详细介绍了 Android 镜像中的 FEC 数据是如何生成的。以及 Android 镜像中使用 FEC 对多达 6.63M 连续破坏数据的修复。
+在上两篇[《Android AVB 分析（十八）Android 镜像中的 FEC 数据是如何计算出来的？》](https://blog.csdn.net/guyongqiangx/article/details/145962808) 和[《Android AVB 分析（十九）Android 镜像中的 FEC 到底能纠正多少错误？》](https://blog.csdn.net/guyongqiangx/article/details/145972996)中详细介绍了 Android 镜像中的 FEC 数据是如何生成的。以及 Android 镜像中使用 FEC 纠错后，对 838M 大小的 system 分区镜像有着高达连续 6.63M 破坏数据修复的能力。
 
 但你可能还会觉得不过瘾，为啥采用 RS(255, 253) 编码，为啥不采用具有更强纠错的其它编码？采用 FEC 纠错的代价有多大？采用 FEC 对 Android 性能的影响有多大？
 
