@@ -1,4 +1,4 @@
-# 20250110-Android AVB 分析（十三）dm-verity 设备是如何映射的？
+# 20250110-Android AVB 分析（十三）dm-verity 设备是如何映射和纠错的？
 
 ## 1. 准备工作
 
