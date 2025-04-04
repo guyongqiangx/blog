@@ -1,4 +1,4 @@
-# 20241202-Android AVB 分析（二）AVB 2.0 自述文档(强哥注释版)
+# 20241202-Android AVB 分析（二）AVB 2.0 自述文档(强哥注释提问版)
 
 
 
@@ -14,19 +14,19 @@
 
 
 
-所以，我这里也不免俗，将最新的 Android Verified Boot 2.0 最新的文档(2025/01/18) 翻译在这里，并附上我的部分解读。
+所以，我这里也不免俗，将 Android Verified Boot 2.0 最新的文档(2025/01/18) 通过 AI 翻译在这里，并附上我的部分解读，以及提出的一些问题，如果你能很好的回答这些问题，说明对 AVB 的核心内容有很好的掌握。
 
 
 
-如果你希望深入学习 Android AVB 的细节，那这篇文章建议你至少阅读 10 遍。不是那种一口气反复阅读 10 遍，而是先阅读遍，有个大概印象，然后去阅读代码，再回来阅读文档。也就是文档和代码交替阅读来增强对 AVB 的学习。
+如果你希望深入学习 Android AVB 的细节，那这篇文章建议你至少阅读 10 遍。不是那种一口气反复阅读 10 遍，而是先阅读遍，有个大概印象，试着回答一些强哥提出的问题，然后去阅读代码，再回来阅读文档，再回答强哥的问题。也就是文档和代码交替阅读来增强对 AVB 的学习，并通过回答问题来检验。如果有些问题回答得是似而非，或者没法说清楚，那可能对知识点的掌握还有待加强。
 
 
 
-另外，除了阅读翻译后的本文之外，我也建议你对比英文原文以加深理解。因为有些东西，英语表述经过翻译之后内容就会变得奇奇怪怪的。例如，在我看来 bootloader 这样的词本身很清楚，就是指类似 u-boot 这样的一个启动加载程序，但有些文档中翻译成“启动器”或者“启动加载器”有，又或者“引导加载程序”(这个最常见)。说实话，从字面意思看，这些翻译一点问题没有，但对我自己而言，如果只看到“启动加载器”，真的要反应一会儿才能和 bootloader 这个每天都要接触的词语联系在一起。
+另外，除了阅读翻译后的本文之外，我更建议你阅读原文，或者对比翻译和英文原文以加深理解。因为有些东西，英语表述经过翻译之后内容就会变得奇奇怪怪的。例如，在我看来 bootloader 这样的词本身很清楚，就是指类似 u-boot 这样的一个启动加载程序，但有些文档中翻译成“启动器”或者“启动加载器”有，又或者“引导加载程序”(这个最常见)。说实话，从字面意思看，这些翻译一点问题没有，但对我自己而言，如果只看到“启动加载器”，真的要反应一会儿才能和 bootloader 这个每天都要接触的词语联系在一起。
 
 
 
-#  Android 验证启动 2.0
+#  Android 验证时启动 2.0
 
 ------
 
@@ -47,7 +47,7 @@
 -  工具和库
   - [ avbtool 和 libavb](https://android.googlesource.com/platform/external/avb/+/main/README.md#avbtool-and-libavb)
   - [ 文件和目录](https://android.googlesource.com/platform/external/avb/+/main/README.md#files-and-directories)
-  - [ 便携性](https://android.googlesource.com/platform/external/avb/+/main/README.md#portability)
+  - [ 可移植性](https://android.googlesource.com/platform/external/avb/+/main/README.md#portability)
   - [版本和兼容性](https://android.googlesource.com/platform/external/avb/+/main/README.md#versioning-and-compatibility)
   - [ 添加新功能](https://android.googlesource.com/platform/external/avb/+/main/README.md#adding-new-features)
   - [ 使用 avbtool](https://android.googlesource.com/platform/external/avb/+/main/README.md#using-avbtool)
@@ -75,14 +75,29 @@
 > 这段话主要强调的是系统启动时建立的安全信任链，例如：固化在芯片内部只读存储区域的安全固件验证 bootloader，然后通过 bootloader 验证 kernel，再在 kernel 中验证应用。通过这样的上一级代码验证下一级代码，逐级验证保证了整个启动环境都是经过认证和安全的，也就是所谓的启动验证(或者说验证过的启动)。
 >
 > 这里主要强调 Android 的 AVB 其实只是这种验证启动的其中一种实现。
+>
+> 问题：
+>
+> 1. 什么是 AVB？
+> 2. 什么是 Secure Boot? 
+> 3. Secure Boot 和 AVB 有哪些相同点和不同点？
 
 ## VBMeta 结构
 
-AVB 中使用的中心数据结构是 VBMeta 结构。此数据结构包含多个描述符（以及其他元数据），所有这些数据都是经过加密签名的。描述符用于图像哈希、图像哈希树元数据和所谓的链式分区。一个简单的例子如下：
+AVB 中使用的中心数据结构是 VBMeta 结构。此数据结构包含多个描述符（以及其他元数据），所有这些数据都是经过加密签名的。描述符用于镜像哈希、镜像哈希树元数据和所谓的链式分区。一个简单的例子如下：
 
 ![AVB with boot, system, and vendor](./images-20241202-Android AVB 分析（二）AVB 2.0 自述文档(v1.3 版-20250118)/avb-integrity-data-in-vbmeta.png)
 
 `vbmeta` 分区存储了哈希描述符中 `boot` 分区的哈希值。对于 `system` 和 `vendor` 分区，哈希树跟随文件系统数据， `vbmeta` 分区存储了哈希树的根哈希、随机盐和偏移量。因为 `vbmeta` 分区中的 VBMeta 结构是经过加密签名的，引导加载程序可以检查签名并验证它是由 `key0` （例如，通过嵌入 `key0` 的公钥部分）的拥有者制作的，从而信任用于 `boot` 、 `system` 和 `vendor` 的哈希值。
+
+> AVB 最核心的数据就是 VBMeta 结构，如果了解了 VBMeta 数据如何构建，如何存储，以及如何使用，那整个 AVB 就已经了解了绝大部分。
+>
+> 问题：
+>
+> 1. vbmeta 存放了哪些内容？
+> 2. 如何查看 boot, system, vendor 等镜像的 vbmeta 数据？
+> 3. 如何查看 vbmeta 分区的数据？
+> 4. vbmeta 分区数据和其它分区如 system 和 vendor 的 vbmeta 数据有什么区别？
 
 链式分区描述符用于委派权限 - 它包含委派权限的分区名称以及用于此特定分区签名的受信任公钥。例如，考虑以下设置：
 
@@ -98,7 +113,7 @@ VBMeta 结构足够灵活，允许任何分区的哈希描述符和哈希树描�
 
 > 强哥注：
 >
-> 我好几年前刚接触 AVB 时看了这段话，当时完全是懵逼的，对所讲的东西完全不知道是什么。
+> 我好几年前刚接触 AVB 时看了这段话，当时完全是懵逼的，对所讲的东西完全不知道是什么，如果没有去亲自解析镜像，很难深刻理解。
 >
 > 如果你有和我一样的感觉，千万不要自责，不要纠结，你不是唯一的，很多人都这样。
 >
@@ -109,6 +124,12 @@ VBMeta 结构足够灵活，允许任何分区的哈希描述符和哈希树描�
 > 所有的操作都是围绕这个核心数据：
 >
 > - 编译阶段，生成各个分区以及 vbmeta 分区的 VBMeta 数据。
+> - 运行阶段，根据 VBMeta 数据检查各个分区，并在 linux 中创建 dm-verity 设备来确保 system, vendor 等分区的完整性。
+>
+> 问题：
+>
+> 1. 链式分区描述符的作用是什么？
+> 2. 为什么会需要链式分区描述符，这样做有什么好处？
 
 ## 回滚保护
 
@@ -116,13 +137,20 @@ AVB 包括回滚保护，用于防止已知的安全漏洞。每个 VBMeta 结�
 
 ![AVB rollback indexes](./images-20241202-Android AVB 分析（二）AVB 2.0 自述文档(v1.3 版-20250118)/avb-rollback-indexes.png)
 
-这些数字被称为 `rollback_index[n]` ，并且随着发现并修复安全漏洞而逐个图像增加。此外，设备在防篡改存储中存储最后看到的回滚索引：
+这些数字被称为 `rollback_index[n]` ，并且随着发现并修复安全漏洞而逐个镜像增加。此外，设备在防篡改存储中存储最后看到的回滚索引：
 
 ![AVB stored rollback indexes](./images-20241202-Android AVB 分析（二）AVB 2.0 自述文档(v1.3 版-20250118)/avb-stored-rollback-indexes.png)
 
 这些被称为 `stored_rollback_index[n]` 。
 
-回滚保护是指设备拒绝一个图像，除非对于所有 `n` ， `rollback_index[n]` >= `stored_rollback_index[n]` ，并且设备随时间增加 `stored_rollback_index[n]` 。具体如何实现，请参阅更新存储回滚索引部分。
+回滚保护是指设备拒绝一个镜像，除非对于所有 `n` ， `rollback_index[n]` >= `stored_rollback_index[n]` ，并且设备随时间增加 `stored_rollback_index[n]` 。具体如何实现，请参阅更新存储回滚索引部分。
+
+> 问题：
+>
+> 1. 回滚保护的目的是什么？为什么需要回滚保护？
+> 2. 回滚保护有哪些相关数据，这些数据都存放在哪里？
+> 3. 回滚保护是如何起作用的？
+> 4. 哪些地方需要进行回滚保护的检查？
 
 ## A/B 支持
 
@@ -136,9 +164,19 @@ AVB 已被设计为与 A/B 一起工作，要求 A/B 后缀在任何存储在描
 
 在版本 1.3 中，avbtool 支持 `chain_partition_do_not_use_ab` 用于 `make_vbmeta_image` 操作。这使得可以与不使用 A/B 且不应有后缀的链分区一起工作。这对应于 `AVB_CHAIN_PARTITION_DESCRIPTOR_FLAGS_DO_NOT_USE_AB` 标志。
 
+> 问题：
+>
+> 1. AVB 是 Android A/B 双系统上特有的安全特性吗？
+> 2. AVB 对于非 A/B 的单系统可以用吗？
+
 ## VBMeta 摘要
 
 VBMeta 摘要是对所有 VBMeta 结构（包括根结构，例如在 `vbmeta` 分区中）以及链式分区中所有 VBMeta 结构的摘要。此摘要可以在构建时使用 `avbtool calculate_vbmeta_digest` 计算，也可以在运行时使用 `avb_slot_verify_data_calculate_vbmeta_digest()` 函数计算。它还设置为内核命令行上的 `androidboot.vbmeta.digest` ，有关详细信息，请参阅 `avb_slot_verify()` 文档。
+
+> 问题：
+>
+> 1. 什么是摘要(digest)？VBMeta 中的摘要(digest)是如何计算出来的？
+> 2. 如果不使用默认的摘要算法(sha256)，可以使用其它摘要算法(例如 sha512)吗？
 
 本摘要可用于与 `libavb` 一起在加载的操作系统用户空间内验证 vbmeta 结构的有效性。如果信任根和/或存储的回滚索引仅在引导加载程序运行时可用，则此功能很有用。
 
@@ -175,9 +213,13 @@ $ pixel_factory_image_verify.py image.zip
 
 vbmeta 镜像还可以包含对其他分区的引用，其中存储了验证数据，以及一个公钥，指示谁应该对验证数据进行签名。这种间接引用提供了委托，即允许第三方通过在 `vbmeta.img` 中包含他们的公钥来控制特定分区上的内容。按照设计，可以通过简单地用新的分区描述符更新 `vbmeta.img` 来轻松撤销这种权限。
 
-存储在其它图像上的签名验证数据 - 例如 `boot.img` 和 `system.img` - 也使用 `avbtool` 进行。
+存储在其它镜像上的签名验证数据 - 例如 `boot.img` 和 `system.img` - 也使用 `avbtool` 进行。
 
 运行 `avbtool` 的最小要求是安装 Python 3.5 或使用 `m avbtool` 构建带有嵌入式启动器的 avbtool，然后在构建工件目录中运行它： `out/soong/host/linux-x86/bin/avbtool`
+
+> 问题：
+>
+> 1. avbtool 是如何通过 avbtool.py 构建出来的？
 
 除了 `avbtool` ，还提供了一个库 - `libavb` 。这个库在设备端执行所有验证，例如，它首先加载 `vbmeta` 分区，检查签名，然后继续加载 `boot` 分区进行验证。这个库旨在在引导加载程序和 Android 内部使用。它为系统依赖提供了一个简单的抽象（见 `avb_sysdeps.h` ），以及引导加载程序或操作系统预期要实现的操作（见 `avb_ops.h` ）。验证的主要入口点是 `avb_slot_verify()` 。
 
@@ -191,7 +233,7 @@ vbmeta 镜像还可以包含对其他分区的引用，其中存储了验证数�
   libavb/
   ```
 
-  - 图像验证的实现。此代码设计为高度可移植，以便尽可能多地用于各种环境。此代码需要符合 C99 标准的 C 编译器。此代码的一部分被视为实现内部，不应在实现之外使用。例如，这适用于 `avb_rsa.[ch]` 和 `avb_sha.[ch]` 文件。平台应提供的系统依赖项定义在 `avb_sysdeps.h` 中。如果平台提供标准 C 运行时 `avb_sysdeps_posix.c` ，则可以使用。
+  - 镜像验证的实现。此代码设计为高度可移植，以便尽可能多地用于各种环境。此代码需要符合 C99 标准的 C 编译器。此代码的一部分被视为实现内部，不应在实现之外使用。例如，这适用于 `avb_rsa.[ch]` 和 `avb_sha.[ch]` 文件。平台应提供的系统依赖项定义在 `avb_sysdeps.h` 中。如果平台提供标准 C 运行时 `avb_sysdeps_posix.c` ，则可以使用。
 
 - ```
   libavb_cert/
@@ -227,7 +269,7 @@ vbmeta 镜像还可以包含对其他分区的引用，其中存储了验证数�
   avbtool
   ```
 
-  - 一个用于处理与验证启动相关的图像的 Python 编写工具。
+  - 一个用于处理与验证启动相关的镜像的 Python 编写工具。
 
 - ```
   test/
@@ -265,7 +307,12 @@ vbmeta 镜像还可以包含对其他分区的引用，其中存储了验证数�
 
   - 包含文档文件。
 
-##  便携性
+> 问题：
+>
+> 1. libavb 作为 AVB 的核心代码，各个模块都有什么作用？
+> 2. AVB 除了 libavb，还有哪些相关的源码？
+
+##  可移植性
 
 `libavb` 代码旨在用于将 Android 或其他操作系统加载到设备中的引导加载程序。建议的方法是将前一部分中提到的适当头文件和 C 文件复制到引导加载程序中，并按需集成。
 
@@ -274,6 +321,11 @@ vbmeta 镜像还可以包含对其他分区的引用，其中存储了验证数�
 如果设置了 `AVB_ENABLE_DEBUG` 预处理器符号，代码将包含有用的调试信息和运行时检查。生产构建不应使用此功能。仅在编译库时应设置预处理器符号 `AVB_COMPILATION` 。代码必须编译成单独的库。
 
 应用程序使用编译的 `libavb` 库时，必须仅包含 `libavb/libavb.h` 文件（其中将包含所有公共接口），并且不得设置 `AVB_COMPILATION` 预处理器符号。这是为了确保可能在未来更改的内部代码（例如 `avb_sha.[ch]` 和 `avb_rsa.[ch]` ）不会对应用程序代码可见。
+
+> 问题:
+>
+> 1. 将 libavb 移植到一个新系统需要做哪些工作？
+> 2. 能分清楚 libavb 中哪些是公开接口，哪些是私有实现吗？(封装的基本思想)
 
 ## 版本和兼容性
 
@@ -300,7 +352,7 @@ required_libavb_version_minor = 0
 avbtool_release_string = "avbtool 1.4.3"
 ```
 
-如果，例如，创建一个不使用 AVB 1.0 版本后添加的任何功能的图像。
+如果，例如，创建一个不使用 AVB 1.0 版本后添加的任何功能的镜像。
 
 ##  添加新功能
 
@@ -314,6 +366,16 @@ avbtool_release_string = "avbtool 1.4.3"
 如果自上次发布以来 `AVB_VERSION_MINOR` 已经被更新，显然没有必要再次更新它。
 
 ##  使用 avbtool
+
+> 强哥注：
+>
+> avbtool 是 AVB 中最关键最常用的一个工具，掌握 avbtool 常用的功能，尤其是 `info_image` 如何查看镜像的 vbmeta 信息。如果希望阅读最少得代码来了解 AVB，那我建议就是阅读 avbtool.py 的源码，了解各个分区镜像的 VBMeta 数据是如何生成的，因为使用 AVB 时，就是生成 VBMeta 的反向操作--使用。知道了如何生成，那就大致了解该如何使用。
+>
+> 问题:
+>
+> 1. 在 Android 编译的 log 中搜索，看看 avbtool 对哪些镜像进行了操作？avbtool 对不同分区镜像是如何操作的？例如 boot, system, product, vendor 和 vbmeta 分区
+> 2. 尝试使用 avbtool 生成和解析 boot, system, product, vendor 和 vbmeta 分区的数据
+> 3. 熟悉一些 avbtool 的操作
 
 vbmeta 分区的内容可以按以下方式生成：
 
@@ -385,7 +447,7 @@ $ avbtool add_hashtree_footer                                                  \
 
 有效值包括 `sha1` 、 `sha256` 和 `blake2b-256` 。
 
-图像带版权脚注的大小可以使用 `resize_image` 命令更改：
+镜像带版权脚注的大小可以使用 `resize_image` 命令更改：
 
 ```
 $ avbtool resize_image                                                         \
@@ -393,23 +455,23 @@ $ avbtool resize_image                                                         \
     --partition_size SIZE
 ```
 
-图像的完整性页脚可以从图像中移除。哈希树可以保留。
+镜像的完整性页脚可以从镜像中移除。哈希树可以保留。
 
 ```
 $ avbtool erase_footer --image IMAGE [--keep_hashtree]
 ```
 
-对于哈希和哈希树图像，vbmeta 结构也可以通过 `--output_vbmeta_image` 选项写入外部文件，并且还可以指定不要将 vbmeta 结构和页脚添加到正在操作的画面中。
+对于哈希和哈希树镜像，vbmeta 结构也可以通过 `--output_vbmeta_image` 选项写入外部文件，并且还可以指定不要将 vbmeta 结构和页脚添加到正在操作的画面中。
 
-图像中的哈希树和 FEC 数据可以使用以下命令清零：
+镜像中的哈希树和 FEC 数据可以使用以下命令清零：
 
 ```
 $ avbtool zero_hashtree --image IMAGE
 ```
 
-这对于在运行时重新计算哈希树和 FEC 以换取压缩图像大小是有用的。如果这样做，哈希树和 FEC 数据将被设置为 0，除了前八个字节被设置为魔法 `ZeRoHaSH` 。哈希树或 FEC 数据或两者都可以这样设置为 0，因此应用程序应在两个地方检查魔法。应用程序可以使用魔法来检测是否需要重新计算。
+这对于在运行时重新计算哈希树和 FEC 以换取压缩镜像大小是有用的。如果这样做，哈希树和 FEC 数据将被设置为 0，除了前八个字节被设置为魔法 `ZeRoHaSH` 。哈希树或 FEC 数据或两者都可以这样设置为 0，因此应用程序应在两个地方检查魔法。应用程序可以使用魔法来检测是否需要重新计算。
 
-计算在执行了 `avbtool add_hash_footer` 或 `avbtool add_hashtree_footer` 命令后，将适合给定大小的分区中的最大图像大小的选项为 `--calc_max_image_size` ：
+计算在执行了 `avbtool add_hash_footer` 或 `avbtool add_hashtree_footer` 命令后，将适合给定大小的分区中的最大镜像大小的选项为 `--calc_max_image_size` ：
 
 ```
 $ avbtool add_hash_footer --partition_size $((10*1024*1024)) \
@@ -451,7 +513,7 @@ $ avbtool make_vbmeta_image \
 
 该位置参数的最后一个参数是一个包含要签名数据的文件。辅助程序应将签名写入此文件。
 
-`append_vbmeta_image` 命令可以用来将整个 vbmeta blob 附加到另一个图像的末尾。这在不需要任何 vbmeta 分区的情况下很有用，例如：
+`append_vbmeta_image` 命令可以用来将整个 vbmeta blob 附加到另一个镜像的末尾。这在不需要任何 vbmeta 分区的情况下很有用，例如：
 
 ```
 $ cp boot.img boot-with-vbmeta-appended.img
@@ -462,15 +524,15 @@ $ avbtool append_vbmeta_image                       \
 $ fastboot flash boot boot-with-vbmeta-appended.img
 ```
 
-关于图像的信息可以使用 `info_image` 命令获取。此命令的输出不应被依赖，信息结构的方式可能会改变。
+关于镜像的信息可以使用 `info_image` 命令获取。此命令的输出不应被依赖，信息结构的方式可能会改变。
 
-`verify_image` 命令可用于同时验证多个图像文件的内容。在图像上调用时，将执行以下检查：
+`verify_image` 命令可用于同时验证多个镜像文件的内容。在镜像上调用时，将执行以下检查：
 
-- 如果图像具有 VBMeta 结构，则签名将与嵌入的公钥进行比对。如果图像看起来不像 `vbmeta.img` ，则将寻找并使用（如果存在）页脚。
+- 如果镜像具有 VBMeta 结构，则签名将与嵌入的公钥进行比对。如果镜像看起来不像 `vbmeta.img` ，则将寻找并使用（如果存在）页脚。
 - 如果传递了选项 `--key` ，则期望一个 `.pem` 文件，并检查该 VBMeta 结构中嵌入的公钥是否与给定的密钥匹配。
 - 所有 VBMeta 结构中的描述符都按以下方式进行检查：
-  - 对于一个哈希描述符，加载与分区名称对应的图像文件，并检查其摘要与描述符中的摘要是否一致。
-  - 对于一个哈希树描述符，加载与分区名称对应的图像文件，计算哈希树并比较其根摘要与描述符中的摘要。
+  - 对于一个哈希描述符，加载与分区名称对应的镜像文件，并检查其摘要与描述符中的摘要是否一致。
+  - 对于一个哈希树描述符，加载与分区名称对应的镜像文件，计算哈希树并比较其根摘要与描述符中的摘要。
   - 对于一个链式分区描述符，其内容与通过 `--expected_chain_partition` 选项传递的内容进行比较。此选项的格式类似于 `--chain_partition` 选项。如果没有为链式分区描述符提供 `--expected_chain_partition` 描述符，则检查失败。
 
 这是一个示例，其中 `boot.img` 和 `system.img` 的摘要存储在 `vbmeta.img` 中，该摘要由 `my_key.pem` 签名。它还检查分区 `foobar` 的链分区使用回滚索引 8，并且 AVB 格式的公钥与文件 `foobar_vendor_key.avbpubkey` 中的公钥匹配。
@@ -488,11 +550,11 @@ system: Successfully verified sha1 hashtree of /path/to/system.img for image of 
 foobar: Successfully verified chain partition descriptor matches expected data
 ```
 
-在这个示例中， `verify_image` 命令验证目录 `/path/to` 中的文件 `vbmeta.img` 、 `boot.img` 和 `system.img` 。给定图像的目录和文件扩展名（例如， `/path/to/vbmeta.img` ）与分区名称一起用于描述符中，以计算包含哈希和哈希树图像的图像文件名。
+在这个示例中， `verify_image` 命令验证目录 `/path/to` 中的文件 `vbmeta.img` 、 `boot.img` 和 `system.img` 。给定镜像的目录和文件扩展名（例如， `/path/to/vbmeta.img` ）与分区名称一起用于描述符中，以计算包含哈希和哈希树镜像的镜像文件名。
 
 `verify_image` 命令也可以用来检查自定义签名助手是否按预期工作。
 
-`calculate_vbmeta_digest` 命令可用于同时计算多个图像文件的 vbmeta 摘要。结果以十六进制字符串形式打印在 `STDOUT` 或提供的路径上（使用 `--output` 选项）。
+`calculate_vbmeta_digest` 命令可用于同时计算多个镜像文件的 vbmeta 摘要。结果以十六进制字符串形式打印在 `STDOUT` 或提供的路径上（使用 `--output` 选项）。
 
 ```
 $ avbtool calculate_vbmeta_digest \
@@ -527,6 +589,16 @@ $ cat /tmp/avb_invocation.log
 
 ## 构建系统集成
 
+> 强哥注：
+>
+> 关于 AVB 系统的配置，最快的了解办法就是阅读 AVB 的官方文档，以及本文档中此部分。到底需要哪些配置，个人认为最好的办法就是下载 AOSP 开源代码，编译一个 Android 官方设备源码，参考文档中关于 AVB 相关配置，并从 log 中观察 avbtool 是如何被用来处理各个分区镜像的。
+>
+> 如果你从来没了解过 AVB 也没有编译过 Android 镜像，那知道如何打开 AVB 开关，AVB 包含哪些开关可能是最重要的。
+>
+> 如果你希望了解的是 AVB 的基本原来，其实和 Android 中的配置就没有太大关系，可以先基于一个已经工作的 AVB 系统了解了底层原理后，再回过头来看是如何配置的，此时关于配置就显得无足轻重。
+>
+> 这也是本系列没有一开始就介绍 AVB 编译配置的原因。
+
 在 Android 中，通过 `BOARD_AVB_ENABLE` 变量启用 AVB
 
 ```
@@ -557,7 +629,7 @@ BOARD_AVB_VBMETA_SYSTEM_ROLLBACK_INDEX_LOCATION := 1
 
 请注意， `system.img` 、 `system_ext.img` 和 `product.img` 的哈希树描述符仅包含在 `vbmeta_system.img` 中，但不包含在 `vbmeta.img` 中。以上设置下，分区 `system.img` 、 `system_ext.img` 、 `product.img` 和 `vbmeta_system.img` 可以独立更新——但作为一个组——与其他分区一起，或者作为更新所有分区的传统更新的一部分。
 
-当前构建系统支持构建链式 `vbmeta` 图像的 `vbmeta_system.img` （ `BOARD_AVB_VBMETA_SYSTEM` ）和 `vbmeta_vendor.img` （ `BOARD_AVB_VBMETA_VENDOR` ）。
+当前构建系统支持构建链式 `vbmeta` 镜像的 `vbmeta_system.img` （ `BOARD_AVB_VBMETA_SYSTEM` ）和 `vbmeta_vendor.img` （ `BOARD_AVB_VBMETA_VENDOR` ）。
 
 为防止回滚攻击，应定期增加回滚索引。回滚索引可以通过 `BOARD_AVB_ROLLBACK_INDEX` 变量设置：
 
@@ -583,17 +655,31 @@ A/B 相关的构建系统变量可以在这里找到。
 
 #  设备集成
 
+> 问题：
+>
+> 1. 如前面的问题，将 libavb 集成到一个 bootloader 或者一个 linux 系统中，需要做哪些工作？
+
 本节讨论了将 `libavb` 与设备引导加载程序集成的建议和最佳实践。重要的是强调，这些只是建议，因此对 `must` 一词的使用应谨慎。
 
 此外，本章中使用术语 HLOS 来指代高级操作系统。这显然包括 Android（包括除手机以外的其他形态）但也可以是其他操作系统。
 
 ##  系统依赖
 
+> 问题：(这里的问题和 AVB 特性没有关系，主要是和可移植性有关)
+>
+> 1. libavb 中的代码是如何做到可移植的？
+> 2. 尝试理清 libavb 代码内部的层次关系~
+
 该 `libavb` 库以可移植的方式编写，适用于任何具有 C99 编译器的系统。它不需要标准 C 库，但是引导加载程序必须实现 `libavb` 所需的一系列简单系统原语，例如 `avb_malloc()` 、 `avb_free()` 和 `avb_print()` 。
 
 除了系统原语之外， `libavb` 通过提供的 `AvbOps` 结构体与引导加载程序接口。这包括从分区读取和写入数据、读取和写入回滚索引、检查用于生成签名的公钥是否应该被接受等操作。
 
 ##  锁定和解锁模式
+
+> 问题：
+>
+> 1. Android  设备都存在哪些状态？
+> 2. LOCKED 状态的数据存放在哪里？是存放在 boot.img 这样的镜像中吗？
 
 AVB 已设计为支持设备处于锁定状态或解锁状态的概念，正如在 Android 中使用的。
 
@@ -613,6 +699,11 @@ AVB 已设计为支持设备处于锁定状态或解锁状态的概念，正如�
 
 ##  防篡改存储
 
+> 问题：
+>
+> 1. 什么是防纂改存储？
+> 2. 哪些安全设备可以用于防纂改存储？
+
 在此文档中，防篡改意味着可以检测到 HLOS 是否篡改了数据，例如，如果它已被覆盖。
 
 防篡改存储必须用于存储回滚索引、用于验证的密钥、设备状态（设备是否被锁定或解锁）以及命名持久值。如果检测到篡改，相应的 `AvbOps` 操作应失败，例如通过返回 `AVB_IO_RESULT_ERROR_IO` 。特别重要的是，验证密钥不能被篡改，因为它们代表了信任的根源。
@@ -620,6 +711,10 @@ AVB 已设计为支持设备处于锁定状态或解锁状态的概念，正如�
 如果验证密钥可变，则只能由最终用户设置，例如，绝不能在工厂、商店或最终用户之前的任何中间点设置。此外，只有在设备处于解锁状态时才能设置或清除密钥。
 
 ##  命名持久值
+
+> 问题：
+>
+> 1. 持久值存放在哪里？
 
 AVB 1.1 引入了对命名持久值的支持，这些值必须是防篡改的，并允许 AVB 存储任意键值对。集成商可以将对这些值的支持限制为一组固定的已知名称、最大值大小以及/或最大值数量。
 
@@ -634,6 +729,11 @@ AVB 1.1 引入了对命名持久值的支持，这些值必须是防篡改的，
 默认情况下，当使用 `--use_persistent_digest` 选项与 `add_hash_footer` 或 `add_hashtree_footer` 一起使用时，avbtool 将生成一个不带盐的描述符，而不是生成随机盐的典型默认值。这是因为摘要值存储在持久存储中，因此不能随时间改变。另一种选择是手动使用 `--salt` 提供随机盐，但一旦写入持久摘要值，此盐需要保持不变，直到设备寿命结束。
 
 ## 更新存储的回滚索引
+
+> 问题：
+>
+> 1. 什么时候需要检查回滚索引？
+> 2. 什么时候更新回滚索引？
 
 为了使回滚保护功能正常工作，引导加载程序需要在将控制权传递给 HLOS 之前更新设备上的 `stored_rollback_indexes[n]` 数组。如果不使用 A/B，这很简单——只需将其更新为启动前 AVB 元数据中指定槽位的内容。在伪代码中，它看起来是这样的：
 
@@ -826,4 +926,19 @@ fastboot erase avb_custom_key
 ### 版本 1.0
 
 所有未在后续版本中明确列出的功能均由 1.0 版本支持。
+
+
+
+## 其它
+
+我创建了一个 Android AVB 讨论群，主要讨论 Android 设备的 AVB 验证问题。
+
+我还有几个 Android OTA 升级讨论群，主要讨论 Android 设备的 OTA 升级话题。
+
+欢迎您加群和我们一起交流，请在加我微信时注明“Android AVB 交流”或“Android OTA 交流”。
+
+仅限 Android 相关的开发者参与~
+
+> 公众号“洛奇看世界”后台回复“wx”获取个人微信。
+
 
