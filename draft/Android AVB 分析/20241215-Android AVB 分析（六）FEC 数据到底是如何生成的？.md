@@ -13,7 +13,7 @@ Android 编译时会调用 avbtool 对 system, vendor, product 等镜像生成 h
 
 ## 2. 使用 avbtool 处理和查看 system.img
 
-### 2.1 使用 avbtool 给 system.img 添加 hashtree 
+### 2.1 使用 avbtool 给 system.img 添加 FEC 数据
 
 搜索编译 log，会发现编译中会调用下面的命令处理 target 包中的 system 镜像：
 
@@ -101,7 +101,7 @@ Descriptors:
 
 
 
-## 3. system.img 的 hashtree 是如何生成的？
+## 3. system.img 的 FEC 是如何生成的？
 
 使用 avbtool 的 `add_hashtree_footer` 操作处理 system.img 或者 vendor.img 时，FEC 数据的生成是在 `add_hashtree_footer()` 函数中通过调用 `generate_fec_data()` 来完成的。
 

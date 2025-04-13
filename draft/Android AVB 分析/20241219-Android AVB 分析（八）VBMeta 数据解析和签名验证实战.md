@@ -4,7 +4,7 @@
 
 ## 1. 导读
 
-在上一篇《AVB 的 VBMeta 数据是如何生成的？》中，我们分析了 VBMeta 数据时如何生成的，以及 VBMeta 的主要布局，但并没有进一步深入检查 VBMeta 的数据。
+在上一篇[Android AVB 分析（七）VBMeta 数据是如何生成的？](https://blog.csdn.net/guyongqiangx/article/details/144655275)中，我们分析了 VBMeta 数据时如何生成的，以及 VBMeta 的主要布局，但并没有进一步深入检查 VBMeta 的数据。
 
 本篇我们继续深入 VBMeta 数据，实战手动验证签名，解析各种描述符。
 
